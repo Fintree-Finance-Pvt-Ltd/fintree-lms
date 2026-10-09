@@ -49,6 +49,31 @@ const  partnerConfigByPrefix  = {
       pincode: row.pincode,
     }),
   },
+// Add emiclub2
+  FINE2: {
+  partner: "emiclub2",
+  table: "loan_booking_emiclub2",
+  reportTable: "loan_cibil_reports",
+  scoreColumn: "cibil_score",
+  pendingWhere: "cibil_score IS NULL",
+  orderBy: "lan DESC",
+
+  mapRow: (row) => ({
+    lan: row.lan,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    gender: row.gender,
+    dob: row.dob,
+    panNumber: row.pan_number,
+    loanAmount: row.loan_amount,
+    loanTenure: row.loan_tenure,
+    mobileNumber: row.mobile_number,
+    address: row.current_address,
+    city: row.current_village_city,
+    state: row.current_state,
+    pincode: row.current_pincode,
+  }),
+},
   // Add helium
   HEL: {
     partner: "helium",

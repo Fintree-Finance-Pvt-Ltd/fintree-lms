@@ -1,0 +1,1675 @@
+import React, { useEffect, useState } from "react";
+import api from "../../api/api";
+import { useNavigate } from "react-router-dom";
+import DataTable from "../ui/DataTable";
+import LoaderOverlay from "../ui/LoaderOverlay";
+
+const ClaimBuddyLimitEntry = ({
+  apiUrl = `/claim-buddy/credit-approved-loans?table=loan_booking_claim_buddy&prefix=CBF`,
+  title = "Credit Limit Approval And Disburse Loans",
+  lenderName = "CLAIM BUDDY",
+  tableName = "loan_booking_claim_buddy",
+}) => {
+  const [rows, setRows] = useState([]);
+  const [limits, setLimits] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState({});
+  const [err, setErr] = useState("");
+  const [actionLan, setActionLan] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  const [showBankModal, setShowBankModal] = useState(false);
+  const [selectedLoan, setSelectedLoan] = useState(null);
+
+  const [bankForm, setBankForm] = useState({
+    account_no: "",
+    ifsc: "",
+    account_type: "SAVINGS",
+    bank_name: "",
+    account_holder_name: "",
+    mandate_amount: "",
+    mandate_start_date: "",
+    mandate_end_date: "",
+    mandate_frequency: "monthly",
+  });
+
+  const [bankLoading, setBankLoading] = useState(false);
+  const [bankError, setBankError] = useState("");
+  const [bankResult, setBankResult] = useState(null);
+
+  const navigate = useNavigate();
+
+  const openApprovedLoanDetails = (row) => {
+    const lan = row?.lan || row?.LAN;
+
+    if (!lan) return;
+
+    navigate(`/approved-loan-details-claim-buddy/${encodeURIComponent(lan)}`);
+  };
+
+  useEffect(() => {
+    let off = false;
+
+    setLoading(true);
+    setErr("");
+
+    api
+      .get(apiUrl)
+      .then((res) => {
+        if (!off) {
+          setRows(Array.isArray(res.data) ? res.data : []);
+        }
+      })
+      .catch((error) => {
+        console.error(
+          "Failed to fetch Claim Buddy credit approved loans:",
+          error,
+        );
+
+        if (!off) {
+          setErr("Failed to fetch data.");
+        }
+      })
+      .finally(() => {
+        if (!off) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      off = true;
+    };
+  }, [apiUrl]);
+
+  const toYMD = (d) => {
+    const date = d instanceof Date ? d : new Date(d);
+
+    if (Number.isNaN(date.getTime())) return "";
+
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const dd = String(date.getDate()).padStart(2, "0");
+
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const addMonthsToDate = (dateStr, months) => {
+    if (!dateStr) return "";
+
+    const d = new Date(dateStr);
+
+    if (Number.isNaN(d.getTime())) return "";
+
+    d.setMonth(d.getMonth() + Number(months || 0));
+
+    return toYMD(d);
+  };
+
+  const handleLimitChange = (lan, value) => {
+    setLimits((prev) => ({
+      ...prev,
+      [lan]: value,
+    }));
+  };
+
+  const handleBankChange = (e) => {
+    const { name, value } = e.target;
+
+    setBankForm((prev) => {
+      if (name === "mandate_start_date") {
+        return {
+          ...prev,
+          mandate_start_date: value,
+          mandate_end_date: addMonthsToDate(value, 24),
+        };
+      }
+
+      return {
+        ...prev,
+        [name]: value,
+      };
+    });
+  };
+
+  const isOpsApproved = (r) => r.status === "OPS APPROVED";
+
+  const resetToastAfterDelay = () => {
+    setTimeout(() => {
+      setToast(null);
+    }, 3000);
+  };
+
+  // ==========================================
+  // FINAL LIMIT
+  // ==========================================
+
+  const handleLimitSubmit = async (lan) => {
+    const inputLimit = Number(limits[lan]);
+
+    const row = rows.find((r) => r.lan === lan);
+
+    const loanAmount = Number(row?.loan_amount || 0);
+
+    if (!inputLimit || inputLimit <= 0) {
+      alert("Enter valid limit");
+      return;
+    }
+
+    if (loanAmount > 0 && inputLimit > loanAmount) {
+      const confirmMove = window.confirm(
+        "Requested limit exceeds approved limit. Case will move back to Credit Recheck. Continue?",
+      );
+
+      if (!confirmMove) return;
+    }
+
+    try {
+      setSubmitting((prev) => ({
+        ...prev,
+        [lan]: true,
+      }));
+
+      await api.put(`/claim-buddy/set-limit/${lan}`, {
+        inputLimit,
+        table: tableName,
+      });
+
+      setRows((prev) =>
+        prev.map((r) =>
+          r.lan === lan
+            ? {
+                ...r,
+
+                final_limit: inputLimit,
+
+                status:
+                  loanAmount > 0 && inputLimit > loanAmount
+                    ? "Credit Recheck"
+                    : "OPS APPROVED",
+
+                stage:
+                  loanAmount > 0 && inputLimit > loanAmount
+                    ? "CREDIT_REWORK"
+                    : "OPS_APPROVED",
+
+                limit_rework_required:
+                  loanAmount > 0 && inputLimit > loanAmount ? 1 : 0,
+
+                limit_rework_reason:
+                  loanAmount > 0 && inputLimit > loanAmount
+                    ? `Requested amount ${inputLimit} exceeds assigned limit ${loanAmount}`
+                    : null,
+              }
+            : r,
+        ),
+      );
+    } catch (error) {
+      console.error("Claim Buddy limit submit error:", error);
+
+      alert(error.response?.data?.message || "Failed to submit limit");
+    } finally {
+      setSubmitting((prev) => ({
+        ...prev,
+        [lan]: false,
+      }));
+    }
+  };
+
+  // ==========================================
+  // AGREEMENT ESIGN
+  // ==========================================
+
+  const handleAgreementEsign = async (row) => {
+    const lan = row.lan;
+
+    if (
+      String(row.agreement_esign_status || "")
+        .trim()
+        .toUpperCase() === "SIGNED"
+    ) {
+      alert("Agreement already signed");
+      return;
+    }
+
+    if (!window.confirm(`Send agreement eSign to ${lan}?`)) {
+      return;
+    }
+
+    setActionLan(lan);
+
+    try {
+      // Shared existing eSign endpoint - unchanged
+      await api.post(`/esign/${lan}/esign/agreement`);
+
+      setRows((old) =>
+        old.map((r) =>
+          r.lan === lan
+            ? {
+                ...r,
+                agreement_esign_status: "INITIATED",
+              }
+            : r,
+        ),
+      );
+
+      setToast({
+        type: "success",
+        msg: "Agreement eSign initiated",
+      });
+
+      resetToastAfterDelay();
+    } catch (error) {
+      console.error(error);
+
+      setToast({
+        type: "error",
+        msg: "Failed to start agreement eSign",
+      });
+
+      resetToastAfterDelay();
+    } finally {
+      setActionLan(null);
+    }
+  };
+
+  // ==========================================
+  // BANK MODAL
+  // ==========================================
+
+  const openBankModal = (loanRow) => {
+    const startDate =
+      loanRow.agreement_date || loanRow.login_date || toYMD(new Date());
+
+    const endDate = addMonthsToDate(startDate, 24);
+
+    setSelectedLoan(loanRow);
+
+    setBankError("");
+    setBankResult(null);
+
+    setBankForm({
+      account_no:
+        loanRow.account_number ||
+        loanRow.account_no ||
+        loanRow.acc_no ||
+        loanRow.bankAccNo ||
+        "",
+
+      ifsc: loanRow.ifsc || loanRow.bank_ifsc || loanRow.bankIfsc || "",
+
+      account_type: loanRow.bank_account_type || "SAVINGS",
+
+      bank_name:
+        loanRow.bank_name ||
+        loanRow.customer_bank_name ||
+        loanRow.bankName ||
+        "",
+
+      account_holder_name:
+        loanRow.name_in_bank ||
+        loanRow.acc_holder_name ||
+        loanRow.customer_name ||
+        "",
+
+      mandate_amount: loanRow.final_limit || loanRow.loan_amount || "",
+
+      mandate_start_date: startDate,
+
+      mandate_end_date: endDate,
+
+      mandate_frequency: "monthly",
+    });
+
+    setShowBankModal(true);
+  };
+
+  const closeBankModal = () => {
+    setShowBankModal(false);
+    setSelectedLoan(null);
+    setBankError("");
+    setBankResult(null);
+  };
+
+  const handleOpenBank = (r) => {
+    if (!isOpsApproved(r)) {
+      alert("Ops approval required first");
+
+      return;
+    }
+
+    openBankModal(r);
+  };
+
+  // ==========================================
+  // VERIFY BANK + CREATE MANDATE
+  // ==========================================
+
+  const handleBankSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!selectedLoan) return;
+
+    const {
+      account_no,
+      ifsc,
+      account_holder_name,
+      mandate_amount,
+      mandate_start_date,
+      mandate_end_date,
+      mandate_frequency,
+      bank_name,
+      account_type,
+    } = bankForm;
+
+    if (!account_no || !ifsc || !account_holder_name || !mandate_amount) {
+      setBankError("Please fill all required fields.");
+
+      return;
+    }
+
+    setBankLoading(true);
+    setBankError("");
+    setBankResult(null);
+
+    try {
+      const lan = selectedLoan.lan;
+
+      const customer_identifier =
+        selectedLoan.mobile_number || selectedLoan.email_id || "";
+
+      // Shared eNACH API - unchanged
+      const verifyRes = await api.post("/enach/verify-bank", {
+        lan,
+        account_no,
+        ifsc,
+        name: account_holder_name,
+        bank_name,
+        account_type,
+        mandate_amount,
+        amount: 1,
+      });
+
+      const verifyData = verifyRes.data || {};
+
+      setBankResult({
+        verified: verifyData.verified,
+
+        fuzzy_score: verifyData.fuzzy_match_score,
+      });
+
+      if (!verifyData.verified) {
+        setBankError("Bank verification failed");
+
+        setBankLoading(false);
+
+        return;
+      }
+
+      const mandateRes = await api.post("/enach/create-mandate", {
+        lan,
+        customer_identifier,
+
+        amount: mandate_amount,
+
+        max_amount: mandate_amount,
+
+        start_date: mandate_start_date,
+
+        end_date: mandate_end_date || null,
+
+        frequency: mandate_frequency,
+
+        account_no,
+        ifsc,
+        account_type,
+
+        customer_name: account_holder_name,
+
+        bank_name,
+      });
+
+      if (!mandateRes.data?.success) {
+        setBankError(mandateRes.data?.message || "Mandate creation failed");
+
+        return;
+      }
+
+      setBankResult((prev) => ({
+        ...prev,
+
+        verified: true,
+
+        mandate_created: true,
+
+        document_id: mandateRes.data.documentId,
+      }));
+
+      setRows((prev) =>
+        prev.map((r) =>
+          r.lan === lan
+            ? {
+                ...r,
+
+                bank_status: "MANDATE_CREATED",
+              }
+            : r,
+        ),
+      );
+
+      closeBankModal();
+    } catch (error) {
+      console.error("Claim Buddy bank/mandate error:", error);
+
+      setBankError(error.response?.data?.message || "Something went wrong");
+    } finally {
+      setBankLoading(false);
+    }
+  };
+
+  const EsignChip = ({ status }) => {
+    const st = (status || "PENDING").toUpperCase();
+
+    const map = {
+      SIGNED: {
+        bg: "#dcfce7",
+        fg: "#14532d",
+        label: "Signed",
+      },
+
+      INITIATED: {
+        bg: "#dbeafe",
+        fg: "#1e3a8a",
+        label: "Initiated",
+      },
+
+      FAILED: {
+        bg: "#fee2e2",
+        fg: "#991b1b",
+        label: "Failed",
+      },
+
+      PENDING: {
+        bg: "#fef9c3",
+        fg: "#713f12",
+        label: "Pending",
+      },
+    };
+
+    const c = map[st] || map.PENDING;
+
+    return (
+      <span
+        style={{
+          padding: "3px 8px",
+          borderRadius: 999,
+          fontSize: 11,
+          background: c.bg,
+          color: c.fg,
+          fontWeight: 600,
+          width: "fit-content",
+        }}
+      >
+        ● {c.label}
+      </span>
+    );
+  };
+
+  const pill = (status) => {
+    const map = {
+      "credit approved": {
+        bg: "rgba(16,185,129,.12)",
+        bd: "rgba(16,185,129,.35)",
+        fg: "#065f46",
+      },
+
+      "limit requested": {
+        bg: "rgba(59,130,246,.12)",
+        bd: "rgba(59,130,246,.35)",
+        fg: "#1d4ed8",
+      },
+
+      "ops approved": {
+        bg: "rgba(139,92,246,.12)",
+        bd: "rgba(139,92,246,.35)",
+        fg: "#4c1d95",
+      },
+
+      "credit recheck": {
+        bg: "rgba(249,115,22,.12)",
+        bd: "rgba(249,115,22,.35)",
+        fg: "#9a3412",
+      },
+
+      rejected: {
+        bg: "rgba(239,68,68,.12)",
+        bd: "rgba(239,68,68,.35)",
+        fg: "#7f1d1d",
+      },
+
+      "disbursement initiated": {
+        bg: "rgba(34,197,94,.12)",
+        bd: "rgba(34,197,94,.35)",
+        fg: "#166534",
+      },
+    };
+
+    const key = (status || "pending").toLowerCase().trim();
+
+    const fallback = {
+      bg: "rgba(107,114,128,.12)",
+      bd: "rgba(107,114,128,.35)",
+      fg: "#374151",
+    };
+
+    const c = map[key] ?? fallback;
+
+    return {
+      display: "inline-flex",
+
+      alignItems: "center",
+
+      gap: 6,
+
+      padding: "6px 10px",
+
+      borderRadius: 999,
+
+      fontSize: 12,
+
+      fontWeight: 700,
+
+      background: c.bg,
+
+      color: c.fg,
+
+      border: `1px solid ${c.bd}`,
+    };
+  };
+
+  const baseColumns = [
+    {
+      key: "customer_name",
+
+      header: "Loan Details",
+
+      sortable: true,
+
+      render: (r) => (
+        <span
+          style={{
+            color: "#2563eb",
+
+            fontWeight: 600,
+
+            cursor: "pointer",
+          }}
+          onClick={() => openApprovedLoanDetails(r)}
+        >
+          {r.customer_name ?? "—"}
+        </span>
+      ),
+
+      sortAccessor: (r) => (r.customer_name || "").toLowerCase(),
+
+      width: 220,
+    },
+
+    {
+      key: "hospital_name",
+
+      header: "Hospital Name",
+
+      sortable: true,
+
+      render: (r) => (
+        <span
+          style={{
+            color: "#2563eb",
+
+            fontWeight: 600,
+
+            cursor: "pointer",
+          }}
+        >
+          {r.hospital_name ?? "—"}
+        </span>
+      ),
+
+      sortAccessor: (r) => (r.hospital_name || "").toLowerCase(),
+
+      width: 220,
+    },
+
+    {
+      key: "lan",
+
+      header: "LAN",
+
+      sortable: true,
+
+      render: (r) => (
+        <span
+          style={{
+            color: "#2563eb",
+
+            fontWeight: 600,
+
+            cursor: "pointer",
+          }}
+          onClick={() => openApprovedLoanDetails(r)}
+        >
+          {r.lan ?? "—"}
+        </span>
+      ),
+
+      sortAccessor: (r) => (r.lan || "").toLowerCase(),
+
+      width: 140,
+    },
+
+    {
+      key: "status",
+
+      header: "Status",
+
+      sortable: true,
+
+      render: (r) => (
+        <span style={pill(r.status)}>{r.status || "Pending"}</span>
+      ),
+
+      sortAccessor: (r) => (r.status || "").toLowerCase(),
+
+      csvAccessor: (r) => r.status || "Pending",
+
+      width: 140,
+    },
+
+    {
+      key: "docs",
+
+      header: "Documents",
+
+      render: (r) => (
+        <button
+          onClick={() => navigate(`/documents/${r.lan}`)}
+          style={{
+            padding: "8px 10px",
+
+            borderRadius: 8,
+
+            border: "1px solid #93c5fd",
+
+            color: "#1d4ed8",
+
+            background: "#fff",
+
+            cursor: "pointer",
+
+            fontSize: 13,
+
+            fontWeight: 600,
+          }}
+          title="Open documents"
+        >
+          📂 Docs
+        </button>
+      ),
+
+      csvAccessor: () => "",
+
+      width: 120,
+    },
+
+    {
+      key: "loan_amount",
+
+      header: "Requested",
+
+      width: 120,
+    },
+
+    {
+      key: "final_limit",
+
+      header: "Approved Limit",
+
+      width: 140,
+    },
+
+    {
+      key: "limit_entry",
+
+      header: "Final Limit",
+
+      render: (r) => {
+        const isAssigned =
+          r.status === "LIMIT REQUESTED" || r.status === "Credit Recheck";
+
+        const opsComplete = r.status === "OPS APPROVED";
+
+        const isLoading = submitting[r.lan];
+
+        return (
+          <div
+            style={{
+              display: "flex",
+
+              gap: 8,
+            }}
+          >
+            <input
+              type="number"
+              placeholder="Enter limit"
+              value={limits[r.lan] ?? r.final_limit ?? ""}
+              onChange={(e) => handleLimitChange(r.lan, e.target.value)}
+              disabled={isAssigned || isLoading || opsComplete}
+              style={{
+                width: 120,
+
+                padding: "6px 8px",
+
+                borderRadius: 6,
+
+                border: "1px solid #d1d5db",
+
+                fontSize: 13,
+
+                background: isAssigned ? "#f3f4f6" : "#fff",
+
+                cursor: isAssigned ? "not-allowed" : "text",
+              }}
+            />
+
+            <button
+              onClick={() => handleLimitSubmit(r.lan)}
+              disabled={isAssigned || isLoading || opsComplete}
+              style={{
+                padding: "6px 10px",
+
+                borderRadius: 6,
+
+                background: isAssigned
+                  ? "#9ca3af"
+                  : isLoading
+                    ? "#60a5fa"
+                    : opsComplete
+                      ? "#9ca3af"
+                      : "#2563eb",
+
+                color: "#fff",
+
+                border: "none",
+
+                fontWeight: 600,
+
+                cursor:
+                  isAssigned || isLoading || opsComplete
+                    ? "not-allowed"
+                    : "pointer",
+              }}
+            >
+              {isAssigned
+                ? "Assigned"
+                : isLoading
+                  ? "Saving..."
+                  : opsComplete
+                    ? "Approved"
+                    : "Submit"}
+            </button>
+          </div>
+        );
+      },
+
+      csvAccessor: (r) => r.final_limit || "",
+
+      width: 220,
+    },
+
+    // ==========================================
+    // SUBVENTION + DISBURSEMENT
+    // ==========================================
+
+    {
+      key: "subvention_entry",
+
+      header: "Updated Subvention & Disbursement",
+
+      render: (r) => {
+        const isSubventionSaved = !!r.updated_subvention;
+
+        const status = String(r.status || "")
+          .toUpperCase()
+          .trim();
+
+        const stage = String(r.stage || "")
+          .toUpperCase()
+          .trim();
+
+        const isLimitAssigned =
+          status === "ASSIGNED" ||
+          status === "LIMIT REQUESTED" ||
+          status === "OPS APPROVED" ||
+          status === "CREDIT APPROVED" ||
+          stage === "LIMIT_APPROVAL_PENDING" ||
+          stage === "OPS_APPROVED";
+
+        const isCreditApprovalPending =
+          status === "OPS APPROVED" ||
+          status === "CREDIT APPROVED" ||
+          stage === "CREDIT_APPROVAL_PENDING";
+
+        const isRejected = status === "REJECTED" || status === "BRE REJECTED";
+
+        const canEditSubvention =
+          !isLimitAssigned && !isCreditApprovalPending && !isRejected;
+
+        const isDisbursementInitiated = r.status === "DISBURSEMENT INITIATED";
+
+        const isAgreementSigned =
+          (r.agreement_esign_status || "").toUpperCase() === "SIGNED";
+
+        const isNachCompleted = Boolean(String(r.enach_umrn || "").trim());
+
+        const canInitiateDisbursement =
+          canEditSubvention && isAgreementSigned && isNachCompleted;
+
+        return (
+          <div
+            style={{
+              display: "flex",
+
+              flexDirection: "column",
+
+              gap: 6,
+            }}
+          >
+            <input
+              type="number"
+              placeholder="Update subvention"
+              value={
+                limits[`subvention_${r.lan}`] ?? r.updated_subvention ?? ""
+              }
+              onChange={(e) =>
+                setLimits((prev) => ({
+                  ...prev,
+
+                  [`subvention_${r.lan}`]: e.target.value,
+                }))
+              }
+              disabled={
+                !canEditSubvention ||
+                isDisbursementInitiated ||
+                isSubventionSaved
+              }
+              style={{
+                width: 150,
+
+                padding: "6px 8px",
+
+                borderRadius: 6,
+
+                border: "1px solid #d1d5db",
+
+                fontSize: 13,
+              }}
+            />
+
+            <button
+              onClick={async () => {
+                try {
+                  const value = limits[`subvention_${r.lan}`];
+
+                  if (!value) {
+                    alert("Enter updated subvention amount");
+
+                    return;
+                  }
+
+                  await api.put(`/claim-buddy/update-subvention/${r.lan}`, {
+                    updated_subvention: value,
+
+                    table: tableName,
+                  });
+
+                  setRows((prev) =>
+                    prev.map((row) =>
+                      row.lan === r.lan
+                        ? {
+                            ...row,
+
+                            updated_subvention: value,
+                          }
+                        : row,
+                    ),
+                  );
+
+                  alert("Updated subvention saved successfully");
+                } catch (err) {
+                  console.error(err);
+
+                  alert(
+                    err.response?.data?.message ||
+                      "Failed to update subvention",
+                  );
+                }
+              }}
+              disabled={
+                !canEditSubvention ||
+                isDisbursementInitiated ||
+                isSubventionSaved
+              }
+              style={{
+                padding: "6px 10px",
+
+                borderRadius: 6,
+
+                background: "#2563eb",
+
+                color: "#fff",
+
+                border: "none",
+
+                fontWeight: 600,
+
+                cursor:
+                  !canEditSubvention ||
+                  isDisbursementInitiated ||
+                  isSubventionSaved
+                    ? "not-allowed"
+                    : "pointer",
+
+                opacity:
+                  !canEditSubvention ||
+                  isDisbursementInitiated ||
+                  isSubventionSaved
+                    ? 0.7
+                    : 1,
+              }}
+            >
+              {isSubventionSaved ? "Subvention Saved" : "Save Subvention"}
+            </button>
+
+            <button
+              onClick={async () => {
+                if (!isAgreementSigned || !isNachCompleted) {
+                  alert(
+                    !isAgreementSigned && !isNachCompleted
+                      ? "Complete agreement signing and NACH before initiating disbursement"
+                      : !isAgreementSigned
+                        ? "Complete agreement signing before initiating disbursement"
+                        : "Complete NACH and obtain the UMRN before initiating disbursement",
+                  );
+
+                  return;
+                }
+
+                if (!window.confirm(`Initiate disbursement for ${r.lan}?`)) {
+                  return;
+                }
+
+                try {
+                  await api.post(
+                    `/claim-buddy/initiate-disbursement/${r.lan}`,
+                    {
+                      table: tableName,
+                    },
+                  );
+
+                  setRows((prev) =>
+                    prev.map((row) =>
+                      row.lan === r.lan
+                        ? {
+                            ...row,
+
+                            status: "DISBURSEMENT INITIATED",
+
+                            stage: "DISBURSEMENT_INITIATED",
+                          }
+                        : row,
+                    ),
+                  );
+
+                  alert("Disbursement initiated successfully");
+                } catch (err) {
+                  console.error(err);
+
+                  const errorData = err.response?.data;
+
+                  if (errorData?.code === "DISBURSEMENT_LIMIT_EXCEEDED") {
+                    alert(
+                      `Disbursement limit exceeded for CLAIM BUDDY.
+
+Assigned: ₹${Number(errorData.assigned_limit || 0).toLocaleString("en-IN")}
+
+Used: ₹${Number(errorData.used_limit || 0).toLocaleString("en-IN")}
+
+Remaining: ₹${Number(errorData.remaining_limit || 0).toLocaleString("en-IN")}
+
+Required: ₹${Number(errorData.required_amount || 0).toLocaleString("en-IN")}`,
+                    );
+                  } else {
+                    alert(
+                      errorData?.message || "Failed to initiate disbursement",
+                    );
+                  }
+                }
+              }}
+              disabled={!canInitiateDisbursement || isDisbursementInitiated}
+              title={
+                isDisbursementInitiated
+                  ? "Disbursement already initiated"
+                  : !isAgreementSigned && !isNachCompleted
+                    ? "Agreement signing and NACH are pending"
+                    : !isAgreementSigned
+                      ? "Agreement signing is pending"
+                      : !isNachCompleted
+                        ? "NACH completion (UMRN) is pending"
+                        : "Initiate disbursement"
+              }
+              style={{
+                padding: "6px 10px",
+
+                borderRadius: 6,
+
+                background:
+                  !canInitiateDisbursement || isDisbursementInitiated
+                    ? "#9ca3af"
+                    : "#16a34a",
+
+                color: "#fff",
+
+                border: "none",
+
+                fontWeight: 600,
+
+                cursor:
+                  !canInitiateDisbursement || isDisbursementInitiated
+                    ? "not-allowed"
+                    : "pointer",
+              }}
+            >
+              {isDisbursementInitiated
+                ? "Disbursement Initiated"
+                : !isAgreementSigned || !isNachCompleted
+                  ? "Complete Agreement & NACH"
+                  : "Initiate Disbursement"}
+            </button>
+          </div>
+        );
+      },
+
+      width: 200,
+    },
+
+    // ==========================================
+    // AGREEMENT + MANDATE
+    // ==========================================
+
+    {
+      key: "post_limit_actions",
+
+      header: "Agreement & Mandate",
+
+      render: (r) => {
+        const opsApproved = isOpsApproved(r);
+
+        const agreementStatus = String(r.agreement_esign_status || "PENDING")
+          .trim()
+          .toUpperCase();
+
+        const bankStatus = String(r.bank_status || "PENDING")
+          .trim()
+          .toUpperCase();
+
+        const disableBank =
+          !opsApproved ||
+          bankStatus === "MANDATE_INITIATED" ||
+          bankStatus === "VERIFIED" ||
+          bankStatus === "MANDATE_CREATED";
+
+        const isAgreementDisabled =
+          !opsApproved ||
+          actionLan === r.lan ||
+          agreementStatus === "INITIATED" ||
+          agreementStatus === "SIGNED";
+
+        const bankChipMap = {
+          PENDING: {
+            bg: "rgba(234,179,8,.12)",
+            bd: "rgba(234,179,8,.35)",
+            fg: "#713f12",
+            label: "Pending Bank",
+          },
+
+          VERIFIED: {
+            bg: "rgba(59,130,246,.12)",
+            bd: "rgba(59,130,246,.35)",
+            fg: "#1e3a8a",
+            label: "Verified",
+          },
+
+          MANDATE_INITIATED: {
+            bg: "rgba(124,58,237,.12)",
+            bd: "rgba(124,58,237,.35)",
+            fg: "#5b21b6",
+            label: "Mandate Initiated",
+          },
+
+          MANDATE_CREATED: {
+            bg: "rgba(16,185,129,.12)",
+            bd: "rgba(16,185,129,.35)",
+            fg: "#065f46",
+            label: "Mandate Created",
+          },
+        };
+
+        const chip = bankChipMap[bankStatus] || bankChipMap.PENDING;
+
+        return (
+          <div
+            style={{
+              display: "flex",
+
+              flexDirection: "column",
+
+              gap: 6,
+            }}
+          >
+            <EsignChip status={r.agreement_esign_status} />
+
+            <button
+              onClick={() => handleAgreementEsign(r)}
+              disabled={isAgreementDisabled}
+              style={{
+                padding: "6px 8px",
+
+                borderRadius: 6,
+
+                border: isAgreementDisabled
+                  ? "1px solid #cbd5f5"
+                  : "1px solid #93c5fd",
+
+                color: isAgreementDisabled ? "#9ca3af" : "#1d4ed8",
+
+                background: "#fff",
+
+                cursor: isAgreementDisabled ? "not-allowed" : "pointer",
+
+                fontWeight: 600,
+              }}
+            >
+              {actionLan === r.lan
+                ? "Processing..."
+                : agreementStatus === "INITIATED"
+                  ? "Pending Signature…"
+                  : agreementStatus === "SIGNED"
+                    ? "Already Signed"
+                    : "Send Agreement eSign"}
+            </button>
+
+            <span
+              style={{
+                padding: "3px 8px",
+
+                borderRadius: 999,
+
+                fontSize: 11,
+
+                fontWeight: 600,
+
+                background: chip.bg,
+
+                color: chip.fg,
+
+                border: `1px solid ${chip.bd}`,
+
+                textTransform: "uppercase",
+
+                width: "fit-content",
+              }}
+            >
+              ● {chip.label}
+            </span>
+
+            <button
+              onClick={() => handleOpenBank(r)}
+              disabled={disableBank}
+              style={{
+                padding: "8px 10px",
+
+                borderRadius: 8,
+
+                border: disableBank ? "1px solid #cbd5f5" : "1px solid #34d399",
+
+                color: disableBank ? "#9ca3af" : "#047857",
+
+                background: disableBank ? "#f3f4f6" : "#ecfdf5",
+
+                cursor: disableBank ? "not-allowed" : "pointer",
+
+                fontWeight: 600,
+              }}
+            >
+              {!opsApproved
+                ? "Ops Approval Required"
+                : bankStatus === "PENDING"
+                  ? "🏦 Add Bank"
+                  : bankStatus === "VERIFIED"
+                    ? "Verified"
+                    : "Mandate Created"}
+            </button>
+          </div>
+        );
+      },
+
+      width: 220,
+    },
+  ];
+
+  const globalSearchKeys = [
+    "customer_name",
+    "partner_loan_id",
+    "lan",
+    "mobile_number",
+    "status",
+  ];
+
+  return (
+    <>
+      <LoaderOverlay show={loading} label="Fetching data…" />
+
+      {err && (
+        <p
+          style={{
+            color: "#b91c1c",
+            marginBottom: 12,
+          }}
+        >
+          {err}
+        </p>
+      )}
+
+      {toast && (
+        <div
+          style={{
+            marginBottom: 12,
+            padding: "8px 12px",
+            borderRadius: 6,
+
+            background:
+              toast.type === "error"
+                ? "rgba(248,113,113,.1)"
+                : "rgba(16,185,129,.08)",
+
+            border:
+              toast.type === "error"
+                ? "1px solid rgba(248,113,113,.4)"
+                : "1px solid rgba(16,185,129,.35)",
+
+            color: toast.type === "error" ? "#991b1b" : "#14532d",
+
+            fontWeight: 500,
+          }}
+        >
+          {toast.msg}
+        </div>
+      )}
+
+      <DataTable
+        title={title}
+        rows={rows}
+        columns={baseColumns}
+        globalSearchKeys={globalSearchKeys}
+        exportFileName="login_stage_loans"
+      />
+
+      {showBankModal && (
+        <div className="modal-backdrop">
+          <div className="modal">
+            <h3>Add Bank Details & Mandate</h3>
+
+            <form onSubmit={handleBankSubmit} className="bank-form">
+              <div className="field-row">
+                <label>Account Holder Name*</label>
+
+                <input
+                  name="account_holder_name"
+                  value={bankForm.account_holder_name}
+                  onChange={handleBankChange}
+                  readOnly
+                />
+              </div>
+
+              <div className="field-row">
+                <label>Bank Name</label>
+
+                <input
+                  name="bank_name"
+                  value={bankForm.bank_name}
+                  onChange={handleBankChange}
+                  readOnly
+                />
+              </div>
+
+              <div className="field-row">
+                <label>Account Number*</label>
+
+                <input
+                  name="account_no"
+                  value={bankForm.account_no}
+                  onChange={handleBankChange}
+                  readOnly
+                />
+              </div>
+
+              <div className="field-row">
+                <label>IFSC*</label>
+
+                <input
+                  name="ifsc"
+                  value={bankForm.ifsc}
+                  onChange={handleBankChange}
+                  readOnly
+                />
+              </div>
+
+              <div className="field-row">
+                <label>Account Type</label>
+
+                <select
+                  name="account_type"
+                  value={bankForm.account_type}
+                  onChange={handleBankChange}
+                >
+                  <option value="SAVINGS">SAVINGS</option>
+
+                  <option value="CURRENT">CURRENT</option>
+                </select>
+              </div>
+
+              <hr />
+
+              <div className="field-row">
+                <label>Mandate Amount (₹)*</label>
+
+                <input
+                  type="number"
+                  name="mandate_amount"
+                  value={bankForm.mandate_amount}
+                  onChange={handleBankChange}
+                />
+              </div>
+
+              <div className="field-row">
+                <label>Mandate Start Date*</label>
+
+                <input
+                  type="date"
+                  name="mandate_start_date"
+                  value={bankForm.mandate_start_date}
+                  onChange={handleBankChange}
+                />
+              </div>
+
+              <div className="field-row">
+                <label>Mandate End Date</label>
+
+                <input
+                  type="date"
+                  name="mandate_end_date"
+                  value={bankForm.mandate_end_date}
+                  onChange={handleBankChange}
+                />
+              </div>
+
+              <div className="field-row">
+                <label>Frequency</label>
+
+                <select
+                  name="mandate_frequency"
+                  value={bankForm.mandate_frequency}
+                  onChange={handleBankChange}
+                >
+                  <option value="monthly">Monthly</option>
+                </select>
+              </div>
+
+              {bankError && (
+                <p
+                  style={{
+                    color: "#b91c1c",
+
+                    marginTop: 8,
+                  }}
+                >
+                  {bankError}
+                </p>
+              )}
+
+              {bankResult && (
+                <div
+                  style={{
+                    marginTop: 8,
+
+                    fontSize: 13,
+                  }}
+                >
+                  <div>
+                    ✅ Verified: <b>{bankResult.verified ? "YES" : "NO"}</b>
+                  </div>
+
+                  {bankResult.fuzzy_score != null && (
+                    <div>Fuzzy Score: {bankResult.fuzzy_score}</div>
+                  )}
+
+                  {bankResult.mandate_created && (
+                    <div>
+                      Mandate Created: <b>{bankResult.document_id}</b>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div
+                style={{
+                  marginTop: 16,
+
+                  display: "flex",
+
+                  gap: 8,
+
+                  justifyContent: "flex-end",
+                }}
+              >
+                <button type="button" onClick={closeBankModal}>
+                  Cancel
+                </button>
+
+                <button type="submit" disabled={bankLoading}>
+                  {bankLoading ? "Processing..." : "Verify & Create Mandate"}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <style>{`
+            .modal-backdrop {
+              position: fixed;
+              inset: 0;
+              background: rgba(15, 23, 42, 0.55);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              padding: 16px;
+              z-index: 999;
+              box-sizing: border-box;
+            }
+
+            .modal {
+              background: #fff;
+              border-radius: 16px;
+              padding: 20px;
+              width: min(720px, 100%);
+              max-width: 100%;
+              max-height: calc(100vh - 32px);
+              overflow-y: auto;
+              overflow-x: hidden;
+              box-shadow: 0 20px 50px rgba(15, 23, 42, 0.22);
+              box-sizing: border-box;
+            }
+
+            .modal h3 {
+              margin: 0 0 16px;
+              font-size: 20px;
+              font-weight: 700;
+              color: #111827;
+              line-height: 1.3;
+            }
+
+            .bank-form {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 14px 16px;
+            }
+
+            .bank-form hr {
+              grid-column: 1 / -1;
+              border: none;
+              border-top: 1px solid #e5e7eb;
+              margin: 4px 0 2px;
+            }
+
+            .bank-form .field-row {
+              display: flex;
+              flex-direction: column;
+              margin-bottom: 0;
+              min-width: 0;
+            }
+
+            .bank-form .field-row label {
+              font-size: 13px;
+              font-weight: 600;
+              margin-bottom: 6px;
+              color: #374151;
+            }
+
+            .bank-form input,
+            .bank-form select {
+              width: 100%;
+              padding: 10px 12px;
+              border-radius: 10px;
+              border: 1px solid #d1d5db;
+              font-size: 14px;
+              background: #fff;
+              color: #111827;
+              outline: none;
+              box-sizing: border-box;
+              transition:
+                border-color 0.2s ease,
+                box-shadow 0.2s ease;
+            }
+
+            .bank-form input:focus,
+            .bank-form select:focus {
+              border-color: #7c3aed;
+              box-shadow:
+                0 0 0 3px
+                rgba(124, 58, 237, 0.12);
+            }
+
+            .bank-form input[readonly] {
+              background: #f9fafb;
+              color: #6b7280;
+              cursor: not-allowed;
+            }
+
+            .bank-form p {
+              grid-column: 1 / -1;
+              margin: 0;
+            }
+
+            .bank-form > div[style*="margin-top: 8px"] {
+              grid-column: 1 / -1;
+              padding: 12px 14px;
+              border-radius: 10px;
+              background: #f8fafc;
+              border: 1px solid #e5e7eb;
+            }
+
+            .bank-form > div[style*="margin-top: 16px"] {
+              grid-column: 1 / -1;
+              margin-top: 4px !important;
+              display: flex;
+              justify-content: flex-end;
+              gap: 10px;
+              flex-wrap: wrap;
+              position: sticky;
+              bottom: 0;
+              background: #fff;
+              padding-top: 12px;
+            }
+
+            .bank-form button {
+              padding: 10px 16px;
+              border-radius: 10px;
+              border: 1px solid #d1d5db;
+              font-size: 14px;
+              font-weight: 600;
+              cursor: pointer;
+              min-height: 42px;
+            }
+
+            .bank-form button[type="button"] {
+              background: #fff;
+              color: #374151;
+            }
+
+            .bank-form button[type="submit"] {
+              background: #7c3aed;
+              color: #fff;
+              border-color: #7c3aed;
+            }
+
+            .bank-form button[type="submit"]:disabled {
+              opacity: 0.7;
+              cursor: not-allowed;
+            }
+
+            @media (max-width: 768px) {
+              .modal-backdrop {
+                padding: 12px;
+                align-items: flex-end;
+              }
+
+              .modal {
+                width: 100%;
+                max-height: calc(100vh - 24px);
+                border-radius: 16px 16px 12px 12px;
+                padding: 16px;
+              }
+
+              .bank-form {
+                grid-template-columns: 1fr;
+                gap: 12px;
+              }
+
+              .modal h3 {
+                font-size: 18px;
+                margin-bottom: 14px;
+              }
+            }
+
+            @media (max-height: 700px) {
+              .modal {
+                max-height: calc(100vh - 16px);
+              }
+            }
+          `}</style>
+        </div>
+      )}
+    </>
+  );
+};
+
+export default ClaimBuddyLimitEntry;

@@ -7,31 +7,62 @@ const {
   autoApproveLoanDigitIfAllVerified,
 } = require("../routes/loanDigit/loanDigitBre");
 // Import BRE trigger functions for other partners as they get added:
-const { autoApproveClayyoIfAllVerified } = require("../routes/clyooRoutes/clayyoBreEngine");
-const { autoApproveCarePayIfBureauVerified } = require("../routes/CarePay/carePayBreEngine");
+const {
+  autoApproveClayyoIfAllVerified,
+} = require("../routes/clyooRoutes/clayyoBreEngine");
+const {
+  autoApproveCarePayIfBureauVerified,
+} = require("../routes/CarePay/carePayBreEngine");
 
 /* ============================================================ */
 /*                     STATE CODES (shared)                     */
 /* ============================================================ */
 
 const STATE_CODES = {
-  "JAMMU AND KASHMIR": "01", "JAMMU & KASHMIR": "01",
-  "HIMACHAL PRADESH": "02", PUNJAB: "03", CHANDIGARH: "04",
-  UTTRANCHAL: "05", UTTARAKHAND: "05",
-  HARAYANA: "06", HARYANA: "06", DELHI: "07",
-  RAJASTHAN: "08", "UTTAR PRADESH": "09", BIHAR: "10",
-  SIKKIM: "11", "ARUNACHAL PRADESH": "12", NAGALAND: "13",
-  MANIPUR: "14", MIZORAM: "15", TRIPURA: "16",
-  MEGHALAYA: "17", ASSAM: "18", "WEST BENGAL": "19",
-  JHARKHAND: "20", ORRISA: "21", ODISHA: "21",
-  CHHATTISGARH: "22", "MADHYA PRADESH": "23",
-  GUJRAT: "24", GUJARAT: "24",
-  "DAMAN and DIU": "25", "DAMAN AND DIU": "25",
-  "DADARA and NAGAR HAVELI": "26", "DADRA AND NAGAR HAVELI": "26",
-  MAHARASHTRA: "27", "ANDHRA PRADESH": "28", KARNATAKA: "29",
-  GOA: "30", LAKSHADWEEP: "31", KERALA: "32",
-  "TAMIL NADU": "33", PONDICHERRY: "34", PUDUCHERRY: "34",
-  "ANDAMAN and NICOBAR ISLANDS": "35", "ANDAMAN AND NICOBAR ISLANDS": "35",
+  "JAMMU AND KASHMIR": "01",
+  "JAMMU & KASHMIR": "01",
+  "HIMACHAL PRADESH": "02",
+  PUNJAB: "03",
+  CHANDIGARH: "04",
+  UTTRANCHAL: "05",
+  UTTARAKHAND: "05",
+  HARAYANA: "06",
+  HARYANA: "06",
+  DELHI: "07",
+  RAJASTHAN: "08",
+  "UTTAR PRADESH": "09",
+  BIHAR: "10",
+  SIKKIM: "11",
+  "ARUNACHAL PRADESH": "12",
+  NAGALAND: "13",
+  MANIPUR: "14",
+  MIZORAM: "15",
+  TRIPURA: "16",
+  MEGHALAYA: "17",
+  ASSAM: "18",
+  "WEST BENGAL": "19",
+  JHARKHAND: "20",
+  ORRISA: "21",
+  ODISHA: "21",
+  CHHATTISGARH: "22",
+  "MADHYA PRADESH": "23",
+  GUJRAT: "24",
+  GUJARAT: "24",
+  "DAMAN and DIU": "25",
+  "DAMAN AND DIU": "25",
+  "DADARA and NAGAR HAVELI": "26",
+  "DADRA AND NAGAR HAVELI": "26",
+  MAHARASHTRA: "27",
+  "ANDHRA PRADESH": "28",
+  KARNATAKA: "29",
+  GOA: "30",
+  LAKSHADWEEP: "31",
+  KERALA: "32",
+  "TAMIL NADU": "33",
+  PONDICHERRY: "34",
+  PUDUCHERRY: "34",
+  "ANDAMAN and NICOBAR ISLANDS": "35",
+  "ANDAMAN AND NICOBAR ISLANDS": "35",
   TELANGANA: "36",
 };
 
@@ -88,7 +119,7 @@ const PARTNERS = {
       first_name: "first_name",
       middle_name: "middle_name",
       last_name: "last_name",
-      mobile_number: "mobile_number",           // e.g. Clayyo uses "mobile" not "mobile_number"
+      mobile_number: "mobile_number", // e.g. Clayyo uses "mobile" not "mobile_number"
       pan_number: "pan_number",
       dob: "dob",
       gender: "gender",
@@ -160,7 +191,11 @@ function resolvePartnerByKey(key) {
  * @returns {Promise<{success:boolean, score:number|null, reason?:string, partner?:string}>}
  */
 async function retriggerBureau(lan, opts = {}) {
-  const { forceEvenIfVerified = false, partnerKey, onlyIfFailed = false } = opts;
+  const {
+    forceEvenIfVerified = false,
+    partnerKey,
+    onlyIfFailed = false,
+  } = opts;
   const pool = db.promise();
 
   if (!lan) return { success: false, reason: "LAN_REQUIRED" };
@@ -288,11 +323,7 @@ async function retriggerBureau(lan, opts = {}) {
   });
 
   if (!/^\d{8}$/.test(dobFormatted)) {
-    await markBureauFailed(
-      partner,
-      lan,
-      `INVALID_DOB: ${loan.dob}`
-    );
+    await markBureauFailed(partner, lan, `INVALID_DOB: ${loan.dob}`);
 
     return {
       success: false,
@@ -300,7 +331,9 @@ async function retriggerBureau(lan, opts = {}) {
       partner: partner.key,
     };
   }
-  const genderValue = String(loan.gender || "Male").trim().toLowerCase();
+  const genderValue = String(loan.gender || "Male")
+    .trim()
+    .toLowerCase();
   const gender_code = genderValue === "female" ? 2 : 1;
 
   const normalizedState = String(loan.current_state || "")
@@ -323,11 +356,7 @@ async function retriggerBureau(lan, opts = {}) {
   const missingFields = [];
 
   const checkRequired = (field, value) => {
-    if (
-      value === null ||
-      value === undefined ||
-      String(value).trim() === ""
-    ) {
+    if (value === null || value === undefined || String(value).trim() === "") {
       missingFields.push(field);
     }
   };
@@ -352,8 +381,7 @@ async function retriggerBureau(lan, opts = {}) {
   }
 
   if (missingFields.length > 0) {
-    const reason =
-      `BUREAU_REQUIRED_FIELDS_MISSING: ${missingFields.join(", ")}`;
+    const reason = `BUREAU_REQUIRED_FIELDS_MISSING: ${missingFields.join(", ")}`;
 
     await markBureauFailed(partner, lan, reason);
 
@@ -374,23 +402,23 @@ async function retriggerBureau(lan, opts = {}) {
     state_code,
   });
   console.log("EXPERIAN FINAL DATA", {
-  first_name: loan.first_name,
-  last_name: loan.last_name,
-  pan: loan.pan_number,
-  mobile: loan.mobile_number,
-  dob: dobFormatted,
-  city: loan.current_city,
-  state: state_code,
-  pincode: loan.current_pincode,
-  amount: loan.loan_amount,
-  tenure: loan.loan_tenure
-});
+    first_name: loan.first_name,
+    last_name: loan.last_name,
+    pan: loan.pan_number,
+    mobile: loan.mobile_number,
+    dob: dobFormatted,
+    city: loan.current_city,
+    state: state_code,
+    pincode: loan.current_pincode,
+    amount: loan.loan_amount,
+    tenure: loan.loan_tenure,
+  });
 
   console.log("[BUREAU] OUTGOING REQUEST", {
     lan,
     dobFormatted,
     dobTagPresent: soapBody.includes(
-      `<DateOfBirth>${dobFormatted}</DateOfBirth>`
+      `<DateOfBirth>${dobFormatted}</DateOfBirth>`,
     ),
   });
 
@@ -400,24 +428,20 @@ async function retriggerBureau(lan, opts = {}) {
   try {
     response = await callBureauApi(soapBody);
     console.log("EXPERIAN FINAL VALUES", {
-  amount: loan.loan_amount,
-  tenure: loan.loan_tenure,
-  firstName: loan.first_name,
-  lastName: loan.last_name,
-  pan: loan.pan_number,
-  mobile: loan.mobile_number,
-  dob: dobFormatted,
-  address: loan.current_address,
-  city: loan.current_city,
-  state: state_code,
-  pincode: loan.current_pincode
-});
+      amount: loan.loan_amount,
+      tenure: loan.loan_tenure,
+      firstName: loan.first_name,
+      lastName: loan.last_name,
+      pan: loan.pan_number,
+      mobile: loan.mobile_number,
+      dob: dobFormatted,
+      address: loan.current_address,
+      city: loan.current_city,
+      state: state_code,
+      pincode: loan.current_pincode,
+    });
   } catch (err) {
-    await markBureauFailed(
-      partner,
-      lan,
-      `NETWORK: ${err.message}`
-    );
+    await markBureauFailed(partner, lan, `NETWORK: ${err.message}`);
 
     return {
       success: false,
@@ -427,18 +451,10 @@ async function retriggerBureau(lan, opts = {}) {
   }
 
   /* Validate HTTP response */
-  if (
-    !response ||
-    response.status < 200 ||
-    response.status >= 300
-  ) {
+  if (!response || response.status < 200 || response.status >= 300) {
     const reason = `EXPERIAN_HTTP_${response?.status || "UNKNOWN"}`;
 
-    await markBureauFailed(
-      partner,
-      lan,
-      reason
-    );
+    await markBureauFailed(partner, lan, reason);
 
     return {
       success: false,
@@ -454,10 +470,10 @@ async function retriggerBureau(lan, opts = {}) {
     trimValues: true,
     processEntities: {
       enabled: true,
-      maxTotalExpansions: 200000,
-      maxExpandedLength: 20_000_000,
-      maxEntityCount: 200000,
-      maxEntitySize: 200000,
+      maxTotalExpansions: 500000,
+      maxExpandedLength: 50_000_000,
+      maxEntityCount: 500000,
+      maxEntitySize: 500000,
     },
   });
 
@@ -535,18 +551,20 @@ async function retriggerBureau(lan, opts = {}) {
 
   const profile = parsedInner?.INProfileResponse;
 
+  console.log("EXPERIAN USER MESSAGE DEBUG", {
+    userMessage: profile?.UserMessage,
+    score: profile?.SCORE,
+    bureauScore: profile?.SCORE?.BureauScore,
+  });
+
   const userMessageText = String(
     profile?.UserMessage?.UserMessageText ?? "",
   ).trim();
 
-  if (userMessageText) {
+  if (userMessageText && userMessageText.toLowerCase() !== "normal response") {
     const reason = `EXPERIAN_USER_MESSAGE: ${userMessageText}`;
 
-    await markBureauFailed(
-      partner,
-      lan,
-      reason,
-    );
+    await markBureauFailed(partner, lan, reason);
 
     return {
       success: false,
@@ -561,15 +579,10 @@ async function retriggerBureau(lan, opts = {}) {
     parsedInner?.INProfileResponse?.Score?.BureauScore ??
     null;
   const scoreNum = Number(scoreRaw);
-  const score =
-    Number.isFinite(scoreNum) && scoreNum > 0 ? scoreNum : null;
+  const score = Number.isFinite(scoreNum) && scoreNum > 0 ? scoreNum : null;
 
   if (score === null) {
-    await markBureauFailed(
-      partner,
-      lan,
-      "BUREAU_SCORE_MISSING"
-    );
+    await markBureauFailed(partner, lan, "BUREAU_SCORE_MISSING");
 
     return {
       success: false,
@@ -641,10 +654,7 @@ async function retriggerFailedBureauBatch(partnerKey, requestedLimit = 50) {
   const parsedLimit = Number(requestedLimit);
 
   const limit = Math.min(
-    Math.max(
-      Number.isFinite(parsedLimit) ? Math.trunc(parsedLimit) : 50,
-      1,
-    ),
+    Math.max(Number.isFinite(parsedLimit) ? Math.trunc(parsedLimit) : 50, 1),
     200,
   );
 
@@ -681,10 +691,7 @@ async function retriggerFailedBureauBatch(partnerKey, requestedLimit = 50) {
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
     } catch (err) {
-      console.error(
-        `[BUREAU-BULK-RETRY] Error for ${lan}:`,
-        err.message,
-      );
+      console.error(`[BUREAU-BULK-RETRY] Error for ${lan}:`, err.message);
 
       results.push({
         lan,
@@ -704,9 +711,7 @@ async function retriggerFailedBureauBatch(partnerKey, requestedLimit = 50) {
 
     successful: results.filter((r) => r.success).length,
 
-    failed: results.filter(
-      (r) => !r.success && !r.skipped,
-    ).length,
+    failed: results.filter((r) => !r.success && !r.skipped).length,
 
     results,
   };
@@ -717,40 +722,29 @@ async function retriggerFailedBureauBatch(partnerKey, requestedLimit = 50) {
 /* ============================================================ */
 
 async function isProdDatabase() {
-  const [rows] = await db.promise().query(
-    `SELECT DATABASE() AS db_name`
-  );
+  const [rows] = await db.promise().query(`SELECT DATABASE() AS db_name`);
 
-  const dbName = String(
-    rows?.[0]?.db_name || ""
-  ).toUpperCase();
+  const dbName = String(rows?.[0]?.db_name || "").toUpperCase();
 
   return dbName === "U341672715_FLMS_PRODUCT";
 }
 
 async function callBureauApi(soapBody) {
-
-  return axios.post(
-    process.env.EXPERIAN_URL,
-    soapBody,
-    {
-      headers: {
-        "Content-Type": "text/xml; charset=utf-8",
-        SOAPAction: "urn:cbv2/process",
-        Accept: "text/xml",
-      },
-      timeout: 30000,
-      validateStatus: () => true,
-    }
-  );
+  return axios.post(process.env.EXPERIAN_URL, soapBody, {
+    headers: {
+      "Content-Type": "text/xml; charset=utf-8",
+      SOAPAction: "urn:cbv2/process",
+      Accept: "text/xml",
+    },
+    timeout: 30000,
+    validateStatus: () => true,
+  });
 }
 
 function buildSoapBody({ ftRef, loan, gender_code, dobFormatted, state_code }) {
   const incomeForBureau =
     Number(loan.monthly_salary) ||
-    (Number(loan.annual_income)
-      ? Number(loan.annual_income) / 12
-      : 0);
+    (Number(loan.annual_income) ? Number(loan.annual_income) / 12 : 0);
   return `
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
   <soapenv:Header/>

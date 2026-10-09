@@ -16,7 +16,8 @@ const {
  * - No DPD > 60 in last 9 months
  * - No DPD > 90 in last 12 months
  * - Loan amount Rs 5,000 to Rs 15,000, in multiples of Rs 1,000
- * - First-time RapidMoney borrower maximum Rs 8,000
+ * - First-time RapidMoney borrower: ages 21-25 fixed at Rs 5,000; ages 26+
+ *   get their requested amount, floored at Rs 5,000 and capped at Rs 8,000
  * - Repeat borrower below age 28 maximum Rs 10,000
  * - Unsecured aggregate >= Rs 2,00,000, else secured tradeline aggregate
  *   >= Rs 5,00,000 (fallback) — required for every customer, new or repeat
@@ -28,19 +29,22 @@ const {
  * still reflects only what's in that PDF.
  */
 const POLICY = Object.freeze({
-  MIN_BUREAU_SCORE: 650,
+  MIN_BUREAU_SCORE: 700,
 
   // General/default minimum loan amount — applies to ages 26+ (and any age
-  // that can't be determined). Ages 23-25 get a lower floor; see
-  // MIN_LOAN_AMOUNT_23_TO_25 and getMinLoanAmountForAge() below.
-  MIN_LOAN_AMOUNT: 8000,
-  MIN_LOAN_AMOUNT_23_TO_25: 5000,
+  // that can't be determined). Ages 21-25 use MIN_LOAN_AMOUNT_21_TO_25
+  // instead; see getMinLoanAmountForAge() below. Both are currently Rs 5,000
+  // (as of the 2026-09-28 policy update) but are kept as separate constants
+  // in case the two tiers diverge again in the future.
+  MIN_LOAN_AMOUNT: 5000,
+  MIN_LOAN_AMOUNT_21_TO_25: 5000,
   MAX_LOAN_AMOUNT: 15000,
   LOAN_AMOUNT_MULTIPLE: 1000,
 
-  // First-time customers are assigned the same age-tiered minimum as their
-  // credit limit (see getMinLoanAmountForAge()) — this constant is kept as
-  // the 26+/default value other code already references it as.
+  // Ceiling on a first-time customer's approved amount for ages 26+ (and
+  // any age that can't be determined) — see getFirstTimeCreditLimit()
+  // below. Ages 21-25 ignore this and stay fixed at
+  // MIN_LOAN_AMOUNT_21_TO_25 regardless of what they request.
   FIRST_TIME_CUSTOMER_LIMIT: 8000,
   REPEAT_CUSTOMER_UNDER_28_LIMIT: 10000,
   MAX_REPEAT_CUSTOMER_LIMIT: 15000,
@@ -60,15 +64,45 @@ const POLICY = Object.freeze({
   MAX_TENURE_DAYS: 45,
 });
 
-// Ages 23-25 get a lower minimum loan amount (Rs 5,000); everyone else
+// Ages 21-25 get a lower minimum loan amount (Rs 5,000); everyone else
 // (26+, and any age that couldn't be determined) uses the standard
 // Rs 8,000 minimum.
 function getMinLoanAmountForAge(age) {
-  if (age !== null && age !== undefined && age >= 23 && age <= 25) {
-    return POLICY.MIN_LOAN_AMOUNT_23_TO_25;
+  if (age !== null && age !== undefined && age >= 21 && age <= 25) {
+    return POLICY.MIN_LOAN_AMOUNT_21_TO_25;
   }
 
   return POLICY.MIN_LOAN_AMOUNT;
+}
+
+// Credit limit actually assigned to a first-time (new) customer.
+//
+// Ages 21-25: fixed exactly at MIN_LOAN_AMOUNT_21_TO_25 regardless of the
+// requested amount — a first loan for this age tier is never more than
+// that, by explicit product requirement.
+//
+// Ages 26+ (and unknown age): the requested amount is honored, floored at
+// MIN_LOAN_AMOUNT and capped at FIRST_TIME_CUSTOMER_LIMIT. A request below
+// the floor or above POLICY.MAX_LOAN_AMOUNT is already rejected upstream by
+// validateLoanAmount(), so in practice this only ever narrows the approved
+// amount down to FIRST_TIME_CUSTOMER_LIMIT when the request exceeds it.
+function getFirstTimeCreditLimit(age, requestedAmount) {
+  const minAmount = getMinLoanAmountForAge(age);
+
+  if (age !== null && age !== undefined && age >= 21 && age <= 25) {
+    return minAmount;
+  }
+
+  const requested = toFiniteNumber(requestedAmount);
+
+  if (requested === null) {
+    return minAmount;
+  }
+
+  return Math.min(
+    Math.max(requested, minAmount),
+    POLICY.FIRST_TIME_CUSTOMER_LIMIT,
+  );
 }
 
 const UNSECURED_CATEGORIES = [
@@ -1218,6 +1252,7 @@ module.exports = {
   SECURED_CATEGORIES,
   calculateAge,
   getMinLoanAmountForAge,
+  getFirstTimeCreditLimit,
   validateLoanAmount,
   validateTenure,
   isNewCustomer,

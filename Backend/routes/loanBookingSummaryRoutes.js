@@ -43,6 +43,12 @@ const PRODUCT_CONFIG = {
     lanLike: "YAM%",
     principalField: "loan_amount",
   },
+   SABGROW: {
+    label: "Sabgrow",
+    bookingTable: "loan_booking_sabgrow",
+    lanLike: "SBR%",
+
+  },
   QUICKMONEY: {
     label: "Quick Money",
     bookingTable: "loan_booking_quick_money",
@@ -149,6 +155,15 @@ const PRODUCT_CONFIG = {
     allocationTable: "allocation",
     repaymentTable: "repayments_upload",
     lanLike: "FINE%",
+    principalField: "net_disbursement",
+  },
+  EMICLUB2: {
+    label: "EMI Club2",
+    bookingTable: "loan_booking_emiclub2",
+    rpsTable: "manual_rps_emiclub2",
+    allocationTable: "allocation",
+    repaymentTable: "repayments_upload",
+    lanLike: "FINE2%",
     principalField: "net_disbursement",
   },
   FINCREST: {

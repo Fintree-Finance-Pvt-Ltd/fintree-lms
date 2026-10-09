@@ -182,7 +182,10 @@ async function sendLoanWebhook(data) {
       },
     };
 
-    if (ref.startsWith("FINE")) {
+    if (ref.startsWith("FINE2")) {
+      url = process.env.UTR_WEBHOOK_URL_EMICLUB2 || WEBHOOK_URL;
+      config.timeout = 15000;
+    } else if (ref.startsWith("FINE")) {
       url = WEBHOOK_URL;
     } else if (
       ref.startsWith("LDF") ||

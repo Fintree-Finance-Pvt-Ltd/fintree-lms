@@ -462,7 +462,22 @@ const toggleCategory = (category) => {
   }));
 };
 
-return (
+  const [userSearch, setUserSearch] = useState('');
+  const [pageSearch, setPageSearch] = useState('');
+
+  const filteredUsers = users.filter(u => 
+    Number(u.is_active) === 1 &&
+    ((u.name || "").toLowerCase().includes(userSearch.toLowerCase()) || 
+    (u.email || "").toLowerCase().includes(userSearch.toLowerCase()))
+  );
+
+  const filteredGroupedPages = Object.entries(groupedPages).reduce((acc, [cat, catPages]) => {
+    const filtered = catPages.filter(p => (p.name || "").toLowerCase().includes(pageSearch.toLowerCase()));
+    if (filtered.length > 0) acc[cat] = filtered;
+    return acc;
+  }, {});
+
+  return (
   <div style={styles.wrap}>
     <div style={styles.panel}>
       <h2 style={styles.h2}>Admin Panel</h2>
@@ -525,237 +540,128 @@ return (
       >
         <h3 style={styles.h3}>Assign Pages to User</h3>
 
-        <div style={styles.row}>
-          <select value={selectedUserId} onChange={handleSelectUser} style={styles.userSelect}>
-            <option value="">Select User</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name} ({u.email})
-              </option>
-            ))}
-          </select>
-          {!selectedUserId && (
-            <span style={styles.muted}>Choose a user to edit permissions</span>
-          )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+          <input 
+            type="text" 
+            placeholder="🔍 Search user by name or email..." 
+            value={userSearch}
+            onChange={(e) => setUserSearch(e.target.value)}
+            style={styles.input}
+          />
+          <div style={styles.row}>
+            <select value={selectedUserId} onChange={handleSelectUser} style={{...styles.userSelect, width: '100%'}}>
+              <option value="">-- Select a User --</option>
+              {filteredUsers.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name} ({u.email})
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {selectedUserId && (
           <>
-            <div style={styles.summaryBar}>
-              <div style={styles.muted}>
-                Total : <strong>{pages.length}</strong> | Selected:{" "}
-                <strong>{selectedPageIds.length}</strong>
-              </div>
-              <div style={styles.toggleGroup}>
-  <button
-    type="button"
-    onClick={selectAllPages}
-    style={{
-      ...styles.toggleBtn,
-      ...(selectedPageIds.length === pages.length && pages.length > 0
-        ? styles.toggleBtnActive
-        : {}),
-    }}
-  >
-    Select All
-  </button>
-
-  <button
-    type="button"
-    onClick={clearAllPages}
-    style={{
-      ...styles.toggleBtn,
-      ...(selectedPageIds.length === 0 ? styles.toggleBtnActive : {}),
-    }}
-  >
-    Clear All
-  </button>
-</div>
-{/* 
+            <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: '24px 0' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <input 
+                type="text" 
+                placeholder="🔍 Search pages..." 
+                value={pageSearch}
+                onChange={(e) => setPageSearch(e.target.value)}
+                style={{ ...styles.input, width: '300px' }}
+              />
               <div style={styles.toggleGroup}>
                 <button
                   type="button"
                   onClick={selectAllPages}
-                  style={{ ...styles.toggleBtn, ...styles.toggleBtnActive }}
+                  style={{
+                    ...styles.toggleBtn,
+                    ...(selectedPageIds.length === pages.length && pages.length > 0
+                      ? styles.toggleBtnActive
+                      : {}),
+                  }}
                 >
                   Select All
                 </button>
-
                 <button
                   type="button"
                   onClick={clearAllPages}
-                  style={styles.toggleBtn}
+                  style={{
+                    ...styles.toggleBtn,
+                    ...(selectedPageIds.length === 0 ? styles.toggleBtnActive : {}),
+                  }}
                 >
                   Clear All
                 </button>
-              </div> */}
+              </div>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {Object.entries(groupedPages).map(([category, categoryPages]) => {
-                const isOpen = !!openCategories[category];
-
-                return (
+              {Object.keys(filteredGroupedPages).length === 0 ? (
+                <div style={{ textAlign: 'center', padding: 20, color: '#64748b' }}>No pages found matching "{pageSearch}"</div>
+              ) : (
+                Object.entries(filteredGroupedPages).map(([category, categoryPages]) => (
                   <div key={category} style={styles.dropdownCard}>
-                    <div
-                      style={styles.dropdownHeader}
-                      onClick={() => toggleCategory(category)}
-                    >
+                    <div style={{...styles.dropdownHeader, background: '#f8fafc', cursor: 'default'}}>
                       <div style={styles.dropdownTitleWrap}>
-                        <span style={styles.dropdownArrow}>
-                          {isOpen ? "▾" : "▸"}
-                        </span>
                         <h4 style={styles.dropdownTitle}>{category}</h4>
                         <span style={styles.dropdownCount}>
                           {categoryPages.length}
                         </span>
                       </div>
-                      </div>
-{/* 
-<div style={styles.toggleGroup}>
-  <button
-    type="button"
-    onClick={(e) => {
-      e.stopPropagation();
-      selectCategoryPages(categoryPages);
-    }}
-    style={{
-      ...styles.toggleBtn,
-      ...(categoryPages.every((p) => selectedPageIds.includes(p.id))
-        ? styles.toggleBtnActive
-        : {}),
-    }}
-  >
-    Select
-  </button>
-
-  <button
-    type="button"
-    onClick={(e) => {
-      e.stopPropagation();
-      clearCategoryPages(categoryPages);
-    }}
-    style={{
-      ...styles.toggleBtn,
-      ...(categoryPages.every((p) => !selectedPageIds.includes(p.id))
-        ? styles.toggleBtnActive
-        : {}),
-    }}
-  >
-    Clear
-  </button>
-</div> */}
-                      {/* <div style={styles.toggleGroup}>
+                      <div style={styles.toggleGroup}>
                         <button
                           type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            selectCategoryPages(categoryPages);
+                          onClick={() => selectCategoryPages(categoryPages)}
+                          style={{
+                            ...styles.toggleBtn,
+                            ...(categoryPages.every((p) => selectedPageIds.includes(p.id))
+                              ? styles.toggleBtnActive
+                              : {}),
                           }}
-                          style={{ ...styles.toggleBtn, ...styles.toggleBtnActive }}
                         >
-                          Select
+                          Select Category
                         </button>
-
                         <button
                           type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            clearCategoryPages(categoryPages);
+                          onClick={() => clearCategoryPages(categoryPages)}
+                          style={{
+                            ...styles.toggleBtn,
+                            ...(categoryPages.every((p) => !selectedPageIds.includes(p.id))
+                              ? styles.toggleBtnActive
+                              : {}),
                           }}
-                          style={styles.toggleBtn}
                         >
-                          Clear
+                          Clear Category
                         </button>
-                      </div> */}
-                    {/* </div> */}
-{isOpen && (
-  <div style={styles.dropdownBody}>
-    <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
-      <div style={styles.toggleGroup}>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            selectCategoryPages(categoryPages);
-          }}
-          style={{
-            ...styles.toggleBtn,
-            ...(categoryPages.every((p) => selectedPageIds.includes(p.id))
-              ? styles.toggleBtnActive
-              : {}),
-          }}
-        >
-          Select
-        </button>
-
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            clearCategoryPages(categoryPages);
-          }}
-          style={{
-            ...styles.toggleBtn,
-            ...(categoryPages.every((p) => !selectedPageIds.includes(p.id))
-              ? styles.toggleBtnActive
-              : {}),
-          }}
-        >
-          Clear
-        </button>
-      </div>
-    </div>
-
-    <div style={styles.pagesList}>
-      {categoryPages.map((p) => (
-        <label
-          key={p.id}
-          style={{
-            ...styles.pageLabel,
-            ...(selectedPageIds.includes(p.id)
-              ? styles.pageLabelActive
-              : {}),
-          }}
-        >
-          <input
-            type="checkbox"
-            checked={selectedPageIds.includes(p.id)}
-            onChange={() => togglePage(p.id)}
-          />
-          {p.name}
-        </label>
-      ))}
-    </div>
-  </div>
-)}
-                    {/* {isOpen && (
-                      <div style={styles.dropdownBody}>
-                        <div style={styles.pagesList}>
-                          {categoryPages.map((p) => (
-                            <label
-                              key={p.id}
-                              style={{
-                                ...styles.pageLabel,
-                                ...(selectedPageIds.includes(p.id)
-                                  ? styles.pageLabelActive
-                                  : {}),
-                              }}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={selectedPageIds.includes(p.id)}
-                                onChange={() => togglePage(p.id)}
-                              />
-                              {p.name}
-                            </label>
-                          ))}
-                        </div>
                       </div>
-                    )} */}
+                    </div>
+
+                    <div style={styles.dropdownBody}>
+                      <div style={styles.pagesList}>
+                        {categoryPages.map((p) => (
+                          <label
+                            key={p.id}
+                            style={{
+                              ...styles.pageLabel,
+                              ...(selectedPageIds.includes(p.id) ? styles.pageLabelActive : {}),
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedPageIds.includes(p.id)}
+                              onChange={() => togglePage(p.id)}
+                              style={{ display: 'none' }}
+                            />
+                            {p.name}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                );
-              })}
+                ))
+              )}
             </div>
 
             <div style={styles.actionsBar}>
@@ -766,7 +672,7 @@ return (
                 onMouseUp={release}
                 onMouseLeave={release}
               >
-                Update Permissions
+                Save Permissions
               </button>
             </div>
           </>

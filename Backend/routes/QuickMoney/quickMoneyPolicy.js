@@ -28,22 +28,28 @@ const {
  * still reflects only what's in that PDF.
  */
 const POLICY = Object.freeze({
-  MIN_BUREAU_SCORE: 650,
+  MIN_BUREAU_SCORE: 700,
 
   // General/default minimum loan amount — applies to ages 26+ (and any age
-  // that can't be determined). Ages 23-25 get a lower floor; see
-  // MIN_LOAN_AMOUNT_23_TO_25 and getMinLoanAmountForAge() below.
+  // that can't be determined). Ages 21-25 get a lower floor; see
+  // MIN_LOAN_AMOUNT_21_TO_25 and getMinLoanAmountForAge() below.
   MIN_LOAN_AMOUNT: 5000,
-  MIN_LOAN_AMOUNT_23_TO_25: 5000,
+  MIN_LOAN_AMOUNT_21_TO_25: 5000,
   MAX_LOAN_AMOUNT: 15000,
   LOAN_AMOUNT_MULTIPLE: 1000,
 
-  // First-time customers are assigned the same age-tiered minimum as their
-  // credit limit (see getMinLoanAmountForAge()) — this constant is kept as
-  // the 26+/default value other code already references it as.
+  // Ceiling on a first-time customer's approved amount — see
+  // getFirstTimeCreditLimit() below. A request below MIN_LOAN_AMOUNT or
+  // above this is honored up to this cap; below MIN_LOAN_AMOUNT is already
+  // rejected upstream by validateLoanAmount().
   FIRST_TIME_CUSTOMER_LIMIT: 5000,
   REPEAT_CUSTOMER_UNDER_28_LIMIT: 10000,
   MAX_REPEAT_CUSTOMER_LIMIT: 15000,
+
+
+
+
+  
   MIN_UNSECURED_AGGREGATE: 100000,
   // Fallback when unsecured aggregate is below MIN_UNSECURED_AGGREGATE: a new
   // customer with secured tradelines totalling at least this much is still approved.
@@ -60,15 +66,35 @@ const POLICY = Object.freeze({
   MAX_TENURE_DAYS: 45,
 });
 
-// Ages 23-25 get a lower minimum loan amount (Rs 5,000); everyone else
+// Ages 21-25 get a lower minimum loan amount (Rs 5,000); everyone else
 // (26+, and any age that couldn't be determined) uses the standard
 // Rs 8,000 minimum.
 function getMinLoanAmountForAge(age) {
-  if (age !== null && age !== undefined && age >= 21) {
-    return POLICY.MIN_LOAN_AMOUNT;
+  if (age !== null && age !== undefined && age >= 21 && age <= 25) {
+    return POLICY.MIN_LOAN_AMOUNT_21_TO_25;
   }
 
   return POLICY.MIN_LOAN_AMOUNT;
+}
+
+// Credit limit actually assigned to a first-time (new) QuickMoney customer:
+// their requested amount is honored, floored at MIN_LOAN_AMOUNT and capped
+// at FIRST_TIME_CUSTOMER_LIMIT. A request below the floor or above
+// POLICY.MAX_LOAN_AMOUNT is already rejected upstream by
+// validateLoanAmount(), so in practice this only ever narrows the approved
+// amount down to FIRST_TIME_CUSTOMER_LIMIT when the request exceeds it.
+function getFirstTimeCreditLimit(age, requestedAmount) {
+  const minAmount = getMinLoanAmountForAge(age);
+  const requested = toFiniteNumber(requestedAmount);
+
+  if (requested === null) {
+    return minAmount;
+  }
+
+  return Math.min(
+    Math.max(requested, minAmount),
+    POLICY.FIRST_TIME_CUSTOMER_LIMIT,
+  );
 }
 
 const UNSECURED_CATEGORIES = [
@@ -1218,6 +1244,7 @@ module.exports = {
   SECURED_CATEGORIES,
   calculateAge,
   getMinLoanAmountForAge,
+  getFirstTimeCreditLimit,
   validateLoanAmount,
   validateTenure,
   isNewCustomer,

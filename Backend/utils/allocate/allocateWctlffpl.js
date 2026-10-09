@@ -134,19 +134,35 @@ if (allocationType === "C") {
 
 if (allocationType === "I"  ) {
   while (remaining > 0) {
-    const [emi] = await queryDB(
-      `
-      SELECT *
-      FROM ${emiTable}
-      WHERE lan = ?
-        AND remaining_interest > 0
-        AND due_date <= DATE(?)
-      ORDER BY due_date ASC, id ASC
-      LIMIT 1
-      `,
-      [lan, paymentDate]
-    );
-
+    // const [emi] = await queryDB(
+    //   `
+    //   SELECT *
+    //   FROM ${emiTable}
+    //   WHERE lan = ?
+    //     AND remaining_interest > 0
+    //     AND due_date >= DATE(?)
+    //   ORDER BY due_date ASC, id ASC
+    //   LIMIT 1
+    //   `,
+    //   [lan, paymentDate]
+    // );
+const [emi] = await queryDB(
+`
+SELECT *
+FROM ${emiTable}
+WHERE lan = ?
+AND remaining_interest > 0
+ORDER BY 
+CASE 
+    WHEN due_date >= DATE(?) THEN 0
+    ELSE 1
+END,
+due_date ASC,
+id ASC
+LIMIT 1
+`,
+[lan, paymentDate]
+);
     if (!emi) {
       break;
     }
@@ -276,17 +292,30 @@ if (
      * WCTL bullet principal normally exists
      * on the maturity/final RPS row.
      */
-    const [bulletRow] = await queryDB(
+//     const [bulletRow] = await queryDB(
+// `
+// SELECT *
+// FROM manual_rps_wctl_ffpl
+// WHERE lan = ?
+// AND remaining_principal > 0
+// AND due_date >= DATE(?)
+// ORDER BY due_date ASC, id ASC
+// LIMIT 1
+// `,
+// [lan, paymentDate]
+// );
+
+      const [bulletRow] = await queryDB(
       `
       SELECT *
-      FROM ${emiTable}
+      FROM manual_rps_wctl_ffpl
       WHERE lan = ?
-        AND remaining_principal > 0
+      AND remaining_principal > 0
       ORDER BY due_date DESC, id DESC
       LIMIT 1
       `,
       [lan]
-    );
+      );
 
     if (bulletRow) {
       const outstandingPrincipal = Number(
@@ -343,6 +372,37 @@ if (
             paymentId,
           ]
         );
+
+        const newPrincipalBalance = Number(
+  (
+    outstandingPrincipal - principalPrepayment
+  ).toFixed(2)
+);
+
+
+await queryDB(
+`
+UPDATE manual_rps_wctl_ffpl
+SET
+    remaining_principal = ?,
+    remaining_amount = remaining_interest + ?,
+    remaining_emi = remaining_interest + ?,
+    status = CASE
+        WHEN remaining_interest <= 0
+             AND ? <= 0
+        THEN 'Paid'
+        ELSE 'Part Paid'
+    END
+WHERE id = ?
+`,
+[
+    newPrincipalBalance,
+    newPrincipalBalance,
+    newPrincipalBalance,
+    newPrincipalBalance,
+    bulletRow.id
+]
+);
       }
     }
   }
@@ -530,7 +590,7 @@ const recastWctlFfplFutureRps = async (
     SELECT *
     FROM manual_rps_wctl_ffpl
     WHERE lan = ?
-      AND due_date > DATE(?)
+      AND due_date >= DATE(?)
     ORDER BY due_date ASC, id ASC
     `,
     [lan, paymentDate]

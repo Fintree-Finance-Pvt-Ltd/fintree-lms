@@ -484,7 +484,7 @@ const ApproveInitiatedScreen = ({
               disabled={isActioning}
               onClick={() => {
                 if (
-                  tableName === "loan_booking_emiclub" &&
+                  ["loan_booking_emiclub", "loan_booking_emiclub2"].includes(tableName) &&
                   !window.confirm(
                     "This will approve the loan AND initiate payout disbursal. Continue?",
                   )
@@ -504,7 +504,7 @@ const ApproveInitiatedScreen = ({
             >
               {isActioning
                 ? "⏳ Processing..."
-                : tableName === "loan_booking_emiclub"
+                : ["loan_booking_emiclub", "loan_booking_emiclub2"].includes(tableName)
                   ? "💸 Approve and Pay"
                   : "✅ Approve"}
             </button>

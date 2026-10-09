@@ -1199,10 +1199,9 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
   .trim();
 
 
+const hospitalLan = String(data.hospital_lan || "").trim();
+
 if (normalizedProduct === "standard emi") {
-
-  const hospitalLan = String(data.hospital_lan || "").trim();
-
 
   if (!hospitalLan) {
     await conn.rollback();
@@ -1326,12 +1325,16 @@ if (normalizedProduct === "standard emi") {
     }
 
     const { lan } = await generateLoanIdentifiers(lenderType);
+    // We do not want to reject the case based on the partner's CIBIL score 
+    // before we do our own bureau pull.
+    const dataForInitialBre = { ...data, cibil_score: null };
+
     let breDecision = evaluateCarePayLoginBre({
-      data,
+      data: dataForInitialBre,
       requestAmount,
     });
     let breSnapshot = buildBreSnapshot({
-      data,
+      data: dataForInitialBre,
       requestAmount,
       decision: breDecision,
     });

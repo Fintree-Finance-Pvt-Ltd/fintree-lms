@@ -106,6 +106,52 @@ const STATE_CODES = {
 
 const runBureau = async (data) => {
   try {
+
+    // ==================================================
+    // LOCAL/UAT BUREAU MOCK
+    // ==================================================
+
+    // if (process.env.NODE_ENV !== "production") {
+    //   console.log("🧪 CLAIM BUDDY LOCAL BUREAU MOCK:", data.pan_number);
+
+    //   return {
+    //     success: true,
+    //     score: 750,
+
+    //     // Keep this in the same shape expected by
+    //     // extractClaimBuddyBureauFacts()
+    //     response: `
+    //       <INProfileResponse>
+    //         <SCORE>
+    //           <BureauScore>750</BureauScore>
+    //         </SCORE>
+
+    //         <CAPS>
+    //           <CAPS_Summary>
+    //             <CAPSLast30Days>0</CAPSLast30Days>
+    //           </CAPS_Summary>
+    //         </CAPS>
+
+    //         <CAIS_Account>
+    //           <CAIS_Account_DETAILS>
+    //             <Date_Reported></Date_Reported>
+    //             <Amount_Past_Due>0</Amount_Past_Due>
+    //             <Written_Off_Amt_Total>0</Written_Off_Amt_Total>
+    //             <Written_Off_Amt_Principal>0</Written_Off_Amt_Principal>
+    //             <Special_Comment></Special_Comment>
+    //             <SuitFiledWillfulDefaultWrittenOffStatus></SuitFiledWillfulDefaultWrittenOffStatus>
+    //             <SuitFiled_WilfulDefault></SuitFiled_WilfulDefault>
+    //             <Written_off_Settled_Status></Written_off_Settled_Status>
+
+    //             <CAIS_Account_History>
+    //             </CAIS_Account_History>
+    //           </CAIS_Account_DETAILS>
+    //         </CAIS_Account>
+    //       </INProfileResponse>
+    //     `,
+    //   };
+    // }
+
     // -----------------------------
     // Format required fields
     //  -----------------------------
@@ -298,9 +344,9 @@ const runBureau = async (data) => {
 
     const userMsg =
       parsedInner?.INProfileResponse?.UserMessage?.UserMessageText;
-    if (userMsg) {
-      console.warn("⚠️ Bureau UserMessage:", userMsg);
-    }
+    // if (userMsg) {
+    //   console.warn("⚠️ Bureau UserMessage:", userMsg);
+    // }
 
     const scoreStr = parsedInner?.INProfileResponse?.SCORE?.BureauScore || null;
 

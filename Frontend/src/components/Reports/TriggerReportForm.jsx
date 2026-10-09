@@ -503,6 +503,7 @@ const productOptions = [
   { label: "CCOD", value: "CC-OD" },
   { label: "Embifi", value: "Embifi" },
   { label: "EMICLUB", value: "EMICLUB" },
+  { label: "EMICLUB2", value: "EMICLUB2" },
   { label: "Circle Pe", value: "Circlepe" },
   { label: "Circle Pe Houser", value: "Circlepe Houser" },
   { label: "HELIUM", value: "HELIUM" },

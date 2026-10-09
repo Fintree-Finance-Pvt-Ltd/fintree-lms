@@ -62,6 +62,10 @@ const RPS_POS_SOURCES = [
     tableName: "manual_rps_finso_loan",
   },
   {
+    partnerName: "EMICLUB2",
+    tableName: "manual_rps_emiclub2",
+  },
+  {
     partnerName: "EMICLUB",
     tableName: "manual_rps_emiclub",
   },
@@ -73,11 +77,15 @@ const RPS_POS_SOURCES = [
     partnerName: "CLAYOO",
     tableName: "manual_rps_clayoo",
   },
-   {
+  {
+    partnerName: "CLAIM-BUDDY",
+    tableName: "manual_rps_claim_buddy",
+  },
+  {
     partnerName: "SRBH",
     tableName: "manual_rps_srbh",
   },
-   {
+  {
     partnerName: "SASWAT",
     tableName: "manual_rps_saswat",
   },
@@ -347,7 +355,7 @@ router.get("/partners/:partnerId/audits", async (req, res) => {
       ORDER BY a.created_at DESC
       LIMIT 300
       `,
-      params
+      params,
     );
 
     res.json({
@@ -506,7 +514,11 @@ router.put("/partners/:partnerId/limits", async (req, res) => {
       );
     }
 
-    if (assigned_limit !== undefined && assigned_limit !== null && assigned_limit !== "") {
+    if (
+      assigned_limit !== undefined &&
+      assigned_limit !== null &&
+      assigned_limit !== ""
+    ) {
       const [[existing]] = await conn.query(
         `
         SELECT id

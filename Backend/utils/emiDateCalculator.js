@@ -346,10 +346,10 @@ if (normalizedLender === "STERLIONUBL") {
   /*
    * Sterlion UBL EMI-date rule:
    *
-   * Disbursement on/before 20th:
+   * Disbursement on/before 15th:
    * First EMI → next month 5th
    *
-   * Disbursement after 20th:
+   * Disbursement after 15th:
    * First EMI → month after next, on 5th
    *
    * monthOffset:
@@ -359,7 +359,7 @@ if (normalizedLender === "STERLIONUBL") {
    */
 
   const initialMonthGap =
-    disbursementDay <= 20 ? 1 : 2;
+    disbursementDay <= 15 ? 1 : 2;
 
   // Date ko 1st par set karne se month rollover issue nahi aayega
   dueDate.setDate(1);
@@ -381,7 +381,7 @@ if (normalizedLender === "STERLIONUBL") {
     installmentNumber: installmentOffset + 1,
     disbursementDate: formatDateYMD(disbDate),
     disbursementDay,
-    cutoffApplied: disbursementDay > 20,
+    cutoffApplied: disbursementDay > 15,
     dueDate: formatDateYMD(dueDate),
   });
 
@@ -404,6 +404,14 @@ if (normalizedLender === "STERLIONUBL") {
     }
 //////////////// EMI CLUB EMI DATE ////////////////////
 // ✅ EMI Club: Monthly EMI due based on 25th cut-off logic
+if (lender === "EMICLUB2" && product === "Monthly Loan") {
+  const dueDate = new Date(disbDate);
+  const offset = dueDate.getDate() <= 25 ? 1 : 2;
+  // Set the day before advancing the month to avoid month-end overflow.
+  dueDate.setDate(5);
+  dueDate.setMonth(dueDate.getMonth() + offset);
+  return dueDate;
+}
 if (lender === "EMICLUB" && product === "Monthly Loan") {
   const dueDate = new Date(disbDate);
   const disbDay = dueDate.getDate();

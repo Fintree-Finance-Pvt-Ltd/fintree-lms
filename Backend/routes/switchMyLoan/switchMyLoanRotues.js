@@ -1593,7 +1593,7 @@ router.post("/v1/create", verifyApiKey, async (req, res) => {
   for (let attempt = 1; attempt <= MAX_CREATE_ATTEMPTS; attempt++) {
   let connection;
   let transactionStarted = false;
-  let retryable = false;
+  let rollbackFailed = false;
 
   try {
     connection = await db.promise().getConnection();
@@ -1850,14 +1850,23 @@ router.post("/v1/create", verifyApiKey, async (req, res) => {
     });
   } catch (err) {
     if (connection && transactionStarted) {
-      await connection.rollback();
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        rollbackFailed = true;
+        console.error("Rapid Money create rollback error:", rollbackError);
+      }
     }
 
     if (
+      !rollbackFailed &&
       RETRYABLE_SEQUENCE_ERROR_CODES.has(err.code) &&
       attempt < MAX_CREATE_ATTEMPTS
     ) {
-      retryable = true;
+      console.warn("Retrying Rapid Money create transaction", {
+        attempt,
+        code: err.code,
+      });
     } else {
       console.error("Create loan error:", err);
 
@@ -1870,12 +1879,12 @@ router.post("/v1/create", verifyApiKey, async (req, res) => {
       });
     }
   } finally {
-    if (connection) connection.release();
+    if (connection) {
+      // A failed rollback must never return an open transaction to the pool.
+      if (rollbackFailed) connection.destroy();
+      else connection.release();
+    }
   }
-
-  console.warn(
-    `Create loan sequence conflict, retrying (attempt ${attempt}/${MAX_CREATE_ATTEMPTS})`,
-  );
 
   await new Promise((resolve) =>
     setTimeout(resolve, 150 * attempt + Math.floor(Math.random() * 100)),
@@ -5523,6 +5532,51 @@ if (hasCompleteBankDetails) {
     });
   }
 }
+      // ======================================================
+      // CROSS PRODUCT CHECK: QUICK MONEY
+      // ======================================================
+      if (loan.pan_number) {
+        const [quickMoneyCases] = await connection.query(
+          `
+          SELECT status 
+          FROM loan_booking_quick_money 
+          WHERE pan_number = ? 
+            AND status NOT IN ('Fully Paid', 'CLOSED', 'REJECTED', 'CANCELLED')
+          LIMIT 1
+          `,
+          [loan.pan_number]
+        );
+
+        if (quickMoneyCases.length > 0) {
+          await connection.query(
+            `UPDATE loan_booking_switch_my_loan
+             SET status = ?,
+                 sml_bre_status = ?,
+                 sml_bre_reason = ?,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE application_id = ?`,
+            [
+              "REJECTED",
+              "REJECTED",
+              "Active Quick Money loan exists",
+              application_id,
+            ]
+          );
+
+          const breResponse = buildPartnerBreResponse({
+            decision: "REJECTED",
+          });
+
+          return res.json({
+            is_success: true,
+            data: {
+              status: "Rejected",
+              bre_response: breResponse,
+            },
+          });
+        }
+      }
+
       const breEngineResult = await runBRE(loan, {
         onboardingCompleted: onboarding_completed,
       });

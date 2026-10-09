@@ -8,11 +8,12 @@ const {
   updatePermissions
 } = require('../controllers/adminController');
 const verifyToken = require('../middleware/verifyToken');
+const isAdmin = require('../middleware/isAdmin');
 
 router.get('/user-pages/:id', verifyToken, getUserPages);
-router.post('/create-user', verifyToken, createUser);
-router.get('/users', verifyToken, getAllUsers);
-router.get('/pages', verifyToken, getAllPages);
-router.post('/update-permissions', verifyToken, updatePermissions);
+router.post('/create-user', verifyToken, isAdmin, createUser);
+router.get('/users', verifyToken, isAdmin, getAllUsers);
+router.get('/pages', verifyToken, isAdmin, getAllPages);
+router.post('/update-permissions', verifyToken, isAdmin, updatePermissions);
 
 module.exports = router;

@@ -1,6 +1,7 @@
 const {
   POLICY,
   calculateAge,
+  getFirstTimeCreditLimit,
   validateLoanAmount,
   isNewCustomer,
   calculateRepeatCreditLimit,
@@ -221,11 +222,11 @@ function evaluateQuickMoneyEligibility(payload = {}) {
   let repeatLimitDetails = null;
   if (newCustomer) {
   creditLimit =
-    POLICY.FIRST_TIME_CUSTOMER_LIMIT;
+    getFirstTimeCreditLimit(age, loanAmount);
 
   const firstTimeLimitAdjusted =
     loanAmount >
-    POLICY.FIRST_TIME_CUSTOMER_LIMIT;
+    creditLimit;
 
   rules.FIRST_TIME_LIMIT_CHECK_RPM =
     rule(
@@ -238,8 +239,7 @@ function evaluateQuickMoneyEligibility(payload = {}) {
           loanAmount,
 
         assignedCreditLimit:
-          POLICY
-            .FIRST_TIME_CUSTOMER_LIMIT,
+          creditLimit,
 
         limitAdjusted:
           firstTimeLimitAdjusted,

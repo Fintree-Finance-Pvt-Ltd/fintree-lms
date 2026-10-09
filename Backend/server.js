@@ -17,9 +17,12 @@ ensureThirdPartyApiUsageTable().catch((err) =>
 
 const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const verifyToken = require("./middleware/verifyToken");
+const payoutRoutes = require("./routes/payoutRoutes");
 const excelUploadRoutes = require("./routes/excelUpload");
 const sterlionRoutes = require("./routes/sterlion/sterlionRoutes");
 const carePayRoutes = require("./routes/CarePay/carePayRoutes");
+const claimBuddyRoutes = require("./routes/ClaimBuddy/claimBuddyRoutes"); //Claim Buddy
 const loanRoutes = require("./routes/loanRoutes");
 const repaymentRoutes = require("./routes/repaymentsRoutes");
 const loanChargesRoutes = require("./routes/loanChargesRoutes");
@@ -47,6 +50,11 @@ const {
   retryPendingValidations,
   autoApproveIfAllVerified,
 } = require("./services/heliumValidationEngine");
+// const {
+ 
+//   processQuickMoneyDisbursement,
+
+// } = require("./services/processEmiClubDisbursement");
 const {
   autoApproveClayyoIfAllVerified,
 } = require("./routes/clyooRoutes/clayyoBreEngine");
@@ -60,6 +68,9 @@ const {
   generateForReport,
   generateAllPending,
 } = require("./jobs/cibilPdfService");
+// const digioNachPresentationRoute = require("./routes/digioNachPresentation");
+// const digioWebhookRoutes = require("./routes/digioWebhookRoutes");
+
 const crypto = require("crypto");
 // const { initScheduler } = require('./jobs/smsSchedulerRaw');
 const { initScheduler, runOnce } = require("./jobs/smsSchedulerRaw");
@@ -103,9 +114,12 @@ const PORT = process.env.PORT;
 // import { v4 as uuidv4 } from 'uuid';
 
 // ✅ Import jobs
-require("./jobs/dailyJobs");
-require("./jobs/rapidMoneyWebhookRetry");
-require("./jobs/quickMoneyWebhookRetry");
+if (process.env.RUN_CRONS === 'true') {
+  require("./jobs/dailyJobs");
+  require("./jobs/rapidMoneyWebhookRetry");
+  require("./jobs/quickMoneyWebhookRetry");
+  require("./workers/pdfQueue"); // Load the PDF Queue Worker
+}
 
 const fs = require("fs");
 const path = require("path");
@@ -127,7 +141,9 @@ app.use(
 const digitapAadhaarService = require("./services/digitapaadharservice");
 
 app.use("/api/test-kyc", digitapAadhaarService.router);
-initScheduler();
+if (process.env.RUN_CRONS === 'true') {
+  initScheduler();
+}
 
 // // Auto-generate API key once when server starts
 // const API_KEY = process.env.API_KEY || uuidv4();
@@ -159,6 +175,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/loan-booking", sterlionRoutes);
 app.use("/api/loan-booking", carePayRoutes.loanBookingRouter);
 app.use("/api/loan-booking", excelUploadRoutes);
+app.use("/api/loan-booking", require("./routes/EmiClub2/Emiclub2Routes"));
 app.use("/api/wctl-ccod", require("./routes/wctlCCODRoutes/wctlRoutes")); // ✅ Register WCTL-CC-OD Routes
 app.use("/api/helium-loans", require("./routes/heliumRoutes/heliumRoutes")); // ✅ Register Helium Loan Routes
 app.use("/api/clayyo-loans", require("./routes/clyooRoutes/clyooRoutes")); // ✅ Register Clayyo Routes
@@ -172,6 +189,13 @@ app.use(
 );
 app.use("/api/sampada", require("./routes/Sampada/sampadaDealerRoutes"));
 
+app.use("/api/sabgrow",require("./routes/SabGrow/sabGrowRoute"));
+
+// app.use(
+//   "/api/omrajpay",
+//   require("./routes/OmRajPay/OmRajPayRoutes"),
+// );
+
 app.use(
   "/api/seven-fincorp",
   require("./routes/Seven Fincorp/sevenFincorpDealerRoutes"),
@@ -180,10 +204,10 @@ app.use(
 app.use("/api/srbh", require("./routes/srbh/srbhDealerRoutes"));
 
 app.use("/api/bundela", require("./routes/Bundela/bundelaDealerRoutes"));
-
-app.use("/api/utr", require("./routes/utrRoutes")); // ✅ Register UTR Routes
-app.use("/api/dashboard", dashboardRoutes);
-app.use("/api/loan-booking-summary", loanBookingSummaryRoutes);
+app.use("/api/payout", payoutRoutes); // ✅ Register Payout Reinitiate Routes
+app.use("/api/utr", verifyToken, require("./routes/utrRoutes")); // ✅ Register UTR Routes
+app.use("/api/dashboard", verifyToken, dashboardRoutes);
+app.use("/api/loan-booking-summary", verifyToken, loanBookingSummaryRoutes);
 app.use("/api/third-party-api-stats", thirdPartyApiStatsRoutes);
 app.use("/api/enach", enachRoutes);
 app.use("/api/esign", esignRoutes);
@@ -196,6 +220,8 @@ app.use(
 app.use("/api", carepayBreRoutes);
 app.use("/api/payments", paymentRoutes);
 
+// app.use("/api/digio", digioNachPresentationRoute);
+// app.use("/api/digio",digioWebhookRoutes);
 function safeAuditJson(value) {
   try {
     return JSON.stringify(value ?? null);
@@ -561,27 +587,29 @@ app.use(
 ); // ✅ Register Easebuzz Webhook Route
 
 // app.use("/api/courses", courseRoutes);
-app.use("/api/loan", loanRoutes); //  routes chanegd
-app.use("/api/repayments", repaymentRoutes);
-app.use("/api/collection", collectionApiRoutes);
-app.use("/api/loan-charges", loanChargesRoutes);
-app.use("/api/manual-rps", manualRPSRoutes);
-app.use("/api/disbursal", DisbursalRoutes);
-app.use("/api/application-form", applicationFormRoutes);
-app.use("/api/charges", chargesRoutes); //  routes chanegd
-app.use("/api/delete-cashflow", deleteCashflowRoutes);
-app.use("/api/allocate", allocationRoutes); //  routes chanegd
-app.use("/api/forecloser-collection", forecloserRoutes); // NOT foreclose-collection
-app.use("/api/forecloser", forecloserUploadRoutes); // ✅ Register Route for Forecloser Upload FC Upload
+app.use("/api/loan", verifyToken, loanRoutes); //  routes chanegd
+app.use("/api/repayments",  repaymentRoutes);
+app.use("/api/collection",  collectionApiRoutes);
+app.use("/api/loan-charges", verifyToken, loanChargesRoutes);
+app.use("/api/manual-rps", verifyToken, manualRPSRoutes);
+app.use("/api/disbursal", verifyToken, DisbursalRoutes);
+app.use("/api/application-form", verifyToken, applicationFormRoutes);
+app.use("/api/charges", verifyToken, chargesRoutes); //  routes chanegd
+app.use("/api/delete-cashflow", verifyToken, deleteCashflowRoutes);
+app.use("/api/allocate", verifyToken, allocationRoutes); //  routes chanegd
+app.use("/api/forecloser-collection", verifyToken, forecloserRoutes); // NOT foreclose-collection
+app.use("/api/forecloser", verifyToken, forecloserUploadRoutes); // ✅ Register Route for Forecloser Upload FC Upload
 app.use("/reports", express.static(path.join(__dirname, "/reports")));
-app.use("/api/reports", reportsRoutes); // ✅ Register Route for Reports
-app.use("/api/customers-soa", require("./routes/customersSOA")); // ✅ Register Route for Customer SOA
-app.use("/api/dealer-onboarding", dealerOnboardingRoutes); // ✅ Register Route for Dealer Onboarding
-app.use("/api/customers", require("./routes/Customer/customerRoutes")); // ✅ Register Route for Customers
+app.use("/api/reports", verifyToken, reportsRoutes); // ✅ Register Route for Reports
+app.use("/api/customers-soa", verifyToken, require("./routes/customersSOA")); // ✅ Register Route for Customer SOA
+app.use("/api/dealer-onboarding", verifyToken, dealerOnboardingRoutes); // ✅ Register Route for Dealer Onboarding
+app.use("/api/customers", verifyToken, require("./routes/Customer/customerRoutes")); // ✅ Register Route for Customers
 
-app.use("/api/partners", require("./routes/partnerLimitRoutes")); // ✅ Partner Limit Management
+app.use("/api/partners", verifyToken, require("./routes/partnerLimitRoutes")); // ✅ Partner Limit Management
 app.use("/api/zebrs", require("./routes/Zebrs/zebrsRoutes")); // ✅ Register Routes for Zebrs
 app.use("/api/carepay", carePayRoutes); // ✅ Register Routes for CarePay Mandate UMRN Update
+app.use("/api/claim-buddy",claimBuddyRoutes); // Claim Buddy
+
 app.use(
   "/api/claim-cure-buddy",
   require("./routes/ClaimCureBuddy/ClaimCureBuddyRoutes"),
@@ -1140,7 +1168,7 @@ app.post("/api/mobile-lookup-test", async (req, res) => {
 //     res.sendFile(path.join(__dirname, '../Frontend/dist', 'index.html'));
 //   });
 
-app.listen(PORT || 5000, () => {
+const server = app.listen(PORT || 5000, () => {
   console.log(`✅ Backend server running on ${PORT}`);
   // Pre-warm dashboard column schema cache (eliminates per-request SHOW COLUMNS queries)
   const db = require("./config/db");
@@ -1148,6 +1176,16 @@ app.listen(PORT || 5000, () => {
     console.error("[server] Dashboard schema cache init error:", err.message),
   );
 });
+
+// Graceful Shutdown Logic
+process.on('SIGTERM', () => {
+  console.info('SIGTERM signal received: closing HTTP server');
+  server.close(() => {
+    console.info('HTTP server closed. Exiting safely.');
+    process.exit(0);
+  });
+});
+
 
 // app.post(
 //   "/api/test-quick-money-rejection-webhook",
@@ -1193,3 +1231,74 @@ app.listen(PORT || 5000, () => {
 //     }
 //   },
 // );
+
+
+// app.post("/api/test-quick-money-disbursement", async (req, res) => {
+
+//   try {
+
+//     const {
+//       lan,
+//       transactionId,
+//       disbursementDate
+//     } = req.body;
+
+
+//     if (
+//       !lan ||
+//       !transactionId ||
+//       !disbursementDate
+//     ) {
+
+//       return res.status(400).json({
+//         success:false,
+//         message:
+//         "lan, transactionId and disbursementDate are required"
+//       });
+
+//     }
+
+
+//     const result =
+//       await processQuickMoneyDisbursement({
+
+//         lan,
+
+//         disbursementUTR: transactionId,
+
+//         disbursementDate:new Date(disbursementDate)
+
+//       });
+
+
+//     return res.json({
+
+//       success:true,
+
+//       message:
+//       "Quick Money disbursement processed",
+
+//       result
+
+//     });
+
+
+//   } catch(error){
+
+//     console.error(
+//       "Quick Money disbursement test error",
+//       error
+//     );
+
+
+//     return res.status(500).json({
+
+//       success:false,
+
+//       message:error.message
+
+//     });
+
+//   }
+
+// });

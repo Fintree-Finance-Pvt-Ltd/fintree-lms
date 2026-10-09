@@ -1,3 +1,4 @@
+const { processEmiClub2Disbursement } = require("../services/processEmiClub2Disbursement");
 // const express = require("express");
 // const router = express.Router();
 // const multer = require("multer");
@@ -583,8 +584,9 @@ function getPartnerNameByLan(lan, lender, product) {
   if (lan.startsWith("CARE")) return "CAREPAY";
   if (lan.startsWith("SFL")) return "Seven FinCorp";
   if (lan.startsWith("STRL")) return "STERLION";
-  if (lan.startsWith("UBLF")) return "sterlion-ubl";  // UBLF prefix for Sterlion UBL
+  if (lan.startsWith("UBLF")) return "sterlion-ubl"; // UBLF prefix for Sterlion UBL
   if (lan.startsWith("SW")) return "Saswat";
+  if (lan.startsWith("CBF")) return "CLAIM-BUDDY";   // CLAIM BUDDY
 
   if (lender && String(lender).trim()) return String(lender).trim();
   if (product && String(product).trim()) return String(product).trim();
@@ -667,7 +669,7 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
     const welcomeEmailErrors = [];
 
     for (const row of sheetData) {
-       const lan = String(row["LAN"] || "")
+      const lan = String(row["LAN"] || "")
         .trim()
         .toUpperCase();
       const disbursementUTR = row["Disbursement UTR"];
@@ -675,14 +677,13 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
       // const lan = row["LAN"];
       const sanctionDateRaw = row["Sanction Date"];
       const sanctionDate = sanctionDateRaw
-      ? excelDateToJSDate(sanctionDateRaw)
-     : null;
-console.log({
-  lan,
-  sanctionDate,
-  disbursementDate
-});
-
+        ? excelDateToJSDate(sanctionDateRaw)
+        : null;
+      console.log({
+        lan,
+        sanctionDate,
+        disbursementDate,
+      });
 
       // const lan = String(row["LAN"] || "")
       //   .trim()
@@ -707,16 +708,37 @@ console.log({
         continue;
       }
       // Sanction Date mandatory only for Sterlion UBL
-if (lan.startsWith("UBLF") && !sanctionDate) {
-  rowErrors.push({
-    lan,
-    utr: disbursementUTR,
-    reason: "Sanction Date is mandatory for Sterlion UBL",
-    stage: "validation",
-  });
-  continue;
-}
+      if (lan.startsWith("UBLF") && !sanctionDate) {
+        rowErrors.push({
+          lan,
+          utr: disbursementUTR,
+          reason: "Sanction Date is mandatory for Sterlion UBL",
+          stage: "validation",
+        });
+        continue;
+      }
 
+      if (lan.startsWith("FINE2")) {
+        try {
+          const result = await processEmiClub2Disbursement({ lan, disbursementUTR, disbursementDate });
+          if (result.success && !result.alreadyDisbursed) {
+            processedCount++;
+            insertedLANs.add(lan);
+            try {
+              const emailResult = await sendWelcomeLetterAfterUtrUpload({ lan, utrNumber: String(disbursementUTR).trim() });
+              welcomeEmailResults.push({ lan, utr: disbursementUTR, recipient: emailResult.recipient, status: "SENT" });
+            } catch (error) {
+              welcomeEmailErrors.push({ lan, utr: disbursementUTR, reason: error.message, status: "FAILED" });
+            }
+          } else {
+            duplicateUTRs.push(disbursementUTR);
+          }
+          if (result.webhookSent === false) rowErrors.push({ lan, utr: disbursementUTR, stage: "webhook", reason: result.webhookError });
+        } catch (error) {
+          rowErrors.push({ lan, utr: disbursementUTR, stage: "emiclub2-disbursement", reason: error.message });
+        }
+        continue;
+      }
       // Fetch loan details
       let loanRes = [];
       try {
@@ -765,10 +787,10 @@ WHERE lan = ?`,
      LIMIT 1`,
             [lan],
           );
-
-          } else if (lan.startsWith("UBLF")) {   // UBLF prefix for Sterlion UBL
-  [loanRes] = await db.promise().query(
-    `SELECT
+        } else if (lan.startsWith("UBLF")) {
+          // UBLF prefix for Sterlion UBL
+          [loanRes] = await db.promise().query(
+            `SELECT
        loan_amount,
        interest_rate,
        tenure_months AS loan_tenure,
@@ -778,8 +800,8 @@ WHERE lan = ?`,
      FROM loan_booking_sterlion_ubl
      WHERE lan = ?
      LIMIT 1`,
-    [lan]
-  );
+            [lan],
+          );
         } else if (lan.startsWith("STRL")) {
           [loanRes] = await db.promise().query(
             `SELECT
@@ -795,14 +817,13 @@ WHERE lan = ?`,
              LIMIT 1`,
             [lan],
           );
-        } else if(lan.startsWith("WCTLFFPL")){
-          [loanRes]= await db.promise().query(
+        } else if (lan.startsWith("WCTLFFPL")) {
+          [loanRes] = await db.promise().query(
             `SELECT loan_amount, interest_rate, loan_tenure, product, lender
              FROM loan_booking_wctl_ffpl WHERE lan = ?`,
             [lan],
-          )
-        }
-         else if (lan.startsWith("ADK")) {
+          );
+        } else if (lan.startsWith("ADK")) {
           [loanRes] = await db.promise().query(
             `SELECT loan_amount, interest_rate, loan_tenure, salary_day, product, lender 
              FROM loan_booking_adikosh WHERE lan = ?`,
@@ -846,8 +867,8 @@ WHERE lan = ?`,
             [lan],
           );
         } else if (lan.startsWith("CIRHUF")) {
-       [loanRes] = await db.promise().query(
-       `SELECT
+          [loanRes] = await db.promise().query(
+            `SELECT
        loan_amount,
        interest_rate,
        loan_tenure,
@@ -856,12 +877,11 @@ WHERE lan = ?`,
        partner_loan_id
      FROM loan_booking_circle_pe_houser
      WHERE lan = ?`,
-    [lan],
-     );
-} 
-else if (lan.startsWith("SFL")) {
-  [loanRes] = await db.promise().query(
-    `
+            [lan],
+          );
+        } else if (lan.startsWith("SFL")) {
+          [loanRes] = await db.promise().query(
+            `
     SELECT
       loan_amount,
       interest_rate,
@@ -871,10 +891,9 @@ else if (lan.startsWith("SFL")) {
     FROM loan_booking_seven_fincorp
     WHERE lan = ?
     `,
-    [lan],
-  );
-}
- else if (lan.startsWith("MCL")) {
+            [lan],
+          );
+        } else if (lan.startsWith("MCL")) {
           [loanRes] = await db.promise().query(
             `SELECT 
       loan_amount,
@@ -896,6 +915,24 @@ else if (lan.startsWith("SFL")) {
           [loanRes] = await db.promise().query(
             `SELECT final_limit AS loan_amount, interest_rate, loan_tenure, product, lender 
              FROM loan_booking_clayyo WHERE lan = ?`,
+            [lan],
+          );
+        } 
+        
+        //CLAIM BUDDY
+
+        else if (lan.startsWith("CBF")) {
+          [loanRes] = await db.promise().query(
+            `
+    SELECT 
+      loan_amount,
+      interest_rate,
+      loan_tenure,
+      product,
+      lender
+    FROM loan_booking_claim_buddy
+    WHERE lan = ?
+    `,
             [lan],
           );
         } else if (lan.startsWith("SH")) {
@@ -933,12 +970,12 @@ else if (lan.startsWith("SFL")) {
      FROM loan_booking_helium WHERE lan = ?`,
             [lan],
           );
-        }else if(lan.startsWith("SW")){
-          [loanRes]= await db.promise().query(
+        } else if (lan.startsWith("SW")) {
+          [loanRes] = await db.promise().query(
             `SELECT loan_amount, interest_rate, loan_tenure, product, lender
              FROM loan_booking_saswat WHERE lan = ?`,
             [lan],
-          )
+          );
         } else {
           [loanRes] = await db.promise().query(
             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
@@ -1116,21 +1153,20 @@ else if (lan.startsWith("SFL")) {
               "UPDATE loan_booking_hey_ev SET status = 'Disbursed' WHERE lan = ?",
               [lan],
             );
-          }
-          else if (lan.startsWith("WCTLFFPL")) {
+          } else if (lan.startsWith("WCTLFFPL")) {
             await conn.query(
               "UPDATE loan_booking_wctl_ffpl SET status = 'Disbursed' WHERE lan = ?",
               [lan],
             );
-            } else if (lan.startsWith("UBLF")) {      // UBLF prefix for Sterlion UBL
-             await conn.query(
-            `UPDATE loan_booking_sterlion_ubl SET status = 'Disbursed' ,
+          } else if (lan.startsWith("UBLF")) {
+            // UBLF prefix for Sterlion UBL
+            await conn.query(
+              `UPDATE loan_booking_sterlion_ubl SET status = 'Disbursed' ,
               sanction_date = ?,
              disbursement_date = ?
              WHERE lan = ?`,
-              [sanctionDate,disbursementDate, lan]  
-             );
-
+              [sanctionDate, disbursementDate, lan],
+            );
           } else if (lan.startsWith("HEYBF1")) {
             await conn.query(
               "UPDATE loan_booking_hey_ev_battery SET status = 'Disbursed' WHERE lan = ?",
@@ -1146,7 +1182,7 @@ else if (lan.startsWith("SFL")) {
               `UPDATE loan_booking_sampada SET status = 'Disbursed' WHERE lan = ?`,
               [lan],
             );
-            } else if (lan.startsWith("SFL")) {
+          } else if (lan.startsWith("SFL")) {
             await conn.query(
               `UPDATE loan_booking_seven_fincorp SET status = 'Disbursed' WHERE lan = ?`,
               [lan],
@@ -1264,6 +1300,22 @@ else if (lan.startsWith("SFL")) {
     `,
               [preEmiDays, preEmiAmount, netDisbursement, lan],
             );
+          } else if (lan.startsWith("SW")) {
+
+              const [saswatUpdate] = await conn.query(
+                `
+                  UPDATE loan_booking_saswat
+                  SET status = 'Disbursed'
+                  WHERE lan = ?
+                `,
+                [lan],
+              );
+            
+              console.log("✅ Saswat status updated", {
+                lan,
+                affectedRows: saswatUpdate.affectedRows,
+              });
+            
           } else {
             await conn.query(
               "UPDATE loan_booking_adikosh SET status = 'Disbursed' WHERE lan = ?",
@@ -1495,69 +1547,62 @@ else if (lan.startsWith("SFL")) {
           }
         }
 
-
         // ✅ Call webhook for CIRCLE PE HOUSER loans only
-if (lan.startsWith("CIRHUF")) {
-  let partnerLoanId = null;
+        if (lan.startsWith("CIRHUF")) {
+          let partnerLoanId = null;
 
-  try {
-    partnerLoanId = String(partner_loan_id || "").trim();
+          try {
+            partnerLoanId = String(partner_loan_id || "").trim();
 
-    if (!partnerLoanId) {
-      throw new Error(
-        `partner_loan_id not found for Circle Pe Houser loan ${lan}`,
-      );
-    }
+            if (!partnerLoanId) {
+              throw new Error(
+                `partner_loan_id not found for Circle Pe Houser loan ${lan}`,
+              );
+            }
 
-    const webhookResult = await sendLoanWebhook({
-      external_ref_no: partnerLoanId,
-      utr: String(disbursementUTR).trim(),
-      disbursement_date: disbursementDate
-        .toISOString()
-        .split("T")[0],
-      reference_number: lan,
-      status: "DISBURSED",
-      reject_reason: null,
-    });
+            const webhookResult = await sendLoanWebhook({
+              external_ref_no: partnerLoanId,
+              utr: String(disbursementUTR).trim(),
+              disbursement_date: disbursementDate.toISOString().split("T")[0],
+              reference_number: lan,
+              status: "DISBURSED",
+              reject_reason: null,
+            });
 
-    if (!webhookResult) {
-      throw new Error(
-        "Circle Pe Houser webhook returned no response",
-      );
-    }
+            if (!webhookResult) {
+              throw new Error("Circle Pe Houser webhook returned no response");
+            }
 
-    console.log("✅ Circle Pe Houser webhook successful", {
-      lan,
-      partnerLoanId,
-      webhookResult,
-    });
-  } catch (webhookErr) {
-    const responseStatus =
-      webhookErr.response?.status || null;
+            console.log("✅ Circle Pe Houser webhook successful", {
+              lan,
+              partnerLoanId,
+              webhookResult,
+            });
+          } catch (webhookErr) {
+            const responseStatus = webhookErr.response?.status || null;
 
-    const responseData =
-      webhookErr.response?.data || null;
+            const responseData = webhookErr.response?.data || null;
 
-    console.error("❌ Circle Pe Houser webhook failed", {
-      lan,
-      partnerLoanId,
-      message: webhookErr.message,
-      responseStatus,
-      responseData,
-    });
+            console.error("❌ Circle Pe Houser webhook failed", {
+              lan,
+              partnerLoanId,
+              message: webhookErr.message,
+              responseStatus,
+              responseData,
+            });
 
-    rowErrors.push({
-      partnerLoanId: partnerLoanId || null,
-      lan,
-      utr: disbursementUTR,
-      reason: responseData
-        ? `Circle Pe Houser webhook failed: ${JSON.stringify(responseData)}`
-        : `Circle Pe Houser webhook failed: ${webhookErr.message}`,
-      http_status: responseStatus,
-      stage: "webhook",
-    });
-  }
-}
+            rowErrors.push({
+              partnerLoanId: partnerLoanId || null,
+              lan,
+              utr: disbursementUTR,
+              reason: responseData
+                ? `Circle Pe Houser webhook failed: ${JSON.stringify(responseData)}`
+                : `Circle Pe Houser webhook failed: ${webhookErr.message}`,
+              http_status: responseStatus,
+              stage: "webhook",
+            });
+          }
+        }
         // ✅ Call webhook for FINE (Finso) loans only
         if (lan.startsWith("FINS")) {
           try {

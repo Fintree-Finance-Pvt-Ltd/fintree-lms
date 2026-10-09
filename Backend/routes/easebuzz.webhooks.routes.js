@@ -1,3 +1,6 @@
+const {
+  processEmiClub2Disbursement,
+} = require("../services/processEmiClub2Disbursement");
 const express = require("express");
 const db = require("../config/db");
 const { verifyWebhookHash } = require("../utils/webhookHashVerify");
@@ -5,6 +8,7 @@ const { sendLowBalanceAlertMail } = require("../jobs/mailer");
 const {
   processEmiClubDisbursement,
   processRapidMoneyDisbursement,
+  processQuickMoneyDisbursement,
   processCarePayDisbursement,
   processYaMoneyDisbursement,
 } = require("../services/processEmiClubDisbursement");
@@ -12,6 +16,10 @@ const {
   sendDisbursementWebhook,
   sendRejectionWebhook,
 } = require("../routes/switchMyLoan/switchMyLoanWebhook");
+const {
+  sendQuickMoneyDisbursementWebhook,
+  sendQuickMoneyRejectionWebhook,
+} = require("../routes/QuickMoney/quickMoneyWebhook");
 const {
   processMandateWebhook,
 } = require("../services/easebuzz/easebuzzMandateService");
@@ -24,21 +32,16 @@ const router = express.Router();
 
 async function handleMandateWebhook(req, res) {
   try {
-    const result =
-      await processMandateWebhook(
-        req.body || {},
-        req.headers || {},
-      );
+    const result = await processMandateWebhook(
+      req.body || {},
+      req.headers || {},
+    );
 
     if (result.ignored) {
-      console.warn(
-        "Easebuzz mandate webhook ignored",
-        {
-          reason: result.reason,
-          identifiers:
-            result.identifiers,
-        },
-      );
+      console.warn("Easebuzz mandate webhook ignored", {
+        reason: result.reason,
+        identifiers: result.identifiers,
+      });
 
       return res.status(200).json({
         received: true,
@@ -47,48 +50,32 @@ async function handleMandateWebhook(req, res) {
       });
     }
 
-    console.log(
-      "Easebuzz mandate webhook processed",
-      {
-        lan: result.mandate?.lan,
-        transactionId:
-          result.mandate?.transactionId,
-        status:
-          result.mandate?.status,
-        providerStatus:
-          result.mandate?.providerStatus,
-        umrn:
-          result.mandate?.umrn,
-        duplicate:
-          result.event?.duplicate,
-      },
-    );
+    console.log("Easebuzz mandate webhook processed", {
+      lan: result.mandate?.lan,
+      transactionId: result.mandate?.transactionId,
+      status: result.mandate?.status,
+      providerStatus: result.mandate?.providerStatus,
+      umrn: result.mandate?.umrn,
+      duplicate: result.event?.duplicate,
+    });
 
     return res.status(200).json({
       received: true,
       success: true,
       data: {
         lan: result.mandate?.lan,
-        transactionId:
-          result.mandate?.transactionId,
-        status:
-          result.mandate?.status,
-        providerStatus:
-          result.mandate?.providerStatus,
-        umrn:
-          result.mandate?.umrn,
-        duplicate:
-          result.event?.duplicate,
+        transactionId: result.mandate?.transactionId,
+        status: result.mandate?.status,
+        providerStatus: result.mandate?.providerStatus,
+        umrn: result.mandate?.umrn,
+        duplicate: result.event?.duplicate,
       },
     });
   } catch (error) {
     if (Number(error.statusCode) === 401) {
-      console.error(
-        "Easebuzz mandate webhook unauthorized",
-        {
-          message: error.message,
-        },
-      );
+      console.error("Easebuzz mandate webhook unauthorized", {
+        message: error.message,
+      });
 
       return res.status(401).json({
         success: false,
@@ -96,31 +83,21 @@ async function handleMandateWebhook(req, res) {
       });
     }
 
-    console.error(
-      "Easebuzz mandate webhook processing error",
-      {
-        message: error.message,
-        stack: error.stack,
-      },
-    );
+    console.error("Easebuzz mandate webhook processing error", {
+      message: error.message,
+      stack: error.stack,
+    });
 
     return res.status(500).json({
       success: false,
-      message:
-        "Mandate webhook processing failed",
+      message: "Mandate webhook processing failed",
     });
   }
 }
 
-router.post(
-  "/mandate",
-  handleMandateWebhook,
-);
+router.post("/mandate", handleMandateWebhook);
 
-router.post(
-  "/easycollect/mandate",
-  handleMandateWebhook,
-);
+router.post("/easycollect/mandate", handleMandateWebhook);
 
 router.post("/payout", async (req, res) => {
   let conn;
@@ -222,7 +199,11 @@ router.post("/payout", async (req, res) => {
         utr: effectiveUtr,
       });
 
-      if (transfer.lan?.startsWith("RML") && effectiveUtr && effectiveTransferDate) {
+      if (
+        transfer.lan?.startsWith("RML") &&
+        effectiveUtr &&
+        effectiveTransferDate
+      ) {
         const webhookResult = await sendDisbursementWebhook({
           lan: transfer.lan,
           transactionId: effectiveUtr,
@@ -257,7 +238,50 @@ router.post("/payout", async (req, res) => {
         });
       }
 
-      if (transfer.lan?.startsWith("CARE") && effectiveUtr && effectiveTransferDate) {
+      if (
+        transfer.lan?.startsWith("QML") &&
+        effectiveUtr &&
+        effectiveTransferDate
+      ) {
+        const webhookResult = await sendQuickMoneyDisbursementWebhook({
+          lan: transfer.lan,
+          transactionId: effectiveUtr,
+          disbursementDate: effectiveTransferDate,
+        });
+
+        console.log("Quick Money partner webhook result", {
+          lan: transfer.lan,
+          utr: effectiveUtr,
+          success: webhookResult?.success,
+          alreadySent: webhookResult?.alreadySent,
+          logId: webhookResult?.logId,
+          message: webhookResult?.message,
+        });
+
+        if (!webhookResult?.success) {
+          console.log("Partner webhook failed and will be retried by cron", {
+            lan: transfer.lan,
+            logId: webhookResult?.logId,
+          });
+        }
+
+        const processingResult = await processQuickMoneyDisbursement({
+          lan: transfer.lan,
+          disbursementUTR: effectiveUtr,
+          disbursementDate: new Date(effectiveTransferDate),
+        });
+
+        console.log("Duplicate callback Quick Money processing result", {
+          lan: transfer.lan,
+          result: processingResult,
+        });
+      }
+
+      if (
+        transfer.lan?.startsWith("CARE") &&
+        effectiveUtr &&
+        effectiveTransferDate
+      ) {
         const processingResult = await processCarePayDisbursement({
           lan: transfer.lan,
           disbursementUTR: effectiveUtr,
@@ -270,7 +294,11 @@ router.post("/payout", async (req, res) => {
         });
       }
 
-      if (transfer.lan?.startsWith("YAM") && effectiveUtr && effectiveTransferDate) {
+      if (
+        transfer.lan?.startsWith("YAM") &&
+        effectiveUtr &&
+        effectiveTransferDate
+      ) {
         const processingResult = await processYaMoneyDisbursement({
           lan: transfer.lan,
           disbursementUTR: effectiveUtr,
@@ -283,7 +311,23 @@ router.post("/payout", async (req, res) => {
         });
       }
 
-      if (transfer.lan?.startsWith("FINE") && effectiveUtr && effectiveTransferDate) {
+      if (
+        transfer.lan?.startsWith("FINE2") &&
+        effectiveUtr &&
+        effectiveTransferDate
+      ) {
+        await processEmiClub2Disbursement({
+          lan: transfer.lan,
+          disbursementUTR: effectiveUtr,
+          disbursementDate: new Date(effectiveTransferDate),
+        });
+      }
+      if (
+        transfer.lan?.startsWith("FINE") &&
+        !transfer.lan.startsWith("FINE2") &&
+        effectiveUtr &&
+        effectiveTransferDate
+      ) {
         const processingResult = await processEmiClubDisbursement({
           lan: transfer.lan,
           disbursementUTR: effectiveUtr,
@@ -326,10 +370,13 @@ router.post("/payout", async (req, res) => {
        * the partner is idempotent on their side.
        */
       if (transfer.lan?.startsWith("FTPL") || transfer.lan?.startsWith("PLP")) {
-        console.log("Duplicate Easebuzz payout callback for PLP/FTPL — ignoring", {
-          lan: transfer.lan,
-          utr: effectiveUtr,
-        });
+        console.log(
+          "Duplicate Easebuzz payout callback for PLP/FTPL — ignoring",
+          {
+            lan: transfer.lan,
+            utr: effectiveUtr,
+          },
+        );
       }
 
       return res.sendStatus(200);
@@ -459,6 +506,54 @@ router.post("/payout", async (req, res) => {
         // payout.service.js's own synchronous success path) converges on,
         // so it only fires once, exactly when the disbursement first
         // actually completes.
+      } else if (lan?.startsWith("QML")) {
+        /*
+         * Quick Money-specific processing.
+         * Mirrors Rapid Money above.
+         */
+        try {
+          const webhookResult = await sendQuickMoneyDisbursementWebhook({
+            lan,
+            transactionId: effectiveUtr,
+            disbursementDate: effectiveTransferDate,
+          });
+
+          console.log("Quick Money partner webhook result", {
+            lan,
+            utr: effectiveUtr,
+            success: webhookResult?.success,
+            alreadySent: webhookResult?.alreadySent,
+            logId: webhookResult?.logId,
+            message: webhookResult?.message,
+          });
+
+          if (!webhookResult?.success) {
+            console.log("Partner webhook will be retried by cron", {
+              lan,
+              logId: webhookResult?.logId,
+            });
+          }
+        } catch (webhookError) {
+          console.error("Quick Money partner webhook error", {
+            lan,
+            message: webhookError.message,
+            stack: webhookError.stack,
+          });
+        }
+
+        const quickMoneyResult = await processQuickMoneyDisbursement({
+          lan,
+          disbursementUTR: effectiveUtr,
+          disbursementDate,
+        });
+
+        console.log("Quick Money internal processing result", {
+          lan,
+          utr: effectiveUtr,
+          success: quickMoneyResult?.success,
+          skipped: quickMoneyResult?.skipped,
+          reason: quickMoneyResult?.reason,
+        });
       } else if (lan?.startsWith("CARE")) {
         const carePayResult = await processCarePayDisbursement({
           lan,
@@ -486,6 +581,12 @@ router.post("/payout", async (req, res) => {
           success: yaMoneyResult?.success,
           skipped: yaMoneyResult?.skipped,
           reason: yaMoneyResult?.reason,
+        });
+      } else if (lan?.startsWith("FINE2")) {
+        await processEmiClub2Disbursement({
+          lan,
+          disbursementUTR: effectiveUtr,
+          disbursementDate,
         });
       } else if (lan?.startsWith("FINE")) {
         /*
@@ -534,6 +635,27 @@ router.post("/payout", async (req, res) => {
           amount: Number(transfer.amount),
           lan,
         });
+      }
+      // CLAIM BUDDY
+      else if (lan?.startsWith("CBF")) {
+        await db.promise().query(
+          `
+      UPDATE loan_booking_claim_buddy
+      SET
+        status = 'DISBURSED',
+        stage = 'DISBURSED',
+        disbursed_at = COALESCE(disbursed_at, NOW()),
+        updated_at = NOW()
+      WHERE lan = ?
+        AND status = 'DISBURSEMENT INITIATED'
+    `,
+          [lan],
+        );
+
+        console.log("Claim Buddy payout webhook success stored", {
+          lan,
+          utr: effectiveUtr,
+        });
       } else if (lan?.startsWith("FTPL") || lan?.startsWith("PLP")) {
         /*
          * FTPL / PLP — pure webhook forwarding bridge.
@@ -554,7 +676,8 @@ router.post("/payout", async (req, res) => {
             lan,
             utr: effectiveUtr,
             disbursementDate: effectiveTransferDate,
-            amount: transfer.amount || (plApp ? plApp.bre_gross_approved_amount : 0),
+            amount:
+              transfer.amount || (plApp ? plApp.bre_gross_approved_amount : 0),
             tenureDays: plApp ? plApp.selected_offer_tenure : 30,
             eventId: "evt-eb-" + data.unique_request_number,
           });
@@ -575,10 +698,13 @@ router.post("/payout", async (req, res) => {
          * Remaining products only store
          * quick_transfer success here.
          */
-        console.log("Payout success stored for product without final processing hook", {
-          lan,
-          utr: effectiveUtr,
-        });
+        console.log(
+          "Payout success stored for product without final processing hook",
+          {
+            lan,
+            utr: effectiveUtr,
+          },
+        );
       }
 
       console.log("✅ Payout SUCCESS", {
@@ -597,10 +723,12 @@ router.post("/payout", async (req, res) => {
       });
 
       if (transfer.lan?.startsWith("RML")) {
-        const [[rmlLoan]] = await db.promise().query(
-          `SELECT application_id FROM loan_booking_switch_my_loan WHERE lan = ? LIMIT 1`,
-          [transfer.lan],
-        );
+        const [[rmlLoan]] = await db
+          .promise()
+          .query(
+            `SELECT application_id FROM loan_booking_switch_my_loan WHERE lan = ? LIMIT 1`,
+            [transfer.lan],
+          );
 
         try {
           await db.promise().query(
@@ -616,10 +744,13 @@ router.post("/payout", async (req, res) => {
             reason: data.failure_reason,
           });
         } catch (statusError) {
-          console.error("Failed to mark Rapid Money loan REJECTED after payout failure", {
-            lan: transfer.lan,
-            message: statusError.message,
-          });
+          console.error(
+            "Failed to mark Rapid Money loan REJECTED after payout failure",
+            {
+              lan: transfer.lan,
+              message: statusError.message,
+            },
+          );
         }
 
         if (rmlLoan?.application_id) {
@@ -628,22 +759,96 @@ router.post("/payout", async (req, res) => {
               applicationId: rmlLoan.application_id,
             });
 
-            console.log("Rapid Money rejection webhook result (payout failure)", {
-              lan: transfer.lan,
-              applicationId: rmlLoan.application_id,
-              result: rejectionResult,
-            });
+            console.log(
+              "Rapid Money rejection webhook result (payout failure)",
+              {
+                lan: transfer.lan,
+                applicationId: rmlLoan.application_id,
+                result: rejectionResult,
+              },
+            );
           } catch (webhookError) {
-            console.error("Rapid Money rejection webhook failed (payout failure)", {
-              lan: transfer.lan,
-              applicationId: rmlLoan.application_id,
-              message: webhookError.message,
-            });
+            console.error(
+              "Rapid Money rejection webhook failed (payout failure)",
+              {
+                lan: transfer.lan,
+                applicationId: rmlLoan.application_id,
+                message: webhookError.message,
+              },
+            );
           }
         } else {
-          console.error("Cannot send Rapid Money rejection webhook — application_id missing", {
+          console.error(
+            "Cannot send Rapid Money rejection webhook — application_id missing",
+            {
+              lan: transfer.lan,
+            },
+          );
+        }
+      }
+
+      if (transfer.lan?.startsWith("QML")) {
+        const [[qmlLoan]] = await db
+          .promise()
+          .query(
+            `SELECT application_id FROM loan_booking_quick_money WHERE lan = ? LIMIT 1`,
+            [transfer.lan],
+          );
+
+        try {
+          await db.promise().query(
+            `UPDATE loan_booking_quick_money
+             SET status = 'REJECTED',
+                 updated_at = NOW()
+             WHERE lan = ?`,
+            [transfer.lan],
+          );
+
+          console.log("Quick Money loan marked REJECTED after payout failure", {
             lan: transfer.lan,
+            reason: data.failure_reason,
           });
+        } catch (statusError) {
+          console.error(
+            "Failed to mark Quick Money loan REJECTED after payout failure",
+            {
+              lan: transfer.lan,
+              message: statusError.message,
+            },
+          );
+        }
+
+        if (qmlLoan?.application_id) {
+          try {
+            const rejectionResult = await sendQuickMoneyRejectionWebhook({
+              applicationId: qmlLoan.application_id,
+            });
+
+            console.log(
+              "Quick Money rejection webhook result (payout failure)",
+              {
+                lan: transfer.lan,
+                applicationId: qmlLoan.application_id,
+                result: rejectionResult,
+              },
+            );
+          } catch (webhookError) {
+            console.error(
+              "Quick Money rejection webhook failed (payout failure)",
+              {
+                lan: transfer.lan,
+                applicationId: qmlLoan.application_id,
+                message: webhookError.message,
+              },
+            );
+          }
+        } else {
+          console.error(
+            "Cannot send Quick Money rejection webhook — application_id missing",
+            {
+              lan: transfer.lan,
+            },
+          );
         }
       }
     }
@@ -737,7 +942,8 @@ router.post("/low-balance", async (req, res) => {
 */
 router.post("/pl-disbursal", async (req, res) => {
   try {
-    const { lan, utr, disbursementDate, amount, tenureDays, eventId } = req.body || {};
+    const { lan, utr, disbursementDate, amount, tenureDays, eventId } =
+      req.body || {};
 
     console.log("📩 PL DISBURSAL WEBHOOK FORWARDING REQUEST:", {
       lan,
@@ -830,7 +1036,8 @@ router.post("/pl-disbursal", async (req, res) => {
     return res.status(error.response?.status || 500).json({
       success: false,
       code: "PL_DISBURSAL_WEBHOOK_FAILED",
-      message: error.message || "Failed to forward disbursal webhook to PL platform",
+      message:
+        error.message || "Failed to forward disbursal webhook to PL platform",
       plResponse: error.response?.data || null,
     });
   }

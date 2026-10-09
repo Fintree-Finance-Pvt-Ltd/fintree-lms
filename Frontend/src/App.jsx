@@ -16,6 +16,7 @@ import RepaymentsUpload from "./components/RepaymentsUpload";
 import CreateCharges from "./components/CreateChargesUpload";
 import DeleteCashflow from "./components/DeleteCashflow";
 import ForecloserUpload from "./components/ForecloserUpload";
+import PayoutReinitiate from "./components/PayoutReinitiate";
 import LoanApplicationForm from "./components/LoanApplicationForm";
 import DownloadExcelTemplates from "./components/DownloadTemplate";
 import EVApprovedLoans from "./components/ApprovedLoans";
@@ -87,6 +88,16 @@ import EmiClubAllLoans from "./components/EmiClubAllLoans";
 import EmiClubLoginLoans from "./components/EmiClubLoginLoans";
 import EmiClubActionScreen from "./components/EmiClubActionScreen";
 import EmiClubApproveInitiateScreen from "./components/EmiClubApproveInitiateScreen";
+import EmiClubPayoutStatus from "./components/EmiClubPayoutStatus";
+
+// EmiClub2 Imports
+import EmiClub2ApprovedLoans from "./components/EmiClub2/EmiClub2ApprovedLoans.jsx";
+import EmiClub2DisbursedLoans from "./components/EmiClub2/EmiClub2DisbursedLoans.jsx";
+import EmiClub2AllLoans from "./components/EmiClub2/EmiClub2AllLoans.jsx";
+import EmiClub2LoginLoans from "./components/EmiClub2/EmiClub2LoginLoans.jsx";
+import EmiClub2ApproveInitiateScreen from "./components/EmiClub2/EmiClub2ApproveInitiateScreen.jsx";
+import EmiClub2ActionScreen from "./components/EmiClub2/EmiClub2ActionScreen.jsx";
+
 import FinsoApprovedLoans from "./components/FinsoApprovedLoans";
 import FinsoDisbursedLoans from "./components/FinsoDisbursedLoans";
 import FinsoAllLoans from "./components/FinsoAllLoans";
@@ -211,7 +222,6 @@ import SevenFinCorpLoginCases from "./components/Seven FinCorp/SevenFinCorpLogin
 import SevenFinCorpDealerDetails from "./components/Seven FinCorp/SevenfinCorpDealerDetails";
 import SevenFinCorpAllLoans from "./components/Seven FinCorp/SevenFinCorpAllLoans";
 import SevenFinCorpDetails from "./components/Seven FinCorp/SevenfinCorpDetails";
-
 // Bundela Imports
 import BundelaDealerEntry from "./components/Bundela/BundelaDealerEntry";
 import BundelaDealerLists from "./components/Bundela/BundelaDealerLists";
@@ -286,6 +296,24 @@ import SampadaApprovedLoans from "./components/Sampada/SampadaApprovedLoans";
 import SampadaOperationApproval from "./components/Sampada/SampadaOperationApproval";
 import SampadaUpdateData from "./components/Sampada/SampadaUpdateData.jsx";
 
+// /* ===================== OmrajPay imports ===================== */
+// import OmrajPayDealerEntry from "./components/OmRajPay/OmrajPayDealerEntry";
+// import OmrajPayDealerLists from "./components/OmRajPay/OmrajPayDealerLists";
+// import OmrajPayDealerLoginActions from "./components/OmRajPay/OmrajPayDealerLoginActions";
+// import OmrajPayDealerDetails from "./components/OmRajPay/OmrajPayDealerDetails";
+// import OmrajPayLoanBooking from "./components/OmRajPay/OmrajPayLoanBooking";
+// import OmrajPayAllLoans from "./components/OmRajPay/OmrajPayAllLoans";
+// import OmrajPayLoginCases from "./components/OmRajPay/OmrajPayLoginCases";
+// import OmrajPayLoginAction from "./components/OmRajPay/OmrajPayLoginAction";
+// import OmrajPayDisburseInitiate from "./components/OmRajPay/OmrajPayDisburseInitiate";
+// import OmrajPayApprovedLoans from "./components/OmRajPay/OmrajPayApprovedLoans";
+// import OmrajPayDisbursed from "./components/OmRajPay/OmrajPayDisbursed";
+// import OmrajPayOperationApproval from "./components/OmRajPay/OmrajPayOperationApproval";
+// import OmrajPayDetails from "./components/OmRajPay/OmrajPayDetails";
+// import OmrajPayUpdateData from "./components/OmRajPay/OmrajPayUpdateData";
+
+/* ===================== OmrajPay routes ===================== */
+
 // Sterlion UBL Imports
 import SterlionUBLLoanBooking from "./components/SterlionUbl/SterlionUBLLoanBooking";
 import SterlionUBLAllLoans from "./components/SterlionUbl/SterlionUBLAllLoans";
@@ -309,8 +337,26 @@ import SaswatAllLoans from "./components/Saswat/SaswatAllLoans.jsx";
 import SaswatApprovedLoans from "./components/Saswat/SaswatApprovedLoans.jsx";
 import SaswatDisbursedLoans from "./components/Saswat/SaswatDisbursedLoans.jsx";
 import SaswatPaymentReceipt from "./components/Saswat/SaswatPaymentReceipt.jsx";
+import SaswatUpdateData from "./components/Saswat/SaswatUpdateData";
 // import NachPresentation from "./components/NachPresentation.jsx";
 import QMLApprovedLoans from "./components/QuickMoney/QMLApprovedLoans.jsx";
+
+// Claim Buddy Import
+import ClaimBuddyHospitalEntry from "./components/ClaimBuddy/ClaimBuddyHospitalEntry";
+import ClaimBuddyHospitalLists from "./components/ClaimBuddy/ClaimBuddyHospitalLists";
+import ClaimBuddyHospitalLoginActions from "./components/ClaimBuddy/ClaimBuddyHospitalLoginAction";
+import ClaimBuddyLoanBooking from "./components/ClaimBuddy/ClaimBuddyLoanBooking";
+import ClaimBuddyLoginLoans from "./components/ClaimBuddy/ClaimBuddyLoginLoans";
+import ClaimBuddyDisburseInitiateScreen from "./components/ClaimBuddy/ClaimBuddyDisburseInitiateScreen";
+import ClaimBuddyLimitEntry from "./components/ClaimBuddy/ClaimBuddyLimitEntry";
+import ClaimBuddyAllLoansScreen from "./components/ClaimBuddy/ClaimBuddyAllLoansScreen";
+import ClaimBuddyUpdateData from "./components/ClaimBuddy/ClaimBuddyUpdateData";
+import ClaimBuddyFintreeScreen from "./components/ClaimBuddy/ClaimBuddyFintreeScreen";
+import ClaimBuddyApprovedLoans from "./components/ClaimBuddy/ClaimBuddyApprovedLoans";
+import ClaimBuddyHospitalDetails from "./components/ClaimBuddy/ClaimBuddyHospitalDetails";
+import ClaimBuddyApprovedLoanDetails from "./components/ClaimBuddy/ClaimBuddyApprovedLoanDetails";
+import ClaimBuddyOpsCheckerScreen from "./components/ClaimBuddy/ClaimBuddyOpsCheckerScreen";
+// import ClaimBuddyApproveInitiateScreen from "./components/ClaimBuddy/ClaimBuddyApproveInitiateScreen";
 
 function App() {
   return (
@@ -363,7 +409,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route path="/payusubscribe" element={<PayUSubscribe />} />
           <Route
             path="/excel-upload"
@@ -414,10 +459,10 @@ function App() {
             }
           />
           <Route
-  path="/saswat/payment-receipt"
-  element={<SaswatPaymentReceipt />}
-/>
-            {/* <Route
+            path="/saswat/payment-receipt"
+            element={<SaswatPaymentReceipt />}
+          />
+          {/* <Route
   path="/nach-presentation"
   element={
     <NachPresentation />
@@ -654,6 +699,143 @@ function App() {
               </PermissionRoute>
             }
           />
+          {/* Claim Buddy */}
+
+          <Route
+            path="/claim-buddy/hospital-entry"
+            element={
+              <PermissionRoute pageName="Claim Buddy Hospital Entry">
+                <ClaimBuddyHospitalEntry />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/claim-buddy/hospital-lists"
+            element={
+              <PermissionRoute pageName="Claim Buddy Hospital Lists">
+                <ClaimBuddyHospitalLists />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/claim-buddy/hospital-login-actions"
+            element={
+              <PermissionRoute pageName="Claim Buddy Hospital Credit Approval List">
+                <ClaimBuddyHospitalLoginActions />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/claim-buddy/loan-booking"
+            element={
+              <PermissionRoute pageName="Claim Buddy Loan Booking">
+                <ClaimBuddyLoanBooking />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/claim-buddy/login-cases"
+            element={
+              <PermissionRoute pageName="Claim Buddy Login Cases">
+                <ClaimBuddyLoginLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/claim-buddy/login-actions"
+            element={
+              <PermissionRoute pageName="Claim Buddy Credit Approval Loans">
+                <ClaimBuddyDisburseInitiateScreen />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/claim-buddy/credit-approved-loans"
+            element={
+              <PermissionRoute pageName="Claim Buddy Limit Approval">
+                <ClaimBuddyLimitEntry />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/claim-buddy/all-claim-buddy-loans-screen"
+            element={
+              <PermissionRoute pageName="Claim Buddy All Loans">
+                <ClaimBuddyAllLoansScreen />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/claim-buddy/operation-all-loans"
+            element={
+              <PermissionRoute pageName="Claim Buddy Operation All Loans">
+                <ClaimBuddyFintreeScreen />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/claim-buddy/bre-rejected-loans"
+            element={
+              <PermissionRoute pageName="Claim Buddy BRE Rejected Loans">
+                <ClaimBuddyApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/claim-buddy/hospital-details/:lan"
+            element={
+              <PermissionRoute pageName="Claim Buddy Hospital Lists">
+                <ClaimBuddyHospitalDetails />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/approved-loan-details-claim-buddy/:lan"
+            element={
+              <PermissionRoute pageName="Claim Buddy Loan Details">
+                <ClaimBuddyApprovedLoanDetails />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/claim-buddy/update-data/:lan"
+            element={
+              <PermissionRoute pageName="Claim Buddy Loan Details">
+                <ClaimBuddyUpdateData />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/claim-buddy/ops-checker"
+            element={
+              <PermissionRoute pageName="Claim Buddy OPS Checker">
+                <ClaimBuddyOpsCheckerScreen />
+              </PermissionRoute>
+            }
+          />
+
+          {/* <Route
+            path="/claim-buddy/approve-initiate"
+            element={
+              <PermissionRoute pageName="Claim Buddy Approval Action Pending Loans">
+                <ClaimBuddyApproveInitiateScreen />
+              </PermissionRoute>
+            }
+          /> */}
+
           {/* Loan Digit */}
           <Route
             path="/loan-digit/login-cases"
@@ -908,6 +1090,14 @@ function App() {
             }
           />
           <Route
+            path="/emiclub-loans/payout-status"
+            element={
+              <PermissionRoute pageName="EmiClub Payout Status">
+                <EmiClubPayoutStatus />
+              </PermissionRoute>
+            }
+          />
+          <Route
             path="/emiclub-loans/all"
             element={
               <PermissionRoute pageName="EmiClub All Loans">
@@ -936,6 +1126,55 @@ function App() {
             element={
               <PermissionRoute pageName="EmiClub Disburse Initiated">
                 <EmiClubApproveInitiateScreen />
+              </PermissionRoute>
+            }
+          />
+          {/* EMIClub2 loan routes */}
+          <Route
+            path="/emiclub2-loans/approved"
+            element={
+              <PermissionRoute pageName="EmiClub2 Approved Loans">
+                <EmiClub2ApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/emiclub2-loans/disbursed"
+            element={
+              <PermissionRoute pageName="EmiClub2 Disbursed Loans">
+                <EmiClub2DisbursedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/emiclub2-loans/all"
+            element={
+              <PermissionRoute pageName="EmiClub2 All Loans">
+                <EmiClub2AllLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/emiclub2-loans/login-cases"
+            element={
+              <PermissionRoute pageName="EmiClub2 Login Loans">
+                <EmiClub2LoginLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/emiclub2-loans/login-actions"
+            element={
+              <PermissionRoute pageName="EmiClub2 Login Actions">
+                <EmiClub2ActionScreen />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/emiclub2-loans/approve-initiate-actions"
+            element={
+              <PermissionRoute pageName="EmiClub2 Disburse Initiated">
+                <EmiClub2ApproveInitiateScreen />
               </PermissionRoute>
             }
           />
@@ -1554,7 +1793,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/approved-loan-details-clayoo-approved/:lan"
             element={
@@ -1563,7 +1801,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           {/* MIS */}
           <Route
             path="/mis-reports/listing"
@@ -1718,8 +1955,7 @@ function App() {
               </PermissionRoute>
             }
           />
-
-            <Route
+          <Route
             path="/qml-loans/all-loans"
             element={
               <PermissionRoute pageName="Quick Money All loans">
@@ -1727,7 +1963,7 @@ function App() {
               </PermissionRoute>
             }
           />
-           <Route
+          <Route
             path="/qml-loans/disburse-initiate"
             element={
               <PermissionRoute pageName="Quick Money Disburse Loans">
@@ -1743,11 +1979,11 @@ function App() {
               </PermissionRoute>
             }
           /> */}
-             <Route
+          <Route
             path="/qml-loans/approved-loans"
             element={
               <PermissionRoute pageName="Quick Money Approved Loans">
-                <QMLApprovedLoans/>
+                <QMLApprovedLoans />
               </PermissionRoute>
             }
           />
@@ -1901,7 +2137,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/motion-corp/login-cases"
             element={
@@ -1942,8 +2177,8 @@ function App() {
               </PermissionRoute>
             }
           />
-
           {/* Sampada routes mirror the Motion Corp workflow. */}
+          {/* <Route path="/sampada/copy-links" element={<SampadaCopyLinks />} /> */}
           <Route
             path="/sampada/dealer-entry"
             element={
@@ -2036,7 +2271,128 @@ function App() {
               </PermissionRoute>
             }
           />
+          /* ===================== OmrajPay routes ===================== */
+          {/* <Route
+            path="/omrajpay/dealer-entry"
+            element={
+              <PermissionRoute pageName="OmrajPay Dealer Entry">
+                <OmrajPayDealerEntry />
+              </PermissionRoute>
+            }
+          />
 
+          <Route
+            path="/omrajpay/dealer-lists"
+            element={
+              <PermissionRoute pageName="OmrajPay Dealer Lists">
+                <OmrajPayDealerLists />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/omrajpay/dealer-login-actions"
+            element={
+              <PermissionRoute pageName="OmrajPay Dealer Credit Approval List">
+                <OmrajPayDealerLoginActions />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/omrajpay/dealer-details/:lan"
+            element={<OmrajPayDealerDetails />}
+          />
+
+          <Route
+            path="/omrajpay/loan-booking"
+            element={
+              <PermissionRoute pageName="OmrajPay Loan Booking">
+                <OmrajPayLoanBooking />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/omrajpay/updatedata"
+            element={
+              <PermissionRoute pageName="OmrajPay Update Data">
+                <OmrajPayUpdateData />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/omrajpay/all-loans"
+            element={
+              <PermissionRoute pageName="OmrajPay Customer All Cases Screen">
+                <OmrajPayAllLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/omrajpay/login-cases"
+            element={
+              <PermissionRoute pageName="OmrajPay Customer Login Cases Screen">
+                <OmrajPayLoginCases />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/omrajpay/login-actions"
+            element={
+              <PermissionRoute pageName="OmrajPay Customer Credit Approval List">
+                <OmrajPayLoginAction />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/omrajpay/credit-initiated-cases"
+            element={
+              <PermissionRoute pageName="OmrajPay Customer Credit Initiated Cases Screen">
+                <OmrajPayDisburseInitiate />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/omrajpay/credit-approved-cases"
+            element={
+              <PermissionRoute pageName="OmrajPay Customer Credit Approved Cases Screen">
+                <OmrajPayApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/omrajpay/disbursed-loans"
+            element={
+              <PermissionRoute pageName="OmrajPay Disbursed Loans">
+                <OmrajPayDisbursed />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/omrajpay/operation-approval-cases"
+            element={
+              <PermissionRoute pageName="OmrajPay Customer Operation Approval Cases Screen">
+                <OmrajPayOperationApproval />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/omrajpay/customer-details"
+            element={
+              <PermissionRoute pageName="OmrajPay Customer Details">
+                <OmrajPayDetails />
+              </PermissionRoute>
+            }
+          /> */}
           <Route
             path="/fundify-loans/manual-entry"
             element={
@@ -2045,7 +2401,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/fundify-loans/login-loans"
             element={
@@ -2054,7 +2409,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/fundify-loans/credit-stage-loans"
             element={
@@ -2063,7 +2417,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/fundify-loans/all-loans"
             element={
@@ -2072,7 +2425,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           {/* <Route
             path="/fundify/all-loans"
             element={
@@ -2154,7 +2506,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/seven-fincorp/dealer-details/:lan"
             element={<SevenFinCorpDealerDetails />}
@@ -2185,12 +2536,10 @@ function App() {
             path="/claimcurebuddy/all-loans"
             element={<ClaimCureBuddyAllLoans />}
           />
-
           <Route
             path="/claimcurebuddy/disbursed-loans"
             element={<ClaimCureBuddyDisbursedLoans />}
           />
-
           <Route
             path="/claim-cure-buddy/customer-details"
             element={<ClaimCureBuddyDetails />}
@@ -2203,7 +2552,6 @@ function App() {
             path="/claimcurebuddy/customer-details/:lan"
             element={<ClaimCureBuddyDetails />}
           />
-
           <Route
             path="/claimcurebuddy/loan-booking"
             element={
@@ -2212,22 +2560,18 @@ function App() {
               // {/* </PermissionRoute> */}
             }
           />
-
           <Route
             path="/claimcurebuddy/draft-cases"
             element={<ClaimCureBuddyDraftCases />}
           />
-
           <Route
             path="/claimcurebuddy/approved-cases"
             element={<Navigate to="/claimcurebuddy/loan-booking" replace />}
           />
-
           <Route
             path="/claimcurebuddy/ops-screen"
             element={<Navigate to="/claimcurebuddy/loan-booking" replace />}
           />
-
           {/* =========================
    ✅ Bundela Routes
 ========================= */}
@@ -2406,7 +2750,6 @@ function App() {
             path="/customers/:partner_loan_id"
             element={<CustomerDetailsScreen />}
           />
-
           <Route
             path="/srbh/dealer-entry"
             element={
@@ -2435,9 +2778,7 @@ function App() {
             path="/srbh/dealer-details/:lan"
             element={<SRBHDealerDetails />}
           />
-
           <Route path="/srbh/customer-details" element={<SRBHDetails />} />
-
           <Route
             path="/srbh/loan-booking"
             element={
@@ -2446,7 +2787,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/srbh/login-cases"
             element={
@@ -2455,7 +2795,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/srbh/credit-initiated-cases"
             element={
@@ -2472,7 +2811,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/srbh/credit-approved-cases"
             element={
@@ -2489,9 +2827,7 @@ function App() {
               </PermissionRoute>
             }
           />
-
           {/* STERLION UBL ROUTES */}
-
           <Route
             path="/sterlion-ubl-loans/loan-booking"
             element={
@@ -2500,7 +2836,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/sterlion-ubl-loans/all"
             element={
@@ -2509,7 +2844,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/sterlion-ubl-loans/disbursed"
             element={
@@ -2518,7 +2852,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/sterlion-ubl-loans/approved"
             element={
@@ -2527,7 +2860,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/sterlion-ubl-loans/details/:lan"
             element={
@@ -2537,7 +2869,6 @@ function App() {
             }
           />
           {/* Sterlion Mexon Dexon */}
-
           <Route
             path="/sterlion-mexon-dexon/all-loans"
             element={
@@ -2546,7 +2877,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/sterlion-mexon-dexon/collection-upload"
             element={
@@ -2555,7 +2885,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/sterlion-mexon-dexon/invoice-upload"
             element={
@@ -2564,7 +2893,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/sterlion-mexon-dexon/all-invoices"
             element={
@@ -2573,7 +2901,11 @@ function App() {
               </PermissionRoute>
             }
           />
-
+          
+          <Route 
+             path="/payout-reinitiate" 
+             element={<PayoutReinitiate />} 
+          />
 
           <Route
             path="/saswat/approved-loans"
@@ -2595,12 +2927,18 @@ function App() {
             path="/saswat/all-loans"
             element={
               <PermissionRoute pageName="Saswat All Loans">
-                <SaswatAllLoans/>
+                <SaswatAllLoans />
               </PermissionRoute>
             }
           />
-        
- 
+          <Route
+            path="/saswat/updatedata/:lan"
+            element={
+              <PermissionRoute pageName="Saswat Update Data">
+                <SaswatUpdateData />
+              </PermissionRoute>
+            }
+          />
           {/* Protected Layout parent yahan close hoga */}
         </Route>
 

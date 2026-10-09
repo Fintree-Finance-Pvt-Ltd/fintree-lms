@@ -17,6 +17,8 @@ const AllLoansScreen = ({
   canRejectRow,
   rejectEndpointBuilder,
   showNetDisbursement = false,
+  reportConfig = null,
+
 }) => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,6 +28,15 @@ const AllLoansScreen = ({
   const [totalRows, setTotalRows] = useState(0);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [showReportModal, setShowReportModal] = useState(false);
+
+  const [reportDates, setReportDates] = useState({
+    startDate: "",
+    endDate: new Date().toISOString().split("T")[0],
+  });
+
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState("");
   const nav = useNavigate();
   const abortRef = useRef(null);
 
@@ -75,28 +86,25 @@ const AllLoansScreen = ({
   }, [fetchPage]);
 
   const handleRejectCase = async (row) => {
-  const confirmed = window.confirm(
-    `Are you sure you want to reject case ${row.lan}?`
-  );
-
-  if (!confirmed) return;
-
-  try {
-    setLoading(true);
-    setErr("");
-
-    await api.patch(rejectEndpointBuilder(row));
-
-    fetchPage();
-  } catch (error) {
-    setErr(
-      error.response?.data?.message ||
-      "Unable to reject case."
+    const confirmed = window.confirm(
+      `Are you sure you want to reject case ${row.lan}?`,
     );
-  } finally {
-    setLoading(false);
-  }
-};
+
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+      setErr("");
+
+      await api.patch(rejectEndpointBuilder(row));
+
+      fetchPage();
+    } catch (error) {
+      setErr(error.response?.data?.message || "Unable to reject case.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const hasADK = rows.some((r) => /^ADK/i.test(r?.lan));
   const hasGQFSF = rows.some((r) => /^GQFSF/i.test(r?.lan));
@@ -109,6 +117,94 @@ const AllLoansScreen = ({
     currency: "INR",
     maximumFractionDigits: 2,
   });
+
+  const handleReportDownload = async () => {
+  if (!reportConfig) return;
+
+  const { startDate, endDate } = reportDates;
+
+  setReportError("");
+
+  if (!startDate || !endDate) {
+    setReportError("Please select start date and end date.");
+    return;
+  }
+
+  if (new Date(startDate) > new Date(endDate)) {
+    setReportError("Start date cannot be greater than end date.");
+    return;
+  }
+
+  try {
+    setReportLoading(true);
+
+    const response = await api.get(reportConfig.endpoint, {
+      params: {
+        startDate,
+        endDate,
+      },
+      responseType: "blob",
+    });
+
+    const contentType = response.headers["content-type"] || "";
+
+    // Backend can return JSON error inside Blob
+    if (contentType.includes("application/json")) {
+      const responseText = await response.data.text();
+      const errorResponse = JSON.parse(responseText);
+
+      throw new Error(
+        errorResponse.message || "Failed to generate report."
+      );
+    }
+
+    const fileBlob = new Blob([response.data], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    const downloadUrl = window.URL.createObjectURL(fileBlob);
+
+    const link = document.createElement("a");
+
+    link.href = downloadUrl;
+
+    link.download =
+      `${reportConfig.fileName}_${startDate}_to_${endDate}.xlsx`;
+
+    document.body.appendChild(link);
+
+    link.click();
+    link.remove();
+
+    window.URL.revokeObjectURL(downloadUrl);
+
+    setShowReportModal(false);
+  } catch (error) {
+    console.error("Report download error:", error);
+
+    let message = "Failed to generate report.";
+
+    if (error.response?.data instanceof Blob) {
+      try {
+        const responseText = await error.response.data.text();
+        const parsedError = JSON.parse(responseText);
+
+        message = parsedError.message || message;
+      } catch {
+        message = error.message || message;
+      }
+    } else {
+      message =
+        error.response?.data?.message ||
+        error.message ||
+        message;
+    }
+
+    setReportError(message);
+  } finally {
+    setReportLoading(false);
+  }
+};
 
   const columns = [
     {
@@ -123,16 +219,16 @@ const AllLoansScreen = ({
           }}
         >
           {/^UBLF/i.test(r?.lan)
-            ? r.business_name ?? "—"
-            : r.customer_name ?? r.pan_name ?? "—"}
+            ? (r.business_name ?? "—")
+            : (r.customer_name ?? r.pan_name ?? "—")}
         </span>
       ),
 
       sortAccessor: (r) =>
         String(
           /^UBLF/i.test(r?.lan)
-            ? r.business_name ?? ""
-            : r.customer_name ?? r.pan_name ?? ""
+            ? (r.business_name ?? "")
+            : (r.customer_name ?? r.pan_name ?? ""),
         ).toLowerCase(),
 
       width: 220,
@@ -146,23 +242,28 @@ const AllLoansScreen = ({
           className="lan-code-badge"
           onClick={() => {
             if (typeof lanDetailsUrlBuilder === "function") {
-              nav(lanDetailsUrlBuilder(r));
+              const lan = r?.lan || r?.LAN;
+              const detailsUrl = lan
+                ? lanDetailsUrlBuilder({ ...r, lan })
+                : null;
+
+              if (detailsUrl) nav(detailsUrl);
             } else if (/^LDF/i.test(r.lan)) {
               nav(`/loan-digit/customer-details?lan=${r.lan}`);
             } else if (/^MC/i.test(r.lan)) {
               nav(`/motion-corp/updatedata?lan=${r.lan}`);
             } else if (/^FUN/i.test(r.lan)) {
               nav(`/fundify/customer-details/${r.lan}`);
-            }else if (/^FINS/i.test(r.lan)) {
+            } else if (/^FINS/i.test(r.lan)) {
               nav(`/fincrest-loan-details/${r.lan}`);
-            }else if (/^SHL/i.test(r.lan)) {
+            } else if (/^SHL/i.test(r.lan)) {
               nav(`/srbh/customer-details?lan=${r.lan}`);
-            }else if (/^SFL/i.test(r.lan)) {
+            } else if (/^SFL/i.test(r.lan)) {
               nav(`/seven-fincorp/customer-details?lan=${r.lan}`);
             } else if (/^UBLF/i.test(r.lan)) {
               nav(`/sterlion-ubl-loans/details/${r.lan}`);
-            } else if (/^CCB/i.test(r.lan)) { 
-              nav(`/claimcurebuddy/customer-details/${r.lan}`)
+            } else if (/^CCB/i.test(r.lan)) {
+              nav(`/claimcurebuddy/customer-details/${r.lan}`);
             } else {
               nav(`/loan-details/${r.lan}`);
             }
@@ -283,14 +384,11 @@ const AllLoansScreen = ({
       header: "Loan Amount",
       sortable: true,
       render: (r) => (
-        <span className="lan-code-badge">
-          {r.loan_amount ?? "—"}
-        </span>
+        <span className="lan-code-badge">{r.loan_amount ?? "—"}</span>
       ),
-      sortAccessor: (r) =>
-        String(r?.loan_amount || "").toLowerCase(),
+      sortAccessor: (r) => String(r?.loan_amount || "").toLowerCase(),
       csvAccessor: (r) => r.loan_amount ?? "",
- 
+
       width: 160,
     },
     {
@@ -298,23 +396,29 @@ const AllLoansScreen = ({
       header: "Disbursement Amount",
       sortable: true,
       render: (r) => {
-        const n = Number(r?.[amountField] ?? r?.net_disbursement_amount ?? r?.final_limit ?? r?.loan_amount);
+        const n = Number(
+          r?.[amountField] ??
+            r?.net_disbursement_amount ??
+            r?.final_limit ??
+            r?.loan_amount,
+        );
         return (
           <span className="amount-text-bold">
             {Number.isFinite(n) ? nf.format(n) : "—"}
           </span>
         );
       },
-      csvAccessor: (r) => {       //csvAccessor -> net_disbursement_amount
-    const n = Number(
-      r?.[amountField] ??
-      r?.net_disbursement_amount ??
-      r?.final_limit ??
-      r?.loan_amount
-    );
- 
-    return Number.isFinite(n) ? n : "";
-  },
+      csvAccessor: (r) => {
+        //csvAccessor -> net_disbursement_amount
+        const n = Number(
+          r?.[amountField] ??
+            r?.net_disbursement_amount ??
+            r?.final_limit ??
+            r?.loan_amount,
+        );
+
+        return Number.isFinite(n) ? n : "";
+      },
       sortAccessor: (r) => {
         const v = Number(
           r?.[amountField] ?? r?.final_limit ?? r?.loan_amount ?? 0,
@@ -324,36 +428,35 @@ const AllLoansScreen = ({
       width: 190,
     },
 
-
     ...(showNetDisbursement
-  ? [
-      {
-        key: "net_disb_amt",
-        header: "Net Disbursement Amount",
-        sortable: true,
-        render: (r) => {
-          if (
-            r?.net_disb_amt === null ||
-            r?.net_disb_amt === undefined ||
-            r?.net_disb_amt === ""
-          ) {
-            return <span className="currency-text">—</span>;
-          }
+      ? [
+          {
+            key: "net_disb_amt",
+            header: "Net Disbursement Amount",
+            sortable: true,
+            render: (r) => {
+              if (
+                r?.net_disb_amt === null ||
+                r?.net_disb_amt === undefined ||
+                r?.net_disb_amt === ""
+              ) {
+                return <span className="currency-text">—</span>;
+              }
 
-          const value = Number(r.net_disb_amt);
+              const value = Number(r.net_disb_amt);
 
-          return (
-            <span className="currency-text">
-              {Number.isFinite(value) ? nf.format(value) : "—"}
-            </span>
-          );
-        },
-        sortAccessor: (r) => Number(r?.net_disb_amt || 0),
-        csvAccessor: (r) => r?.net_disb_amt ?? "",
-        width: 210,
-      },
-    ]
-  : []),
+              return (
+                <span className="currency-text">
+                  {Number.isFinite(value) ? nf.format(value) : "—"}
+                </span>
+              );
+            },
+            sortAccessor: (r) => Number(r?.net_disb_amt || 0),
+            csvAccessor: (r) => r?.net_disb_amt ?? "",
+            width: 210,
+          },
+        ]
+      : []),
     {
       key: "disbursement_date",
       header: "Disbursement Date",
@@ -447,68 +550,67 @@ const AllLoansScreen = ({
     //   width: 130,
     // },
     {
-  key: "docs",
-  header: "Action",
-  render: (r) => (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "8px",
-      }}
-    >
-      <button
-        onClick={() => nav(`/documents/${r.lan}`)}
-        style={{
-          padding: "8px 14px",
-          borderRadius: "8px",
-          border: "1px solid #e2e8f0",
-          color: "#0f172a",
-          background: "#fff",
-          cursor: "pointer",
-          fontSize: "12px",
-          fontWeight: "700",
-          display: "flex",
-          alignItems: "center",
-          gap: "6px",
-          transition: "0.2s",
-          boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-        }}
-        onMouseOver={(e) => {
-          e.currentTarget.style.background = "#f8fafc";
-          e.currentTarget.style.borderColor = "#cbd5e1";
-        }}
-        onMouseOut={(e) => {
-          e.currentTarget.style.background = "#fff";
-          e.currentTarget.style.borderColor = "#e2e8f0";
-        }}
-      >
-        <span>📂</span> Documents
-      </button>
-
-      {enableReject &&
-        (!canRejectRow || canRejectRow(r)) && (
+      key: "docs",
+      header: "Action",
+      render: (r) => (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
+        >
           <button
-            type="button"
-            onClick={() => handleRejectCase(r)}
+            onClick={() => nav(`/documents/${r.lan}`)}
             style={{
               padding: "8px 14px",
               borderRadius: "8px",
-              border: "1px solid #fecaca",
-              color: "#b91c1c",
+              border: "1px solid #e2e8f0",
+              color: "#0f172a",
               background: "#fff",
               cursor: "pointer",
               fontSize: "12px",
               fontWeight: "700",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              transition: "0.2s",
+              boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = "#f8fafc";
+              e.currentTarget.style.borderColor = "#cbd5e1";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = "#fff";
+              e.currentTarget.style.borderColor = "#e2e8f0";
             }}
           >
-            Reject
+            <span>📂</span> Documents
           </button>
-        )}
-    </div>
-  ),
-  width: 240,
-},
+
+          {enableReject && (!canRejectRow || canRejectRow(r)) && (
+            <button
+              type="button"
+              onClick={() => handleRejectCase(r)}
+              style={{
+                padding: "8px 14px",
+                borderRadius: "8px",
+                border: "1px solid #fecaca",
+                color: "#b91c1c",
+                background: "#fff",
+                cursor: "pointer",
+                fontSize: "12px",
+                fontWeight: "700",
+              }}
+            >
+              Reject
+            </button>
+          )}
+        </div>
+      ),
+      width: 240,
+    },
   ];
 
   return (
@@ -517,6 +619,40 @@ const AllLoansScreen = ({
 
       {err && <div className="error-notice">{err}</div>}
 
+{reportConfig && (
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "flex-end",
+      alignItems: "center",
+      marginBottom: 16,
+    }}
+  >
+    <button
+      type="button"
+      onClick={() => {
+        setReportError("");
+        setShowReportModal(true);
+      }}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "10px 16px",
+        borderRadius: 8,
+        border: "none",
+        background: "#2563eb",
+        color: "#ffffff",
+        fontSize: 14,
+        fontWeight: 700,
+        cursor: "pointer",
+        boxShadow: "0 2px 6px rgba(37, 99, 235, 0.25)",
+      }}
+    >
+      📊 {reportConfig.buttonLabel}
+    </button>
+  </div>
+)}
       <div className="all-loans-table-container">
         <DataTable
           title={title}
@@ -547,6 +683,236 @@ const AllLoansScreen = ({
           }
         />
       </div>
+
+      {reportConfig && showReportModal && (
+  <div
+    style={{
+      position: "fixed",
+      inset: 0,
+      zIndex: 9999,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 20,
+      background: "rgba(0, 0, 0, 0.5)",
+    }}
+  >
+    <div
+      style={{
+        width: "100%",
+        maxWidth: 440,
+        padding: 24,
+        borderRadius: 14,
+        background: "#ffffff",
+        boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          marginBottom: 22,
+        }}
+      >
+        <div>
+          <h2
+            style={{
+              margin: 0,
+              color: "#111827",
+              fontSize: 20,
+              fontWeight: 700,
+            }}
+          >
+            {reportConfig.modalTitle}
+          </h2>
+
+          <p
+            style={{
+              margin: "6px 0 0",
+              color: "#6b7280",
+              fontSize: 13,
+            }}
+          >
+            Select the required report period.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          disabled={reportLoading}
+          onClick={() => setShowReportModal(false)}
+          style={{
+            padding: 0,
+            border: "none",
+            background: "transparent",
+            color: "#6b7280",
+            fontSize: 26,
+            cursor: reportLoading ? "not-allowed" : "pointer",
+          }}
+        >
+          ×
+        </button>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <label
+          style={{
+            display: "block",
+            marginBottom: 6,
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          Lender
+        </label>
+
+        <input
+          type="text"
+          value={reportConfig.lenderName}
+          readOnly
+          style={{
+            boxSizing: "border-box",
+            width: "100%",
+            padding: "10px 12px",
+            borderRadius: 8,
+            border: "1px solid #d1d5db",
+            background: "#f3f4f6",
+          }}
+        />
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <label
+          style={{
+            display: "block",
+            marginBottom: 6,
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          Start Date
+        </label>
+
+        <input
+          type="date"
+          value={reportDates.startDate}
+          max={
+            reportDates.endDate ||
+            new Date().toISOString().split("T")[0]
+          }
+          onChange={(e) =>
+            setReportDates((prev) => ({
+              ...prev,
+              startDate: e.target.value,
+            }))
+          }
+          style={{
+            boxSizing: "border-box",
+            width: "100%",
+            padding: "10px 12px",
+            borderRadius: 8,
+            border: "1px solid #d1d5db",
+          }}
+        />
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <label
+          style={{
+            display: "block",
+            marginBottom: 6,
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          End Date
+        </label>
+
+        <input
+          type="date"
+          value={reportDates.endDate}
+          min={reportDates.startDate || undefined}
+          max={new Date().toISOString().split("T")[0]}
+          onChange={(e) =>
+            setReportDates((prev) => ({
+              ...prev,
+              endDate: e.target.value,
+            }))
+          }
+          style={{
+            boxSizing: "border-box",
+            width: "100%",
+            padding: "10px 12px",
+            borderRadius: 8,
+            border: "1px solid #d1d5db",
+          }}
+        />
+      </div>
+
+      {reportError && (
+        <div
+          style={{
+            marginBottom: 16,
+            padding: "10px 12px",
+            borderRadius: 8,
+            border: "1px solid #fecaca",
+            background: "#fef2f2",
+            color: "#b91c1c",
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          {reportError}
+        </div>
+      )}
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          gap: 10,
+          marginTop: 24,
+        }}
+      >
+        <button
+          type="button"
+          disabled={reportLoading}
+          onClick={() => setShowReportModal(false)}
+          style={{
+            padding: "9px 16px",
+            borderRadius: 8,
+            border: "1px solid #d1d5db",
+            background: "#ffffff",
+            fontWeight: 600,
+            cursor: reportLoading ? "not-allowed" : "pointer",
+          }}
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          disabled={reportLoading}
+          onClick={handleReportDownload}
+          style={{
+            padding: "9px 16px",
+            borderRadius: 8,
+            border: "none",
+            background: reportLoading ? "#93c5fd" : "#2563eb",
+            color: "#ffffff",
+            fontWeight: 700,
+            cursor: reportLoading ? "not-allowed" : "pointer",
+          }}
+        >
+          {reportLoading
+            ? "Generating..."
+            : `Download ${reportConfig.buttonLabel}`}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 };

@@ -20,7 +20,7 @@ const HOST_VENDOR_RULES = [
   ["digitap", "DIGITAP"],
   ["experian", "EXPERIAN"],
   ["zoop", "ZOOP"],
-  ["finanalyz", "FINANALYZ"],
+  ["perfios", "PERFIOS"],
   ["easebuzz", "EASEBUZZ"],
   ["digio", "DIGIO"],
   ["doqfy", "DOQFY"],

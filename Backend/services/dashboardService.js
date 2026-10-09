@@ -117,6 +117,16 @@ const PRODUCT_MAP = {
     label: "EMICLUB",
     disbDateSource: "utr",
   },
+  EMICLUB2: {
+    rpsTable: "manual_rps_emiclub2",
+    bookTable: "loan_booking_emiclub2",
+    disbField: "net_disbursement",
+    collType: "subquery",
+    allocTable: "allocation",
+    allocLike: "FINE2%",
+    label: "EMICLUB2",
+    disbDateSource: "utr",
+  },
   CAREPAY: {
     rpsTable: "manual_rps_carepay",
     bookTable: "loan_booking_carepay",
@@ -347,6 +357,7 @@ function normalizeProduct(p) {
     wctl: "WCTL",
     circlepe: "Circle Pe",
     emiclub: "EMICLUB",
+    emiclub2: "EMICLUB2",
     carepay: "CAREPAY",
     finso: "Finso",
     heyev: "Hey EV",
@@ -600,6 +611,7 @@ async function buildMetricCards(prod, start, end, db) {
       FROM ${cfg.allocTable}
       WHERE allocation_date IS NOT NULL ${r.clause}
         AND lan LIKE '${cfg.allocLike}'
+        ${key === 'EMICLUB' ? "AND lan NOT LIKE 'FINE2%'" : ''}
     `);
     pniParams.push(...r.params);
 

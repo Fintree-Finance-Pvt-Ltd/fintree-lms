@@ -29,6 +29,7 @@ const LOAN_TABLES = [
   "loan_booking_zebrs",
   "loan_booking_sampada",
   "loan_booking_zypay_customer",
+  // "loan_booking_omrajpay",
 ];
 
 /*
@@ -120,6 +121,15 @@ async function updateLoanTables({
         ifsc: "bank_ifsc_code",
       },
     },
+//     {
+//   table: "loan_booking_omrajpay",
+//   fields: {
+//     bank_name: "customer_bank_name",
+//     beneficiary_name: "customer_name_as_per_bank",
+//     account_no: "customer_account_number",
+//     ifsc: "bank_ifsc_code",
+//   },
+// },
   ];
 
   await Promise.all(

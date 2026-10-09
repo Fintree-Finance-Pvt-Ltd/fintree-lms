@@ -4,6 +4,7 @@ const {
   POLICY,
   calculateAge,
   getMinLoanAmountForAge,
+  getFirstTimeCreditLimit,
   validateLoanAmount,
   validateTenure,
   isNewCustomer,
@@ -1480,17 +1481,17 @@ async function runBRE(data, options = {}) {
   let repeatLimitDetails = null;
 
   if (newCustomer) {
-    creditLimit = minLoanAmountForAge;
+    creditLimit = getFirstTimeCreditLimit(age, loan.loan_amount);
 
     const firstTimeLimitAdjusted =
-      Number(loan.loan_amount) > minLoanAmountForAge;
+      Number(loan.loan_amount) > creditLimit;
 
     rules.FIRST_TIME_LIMIT_CHECK_RPM = rule(true, null, {
       applicable: true,
 
       requestedLoanAmount: Number(loan.loan_amount),
 
-      assignedCreditLimit: minLoanAmountForAge,
+      assignedCreditLimit: creditLimit,
 
       limitAdjusted: firstTimeLimitAdjusted,
 

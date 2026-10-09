@@ -37,7 +37,7 @@ router.get("/:lan", async (req, res) => {
     partnerLoanIdCol = "lb.partner_loan_id";
     netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
   }
- if (lan.startsWith("CIRF")) {
+  if (lan.startsWith("CIRF")) {
     tableName = "loan_booking_circle_pe";
     loanAmountCol = "lb.loan_amount";
     loanAmountExpr = "lb.loan_amount";
@@ -49,7 +49,7 @@ router.get("/:lan", async (req, res) => {
     partnerLoanIdCol = "lb.partner_loan_id";
     netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
   }
-   if (lan.startsWith("CIRHUF")) {
+  if (lan.startsWith("CIRHUF")) {
     tableName = "loan_booking_circle_pe_houser";
     loanAmountCol = "lb.loan_amount";
     loanAmountExpr = "lb.loan_amount";
@@ -61,7 +61,6 @@ router.get("/:lan", async (req, res) => {
     partnerLoanIdCol = "lb.partner_loan_id";
     netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
   }
-
 
   if (lan.startsWith("HEYEV")) {
     tableName = "loan_booking_hey_ev";
@@ -76,7 +75,7 @@ router.get("/:lan", async (req, res) => {
     netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
   }
 
-   if (lan.startsWith("HEYBF")) {
+  if (lan.startsWith("HEYBF")) {
     tableName = "loan_booking_hey_ev_battery";
     loanAmountCol = "lb.loan_amount";
     loanAmountExpr = "lb.disbursement_amount AS loan_amount";
@@ -89,7 +88,10 @@ router.get("/:lan", async (req, res) => {
     netDisbursementExpr = `(lb.disbursement_amount - ${subventionCol})`;
   }
 
-  if (lan.startsWith("FINE")) {
+  if (lan.startsWith("FINE2")) {
+    tableName = "loan_booking_emiclub2";
+    interestRateCol = "lb.roi_apr as interest_rate";
+  } else if (lan.startsWith("FINE")) {
     tableName = "loan_booking_emiclub";
     loanAmountCol = "lb.loan_amount";
     loanAmountExpr = "lb.loan_amount";
@@ -100,7 +102,7 @@ router.get("/:lan", async (req, res) => {
     retentionCol = "0";
     partnerLoanIdCol = "lb.partner_loan_id";
     netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
-  } 
+  }
 
   if (lan.startsWith("RML")) {
     tableName = "loan_booking_switch_my_loan";
@@ -113,7 +115,7 @@ router.get("/:lan", async (req, res) => {
     retentionCol = "0";
     partnerLoanIdCol = "lb.partner_loan_id";
     netDisbursementExpr = "lb.disbursal_amount";
-  } 
+  }
   if (lan.startsWith("CARE")) {
     tableName = "loan_booking_carepay";
     loanAmountCol = "lb.loan_amount";
@@ -126,6 +128,20 @@ router.get("/:lan", async (req, res) => {
     partnerLoanIdCol = "lb.partner_loan_id";
     netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
   }
+
+  if (lan.startsWith("QML")) {
+    tableName = "loan_booking_quick_money";
+    loanAmountCol = "lb.loan_amount";
+    loanAmountExpr = "lb.loan_amount";
+    interestRateCol = "lb.interest_rate AS interest_rate";
+    tenureCol = "lb.tenure";
+    processingFeeCol = "COALESCE(lb.processing_fee, 0) AS processing_fee";
+    subventionCol = "0";
+    retentionCol = "0";
+    partnerLoanIdCol = "lb.partner_loan_id";
+    netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
+  }
+  
   // if (lan.startsWith("STRL")) {
   //   tableName = "loan_booking_sterlion";
   //   loanAmountCol = "COALESCE(lb.loan_amount, lb.request_amount) AS loan_amount";
@@ -138,7 +154,7 @@ router.get("/:lan", async (req, res) => {
   //   partnerLoanIdCol = "lb.partner_loan_id";
   //   netDisbursementExpr = `COALESCE(lb.net_disbursement, (${loanAmountExpr} - COALESCE(lb.processing_fee, 0)))`;
   // }
-    if (lan.startsWith("ZYPF")) {
+  if (lan.startsWith("ZYPF")) {
     tableName = "loan_booking_zypay_customer";
     loanAmountCol = "lb.loan_amount";
     loanAmountExpr = "lb.loan_amount";
@@ -149,9 +165,7 @@ router.get("/:lan", async (req, res) => {
     retentionCol = "0";
     partnerLoanIdCol = "lb.partner_loan_id";
     netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
-  } 
-
-  else if (lan.startsWith("FINS")) {
+  } else if (lan.startsWith("FINS")) {
     tableName = "loan_booking_finso";
     loanAmountCol = "lb.loan_amount";
     loanAmountExpr = "lb.loan_amount";
@@ -185,12 +199,26 @@ router.get("/:lan", async (req, res) => {
     loanAmountExpr = "lb.final_limit as loan_amount";
     interestRateCol = "lb.interest_rate";
     tenureCol = "lb.loan_tenure AS loan_tenure";
-    processingFeeCol = "COALESCE(lb.pf_percent, 0) AS processing_fee"
+    processingFeeCol = "COALESCE(lb.pf_percent, 0) AS processing_fee";
     subventionCol = "0";
     retentionCol = "0";
     partnerLoanIdCol = "lb.app_id";
     netDisbursementExpr = "lb.final_limit";
-  } 
+  }
+
+  if (lan.startsWith("CBF")) {
+    tableName = "loan_booking_claim_buddy";
+    loanAmountCol = "lb.loan_amount";
+    loanAmountExpr = "lb.loan_amount";
+    interestRateCol = "lb.interest_rate";
+    tenureCol = "lb.loan_tenure";
+    processingFeeCol = "COALESCE(lb.pf_percent, 0) AS processing_fee";
+    subventionCol = "0";
+    retentionCol = "0";
+    partnerLoanIdCol = "lb.app_id";
+    netDisbursementExpr = `${loanAmountExpr}`;
+  }
+
   if (lan.startsWith("LDF")) {
     tableName = "loan_booking_loan_digit";
     loanAmountCol = "lb.loan_amount";
@@ -203,7 +231,7 @@ router.get("/:lan", async (req, res) => {
     partnerLoanIdCol = "lb.partner_loan_id";
     preEmi = "COALESCE(lb.pre_emi, 0)";
     netDisbursementExpr = `(${loanAmountExpr} - ${processingFeeCol} - ${preEmi})`;
-  } 
+  }
   if (lan.startsWith("MCL")) {
     tableName = "loan_booking_motion_corp";
     loanAmountCol = "lb.loan_amount";
@@ -216,7 +244,7 @@ router.get("/:lan", async (req, res) => {
     partnerLoanIdCol = "lb.partner_loan_id";
     preEmi = "0";
     netDisbursementExpr = `(${loanAmountExpr} - ${processingFeeCol} - ${preEmi})`;
-  } 
+  }
   if (lan.startsWith("SPL")) {
     tableName = "loan_booking_sampada";
     loanAmountCol = "lb.loan_amount";
@@ -243,9 +271,9 @@ router.get("/:lan", async (req, res) => {
     partnerLoanIdCol = "lb.partner_loan_id";
     preEmi = "0";
     netDisbursementExpr = `(${loanAmountExpr} - ${processingFeeCol} - ${preEmi})`;
-  } 
+  }
 
-   if (lan.startsWith("SH")) {
+  if (lan.startsWith("SH")) {
     tableName = "loan_booking_srbh";
     loanAmountCol = "lb.loan_amount";
     loanAmountExpr = "lb.loan_amount";
@@ -257,7 +285,7 @@ router.get("/:lan", async (req, res) => {
     partnerLoanIdCol = "lb.partner_loan_id";
     preEmi = "0";
     netDisbursementExpr = `(${loanAmountExpr} - ${processingFeeCol} - ${preEmi})`;
-  } 
+  }
   if (lan.startsWith("BUN")) {
     tableName = "loan_booking_bundela";
     loanAmountCol = "lb.loan_amount";
@@ -270,7 +298,7 @@ router.get("/:lan", async (req, res) => {
     partnerLoanIdCol = "lb.partner_loan_id";
     preEmi = "0";
     netDisbursementExpr = `(${loanAmountExpr} - ${processingFeeCol} - ${preEmi})`;
-  } 
+  }
 
   if (lan.startsWith("E10")) {
     tableName = "loan_booking_embifi";
@@ -283,7 +311,7 @@ router.get("/:lan", async (req, res) => {
     retentionCol = "0";
     partnerLoanIdCol = "lb.partner_loan_id";
     netDisbursementExpr = "lb.disbursal_amount";
-  } 
+  }
   if (lan.startsWith("E10")) {
     tableName = "loan_booking_embifi";
     loanAmountCol = "lb.disbursal_amount as loan_amount";
@@ -295,7 +323,7 @@ router.get("/:lan", async (req, res) => {
     retentionCol = "0";
     partnerLoanIdCol = "lb.partner_loan_id";
     netDisbursementExpr = "lb.disbursal_amount";
-  } 
+  }
   if (lan.startsWith("GQN")) {
     tableName = "loan_booking_gq_non_fsf";
     loanAmountCol = "lb.loan_amount_sanctioned AS loan_amount";
@@ -338,8 +366,7 @@ router.get("/:lan", async (req, res) => {
     subventionCol = "0";
     partnerLoanIdCol = "lb.partner_loan_id";
     netDisbursementExpr = "lb.net_disbursement";
-  }
-    else if (lan.startsWith("HEL")) {
+  } else if (lan.startsWith("HEL")) {
     tableName = "loan_booking_helium";
     loanAmountCol = "lb.loan_amount";
     loanAmountExpr = "lb.loan_amount";
@@ -349,7 +376,6 @@ router.get("/:lan", async (req, res) => {
     subventionCol = "0";
     partnerLoanIdCol = "lb.partner_loan_id";
     netDisbursementExpr = "lb.net_disbursement";
-    
   } else if (lan.startsWith("GQF")) {
     tableName = "loan_booking_gq_fsf";
     loanAmountCol = "lb.loan_amount_sanctioned AS loan_amount";
@@ -361,7 +387,7 @@ router.get("/:lan", async (req, res) => {
     retentionCol = "COALESCE(lb.retention_amount, 0)";
     partnerLoanIdCol = "lb.partner_loan_id";
     netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol} - ${retentionCol})`;
-  }else if (lan.startsWith("UBLF")) {
+  } else if (lan.startsWith("UBLF")) {
     tableName = "loan_booking_sterlion_ubl";
     loanAmountCol = "lb.loan_amount";
     loanAmountExpr = "lb.loan_amount";
@@ -374,7 +400,6 @@ router.get("/:lan", async (req, res) => {
     partnerLoanIdCol = "lb.partner_loan_id";
     netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol} - ${retentionCol})`;
   }
-
 
   const query = `
     SELECT 
@@ -399,7 +424,6 @@ router.get("/:lan", async (req, res) => {
       console.error("❌ Database query error:", err);
       return res.status(500).json({ error: "Database query failed" });
     }
-
 
     if (result.length === 0) {
       console.warn(`⚠️ No disbursal details found for LAN: ${lan}`);
