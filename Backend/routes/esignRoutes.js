@@ -738,6 +738,52 @@ router.post("/v1/doqfy-esign-webhook", async (req, res) => {
 
     console.log("[DOQFY WEBHOOK] esign_documents updated");
 
+    
+    // Forward stored Doqfy eSign webhook to ZEBRS
+    if (lan.startsWith("ZBCL")) {
+      const zebrsUrl = process.env.ZEBRS_ESIGN_WEBHOOK_URL;
+
+      if (!zebrsUrl) {
+        console.error("ZEBRS_ESIGN_WEBHOOK_URL is not configured");
+      } else {
+        try {
+          // Preserve the original Doqfy payload and include LMS details
+          const forwardedPayload = {
+            ...event,
+            lan,
+            document_id: orderId,
+            document_type,
+            final_status: finalStatus,
+          };
+
+          const partnerResponse = await axios.post(
+            zebrsUrl,
+            forwardedPayload,
+            {
+              headers: {
+                "Content-Type": "application/json",
+                "x-webhook-source": "lms-doqfy-esign-forwarder",
+              },
+              timeout: 30000,
+              validateStatus: () => true,
+            },
+          );
+
+          console.log("ZEBRS Doqfy eSign forwarding response:", {
+            status: partnerResponse.status,
+            data: partnerResponse.data,
+          });
+        } catch (forwardError) {
+          // Log forwarding failure without interrupting existing processing
+          console.error(
+            "ZEBRS Doqfy eSign forwarding failed:",
+            forwardError.message,
+          );
+        }
+      }
+    }
+
+
     /* --------------------------------------------------- */
     /* UPDATE BOOKING TABLE */
     /* --------------------------------------------------- */

@@ -1845,6 +1845,65 @@ router.post("/webhooks/digio-mandate", async (req, res) => {
       }
     }
 
+    
+    // Forward Digio eNACH webhook to ZEBRS
+    const [[zebrsMandate]] = await db.promise().query(
+      `
+      SELECT lan
+      FROM enach_mandates
+      WHERE document_id = ?
+      LIMIT 1
+      `,
+      [String(webhook.documentId)],
+    );
+
+    const lan = normalizeLan(zebrsMandate?.lan);
+
+    if (lan?.startsWith("ZBCL")) {
+      const zebrsUrl = process.env.ZEBRS_ENACH_WEBHOOK_URL;
+
+      if (!zebrsUrl) {
+        console.error("ZEBRS_ENACH_WEBHOOK_URL is not configured");
+      } else {
+        try {
+          const partnerPayload = {
+            lan,
+            document_id: String(webhook.documentId),
+            event: event.event || event.type || "digio.mandate",
+            status: webhook.registrationStatus || webhook.status,
+            umrn: webhook.umrn || null,
+            message: "ZEBRS eNACH webhook received",
+            timestamp: new Date().toISOString(),
+            payload: event,
+          };
+
+          const partnerResponse = await axios.post(
+            zebrsUrl,
+            partnerPayload,
+            {
+              headers: {
+                "Content-Type": "application/json",
+                "x-webhook-source": "lms-digio-mandate-forwarder",
+              },
+              timeout: 30000,
+              validateStatus: () => true,
+            },
+          );
+
+          console.log("ZEBRS eNACH forwarding response:", {
+            status: partnerResponse.status,
+            data: partnerResponse.data,
+          });
+        } catch (forwardError) {
+          console.error(
+            "ZEBRS eNACH forwarding failed:",
+            forwardError.message,
+          );
+        }
+      }
+    }
+
+
     return res.status(200).json({
       received: true,
     });

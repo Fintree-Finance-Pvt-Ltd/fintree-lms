@@ -104,6 +104,87 @@ router.post("/v1/digi-aadhaar-webhook", async (req, res) => {
       }
     }
 
+        // ZEBRS Aadhaar callbacks: handle separately from existing LMS flows.
+    
+if (
+  uniqueId?.startsWith("ZBCL") ||
+  uniqueId?.startsWith("ZEBRS_")
+) {
+  console.log(`Processing ZEBRS Aadhaar webhook for ${uniqueId}`);
+
+  if (!process.env.ZEBRS_WEBHOOK_URL) {
+    console.error("ZEBRS_WEBHOOK_URL is not configured");
+    return res.status(200).send("zebrs-webhook-url-not-configured");
+  }
+
+  try {
+    // Find the LAN using the saved Aadhaar transaction or unique ID
+    const [rows] = await db.promise().query(
+      `SELECT lan
+       FROM kyc_verification_status
+       WHERE (? IS NOT NULL AND aadhaar_transaction_id = ?)
+          OR (? IS NOT NULL AND aadhaar_unique_id = ?)
+       LIMIT 1`,
+      [transactionId, transactionId, uniqueId, uniqueId]
+    );
+
+    if (!rows.length) {
+      console.warn("No matching LAN found for ZEBRS Aadhaar callback");
+      return res.status(200).send("no-matching-zebrs-record");
+    }
+
+    const lan = rows[0].lan;
+
+    // Confirm the LAN belongs to ZEBRS
+    const [loanRows] = await db.promise().query(
+      `SELECT lan
+       FROM loan_booking_zebrs
+       WHERE lan = ?
+       LIMIT 1`,
+      [lan]
+    );
+
+    if (!loanRows.length) {
+      return res.status(200).send("not-zebrs-loan");
+    }
+
+    // Include LAN and preserve the original Digitap callback payload
+    const forwardedPayload = {
+      ...payload,
+      lan
+    };
+
+    const response = await axios.post(
+      process.env.ZEBRS_WEBHOOK_URL,
+      forwardedPayload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-webhook-source": "lms-digitap-forwarder",
+          "x-digitap-unique-id": uniqueId
+        },
+        timeout: 30000,
+        validateStatus: () => true
+      }
+    );
+
+    console.log(
+      "ZEBRS webhook response:",
+      response.status,
+      response.data
+    );
+
+    if (response.status >= 200 && response.status < 300) {
+      return res.status(200).send("forwarded-to-zebrs");
+    }
+
+    return res.status(200).send("zebrs-forward-rejected");
+  } catch (err) {
+    console.error("ZEBRS webhook forwarding failed:", err.message);
+    return res.status(200).send("zebrs-forward-error");
+  }
+}
+
     // We ALWAYS return 200 to stop retries, even if we ignore the event.
     if (!transactionId) {
       console.warn("⚠️ Webhook missing transactionId, ignoring.");
