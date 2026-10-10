@@ -101,7 +101,7 @@
 const cron = require("node-cron");
 const db = require("../config/db");
 const { generateAllPending } = require("./cibilPdfService");
-const { runDailyInterestAccrual } = require( "./wctlccodinterestengine");
+const { runDailyInterestAccrual } = require("./wctlccodinterestengine");
 const startAadhaarCron = require("./aadhaarPdfCron");
 const { sendLoanWebhook } = require("../utils/webhook");
 const {
@@ -149,8 +149,8 @@ const {
 //         UPDATE ${table}
 //         SET
 //           status = CASE
-//               WHEN remaining_principal = 0 
-//          AND remaining_interest = 0 
+//               WHEN remaining_principal = 0
+//          AND remaining_interest = 0
 //     THEN 'Paid'
 
 //    WHEN emi > 0
@@ -158,16 +158,15 @@ const {
 //      AND remaining_emi < emi
 // THEN 'Part Paid'
 
-
-//     WHEN due_date < CURDATE() 
+//     WHEN due_date < CURDATE()
 //          AND (principal =remaining_principal  and interest= remaining_interest )
 //     THEN 'Late'
 
-//     WHEN due_date = CURDATE() 
+//     WHEN due_date = CURDATE()
 //          AND (remaining_principal > 0 OR remaining_interest > 0)
 //     THEN 'Due'
 
-//     WHEN due_date > CURDATE() 
+//     WHEN due_date > CURDATE()
 //     THEN 'Not Set'
 //             ELSE status
 //           END,
@@ -194,7 +193,6 @@ const {
 //     console.error("❌ Cron job failed:", err.sqlMessage || err.message);
 //   }
 // });
-
 
 let isDpdCronRunning = false;
 let isCibilPdfCronRunning = false;
@@ -259,9 +257,7 @@ async function getTableColumns(tableName) {
     [tableName],
   );
 
-  const columns = new Set(
-    rows.map((row) => row.COLUMN_NAME),
-  );
+  const columns = new Set(rows.map((row) => row.COLUMN_NAME));
 
   tableColumnsCache.set(tableName, columns);
 
@@ -269,11 +265,7 @@ async function getTableColumns(tableName) {
 }
 
 function buildStatusUpdateQuery(tableName, columns) {
-  const requiredColumns = [
-    "status",
-    "due_date",
-    "dpd",
-  ];
+  const requiredColumns = ["status", "due_date", "dpd"];
 
   const missingRequiredColumns = requiredColumns.filter(
     (column) => !columns.has(column),
@@ -315,10 +307,7 @@ function buildStatusUpdateQuery(tableName, columns) {
    * Outstanding exists when any remaining field is greater than zero.
    */
   const hasOutstanding = remainingColumns
-    .map(
-      (column) =>
-        `COALESCE(${safeIdentifier(column)}, 0) > 0`,
-    )
+    .map((column) => `COALESCE(${safeIdentifier(column)}, 0) > 0`)
     .join(" OR ");
 
   /*
@@ -326,10 +315,7 @@ function buildStatusUpdateQuery(tableName, columns) {
    * is zero or negative.
    */
   const fullyPaid = remainingColumns
-    .map(
-      (column) =>
-        `COALESCE(${safeIdentifier(column)}, 0) <= 0`,
-    )
+    .map((column) => `COALESCE(${safeIdentifier(column)}, 0) <= 0`)
     .join(" AND ");
 
   const partialPaymentConditions = [];
@@ -337,10 +323,7 @@ function buildStatusUpdateQuery(tableName, columns) {
   /*
    * EMI partially paid.
    */
-  if (
-    columns.has("emi") &&
-    columns.has("remaining_emi")
-  ) {
+  if (columns.has("emi") && columns.has("remaining_emi")) {
     partialPaymentConditions.push(`
       (
         COALESCE(emi, 0) > 0
@@ -353,10 +336,7 @@ function buildStatusUpdateQuery(tableName, columns) {
   /*
    * Remaining amount reduced from EMI.
    */
-  if (
-    columns.has("emi") &&
-    columns.has("remaining_amount")
-  ) {
+  if (columns.has("emi") && columns.has("remaining_amount")) {
     partialPaymentConditions.push(`
       (
         COALESCE(emi, 0) > 0
@@ -369,10 +349,7 @@ function buildStatusUpdateQuery(tableName, columns) {
   /*
    * Principal partially paid.
    */
-  if (
-    columns.has("principal") &&
-    columns.has("remaining_principal")
-  ) {
+  if (columns.has("principal") && columns.has("remaining_principal")) {
     partialPaymentConditions.push(`
       (
         COALESCE(principal, 0) > 0
@@ -391,10 +368,7 @@ function buildStatusUpdateQuery(tableName, columns) {
    * Remaining retention = 13,087.00
    * Result              = Part Paid
    */
-  if (
-    columns.has("retention_amount") &&
-    columns.has("remaining_retention")
-  ) {
+  if (columns.has("retention_amount") && columns.has("remaining_retention")) {
     partialPaymentConditions.push(`
       (
         COALESCE(retention_amount, 0) > 0
@@ -408,10 +382,7 @@ function buildStatusUpdateQuery(tableName, columns) {
   /*
    * Interest partially paid.
    */
-  if (
-    columns.has("interest") &&
-    columns.has("remaining_interest")
-  ) {
+  if (columns.has("interest") && columns.has("remaining_interest")) {
     partialPaymentConditions.push(`
       (
         COALESCE(interest, 0) > 0
@@ -525,122 +496,136 @@ function buildStatusUpdateQuery(tableName, columns) {
   };
 }
 
-// 1️⃣ DPD + OOD Cron
+// 1️⃣ DPD + OOD Update Logic
+async function runDpdAndStatusUpdate() {
+  if (isDpdCronRunning) {
+    console.log(
+      "⏭️ Previous DPD update is still running. Skipping this execution.",
+    );
+    return;
+  }
+
+  isDpdCronRunning = true;
+  const dpdCronStartedAt = Date.now();
+
+  console.log("⏰ Running DPD and status update...");
+
+  let successfulTables = 0;
+  let skippedTables = 0;
+  let failedTables = 0;
+
+  try {
+    /*
+     * Ensure CURDATE() follows India time.
+     */
+    await db.promise().query("SET time_zone = '+05:30'");
+
+    for (const table of tables) {
+      try {
+        const columns = await getTableColumns(table);
+
+        if (columns.size === 0) {
+          skippedTables += 1;
+          console.warn(`⚠️ ${table}: table does not exist`);
+          continue;
+        }
+
+        const queryData = buildStatusUpdateQuery(table, columns);
+
+        if (queryData.skip) {
+          skippedTables += 1;
+          console.warn(`⚠️ ${table}: ${queryData.reason}`);
+          continue;
+        }
+
+        const [result] = await db.promise().query(queryData.sql);
+
+        successfulTables += 1;
+
+        if (result.changedRows > 0) {
+          console.log(
+            `✅ ${table}: affected=${result.affectedRows}, changed=${result.changedRows}`,
+          );
+        }
+      } catch (tableError) {
+        failedTables += 1;
+        console.error(
+          `❌ ${table}:`,
+          tableError.sqlMessage || tableError.message,
+        );
+      }
+    }
+
+    console.log(
+      `✅ Status/DPD update completed in ${Date.now() - dpdCronStartedAt}ms. Success=${successfulTables}, Skipped=${skippedTables}, Failed=${failedTables}`,
+    );
+  } catch (error) {
+    console.error(
+      `❌ DPD update failed after ${Date.now() - dpdCronStartedAt}ms:`,
+      error.sqlMessage || error.message,
+    );
+  } finally {
+    isDpdCronRunning = false;
+  }
+}
+
+// Nightly DPD Cron - runs every day at 01:15 AM IST
 cron.schedule(
-  "*/2 * * * *",
+  "15 1 * * *",
   async () => {
-    if (isDpdCronRunning) {
+    console.log("🌙 [01:15 AM IST] Running nightly DPD and status update...");
+    await runDpdAndStatusUpdate();
+  },
+  {
+    timezone: "Asia/Kolkata",
+  },
+);
+
+// 2️⃣ PDF generator cron (Push to Queue)
+const { pdfQueue } = require("../workers/pdfQueue");
+
+cron.schedule(
+  "*/2 1-23 * * *",
+  async () => {
+    if (isCibilPdfCronRunning) {
       console.log(
-        "⏭️ Previous DPD cron is still running. Skipping this execution.",
+        "⏭️ Previous CIBIL PDF cron is still running. Skipping this execution.",
       );
       return;
     }
 
-    isDpdCronRunning = true;
-    const dpdCronStartedAt = Date.now();
-
-    console.log(
-      "⏰ Running DPD and status update every 2 minutes...",
-    );
-
-    let successfulTables = 0;
-    let skippedTables = 0;
-    let failedTables = 0;
+    isCibilPdfCronRunning = true;
+    const startedAt = Date.now();
+    console.log("🧾 Checking for pending CIBIL PDFs to queue...");
 
     try {
-      /*
-       * Ensure CURDATE() follows India time.
-       */
-      await db.promise().query(
-        "SET time_zone = '+05:30'",
-      );
+      // Fetch up to 50 pending PDFs per cycle to avoid flooding BullMQ / Redis
+      const [rows] = await db
+        .promise()
+        .query(
+          "SELECT id FROM loan_cibil_reports WHERE pdf_generated = 0 ORDER BY id ASC LIMIT 50",
+        );
 
-      for (const table of tables) {
-        try {
-          const columns = await getTableColumns(table);
-
-          if (columns.size === 0) {
-            skippedTables += 1;
-
-            console.warn(
-              `⚠️ ${table}: table does not exist`,
-            );
-
-            continue;
-          }
-
-          const queryData = buildStatusUpdateQuery(
-            table,
-            columns,
-          );
-
-          if (queryData.skip) {
-            skippedTables += 1;
-
-            console.warn(
-              `⚠️ ${table}: ${queryData.reason}`,
-            );
-
-            continue;
-          }
-
-          const [result] = await db
-            .promise()
-            .query(queryData.sql);
-
-          successfulTables += 1;
-
-          // Only log per-table when something actually changed — this runs
-          // every 2 minutes across 28 tables, and in the common case every
-          // one of them reports changed=0 (the UPDATE has no WHERE clause,
-          // so it rewrites every row regardless of whether the computed
-          // status/dpd is different). The aggregate summary line below
-          // still fires every cycle regardless.
-          if (result.changedRows > 0) {
-            console.log(
-              `✅ ${table}: affected=${result.affectedRows}, changed=${result.changedRows}`,
-            );
-          }
-        } catch (tableError) {
-          failedTables += 1;
-
-          console.error(
-            `❌ ${table}:`,
-            tableError.sqlMessage ||
-              tableError.message,
-          );
-        }
+      for (const row of rows) {
+        await pdfQueue.add(
+          "generate-cibil",
+          { reportId: row.id },
+          {
+            jobId: `cibil-pdf-${row.id}`, // Prevent duplicate jobs for the same report
+          },
+        );
       }
 
       console.log(
-        `✅ Status/DPD update completed. Success=${successfulTables}, Skipped=${skippedTables}, Failed=${failedTables}`,
+        `✅ Queued ${rows.length} pending CIBIL PDFs in ${Date.now() - startedAt}ms`,
       );
-
-      /*
-       * Existing OOD procedure.
-       *
-       * This will execute every two minutes because it is
-       * inside this cron.
-       */
-      // const sql = `
-      //   CALL sp_cc_ood_generate_all(
-      //     DATE_SUB(CURDATE(), INTERVAL 1 DAY),
-      //     DATE_SUB(CURDATE(), INTERVAL 1 DAY)
-      //   )
-      // `;
-
-      // await db.promise().query(sql);
-
-      // console.log(
-      //   `✅ OOD ledger generated successfully for all LANs (total ${Date.now() - dpdCronStartedAt}ms)`,
-      // );
-    } catch (error) {
+    } catch (e) {
       console.error(
-        `❌ DPD/OOD cron failed after ${Date.now() - dpdCronStartedAt}ms:`,
-        error.sqlMessage || error.message,
+        `❌ PDF queuing failed after ${Date.now() - startedAt}ms:`,
+        e.message,
       );
     } finally {
-      isDpdCronRunning = false;
+      isCibilPdfCronRunning = false;
     }
   },
   {
@@ -648,60 +633,37 @@ cron.schedule(
   },
 );
 
-
-// 2️⃣ PDF generator cron (Push to Queue)
-const { pdfQueue } = require("../workers/pdfQueue");
-
-cron.schedule("*/2 * * * *", async () => {
-  if (isCibilPdfCronRunning) {
-    console.log("⏭️ Previous CIBIL PDF cron is still running. Skipping this execution.");
-    return;
-  }
-
-  isCibilPdfCronRunning = true;
-  const startedAt = Date.now();
-  console.log("🧾 Checking for pending CIBIL PDFs to queue...");
-
-  try {
-    // Fetch ALL pending PDFs instead of LIMIT 100 to handle bursts of 5-10 cases/second
-    const [rows] = await db.promise().query(
-      'SELECT id FROM loan_cibil_reports WHERE pdf_generated = 0 ORDER BY id ASC'
-    );
-    
-    for (const row of rows) {
-      await pdfQueue.add('generate-cibil', { reportId: row.id }, {
-        jobId: `cibil-pdf-${row.id}` // Prevent duplicate jobs for the same report
-      });
+// 3️⃣ Risk & Bucket cron (Runs every 2 mins, stopped between 12:00 AM - 01:00 AM IST)
+cron.schedule(
+  "*/2 1-23 * * *",
+  async () => {
+    if (isRiskBucketCronRunning) {
+      console.log(
+        "⏭️ Previous Risk & Bucket cron is still running. Skipping this execution.",
+      );
+      return;
     }
-    
-    console.log(`✅ Queued ${rows.length} pending CIBIL PDFs in ${Date.now() - startedAt}ms`);
-  } catch (e) {
-    console.error(`❌ PDF queuing failed after ${Date.now() - startedAt}ms:`, e.message);
-  } finally {
-    isCibilPdfCronRunning = false;
-  }
-});
 
-// 3️⃣ Risk & Bucket cron
-cron.schedule("*/2 * * * *", async () => {
-  if (isRiskBucketCronRunning) {
-    console.log("⏭️ Previous Risk & Bucket cron is still running. Skipping this execution.");
-    return;
-  }
+    isRiskBucketCronRunning = true;
+    const startedAt = Date.now();
 
-  isRiskBucketCronRunning = true;
-  const startedAt = Date.now();
-
-  try {
-    const sql = `CALL update_risk_and_bucket()`;
-    await db.promise().query(sql);
-    console.log(`✅ Risk done in ${Date.now() - startedAt}ms`);
-  } catch (e) {
-    console.error(`❌ Risk cron failed after ${Date.now() - startedAt}ms:`, e.message);
-  } finally {
-    isRiskBucketCronRunning = false;
-  }
-});
+    try {
+      const sql = `CALL update_risk_and_bucket()`;
+      await db.promise().query(sql);
+      console.log(`✅ Risk done in ${Date.now() - startedAt}ms`);
+    } catch (e) {
+      console.error(
+        `❌ Risk cron failed after ${Date.now() - startedAt}ms:`,
+        e.message,
+      );
+    } finally {
+      isRiskBucketCronRunning = false;
+    }
+  },
+  {
+    timezone: "Asia/Kolkata",
+  },
+);
 
 // 4️⃣ WhatsApp Due Date Reminder Cron
 // Runs every day at 9:00 AM server time
@@ -727,8 +689,6 @@ cron.schedule("*/2 * * * *", async () => {
 //     timezone: "Asia/Kolkata",
 //   }
 // );
-
-
 
 ///////////////////// EMI CLUB CRON JOB /////////////////////
 // cron.schedule("*/2 * * * *", async () => {
@@ -811,73 +771,83 @@ cron.schedule("*/2 * * * *", async () => {
 //   }
 // });
 
+// 4️⃣ Allocation bank_date update cron (every 2 minutes, stopped 12:00 AM - 01:00 AM IST)
+cron.schedule(
+  "*/2 1-23 * * *",
+  async () => {
+    if (isAllocationBankDateCronRunning) {
+      console.log(
+        "⏭️ Previous Allocation bank_date cron is still running. Skipping this execution.",
+      );
+      return;
+    }
 
+    isAllocationBankDateCronRunning = true;
+    const startedAt = Date.now();
+    console.log("🏦 Running Allocation bank_date update...");
 
-// 4️⃣ NEW: Allocation bank_date update cron (every 2 minutes)
-// 4️⃣ NEW: Allocation bank_date update cron (every 2 minutes)
-cron.schedule("*/2 * * * *", async () => {
-  if (isAllocationBankDateCronRunning) {
-    console.log("⏭️ Previous Allocation bank_date cron is still running. Skipping this execution.");
-    return;
-  }
+    try {
+      const sqlAllocation = `
+        UPDATE allocation a
+        JOIN repayments_upload ru 
+          ON a.payment_id = ru.payment_id 
+         AND a.lan = ru.lan
+        SET a.bank_date_allocation = ru.bank_date
+        WHERE ru.bank_date IS NOT NULL
+      `;
 
-  isAllocationBankDateCronRunning = true;
-  const startedAt = Date.now();
-  console.log("🏦 Running Allocation bank_date update...");
+      const sqlAllocationAdikosh = `
+        UPDATE allocation_adikosh a
+        JOIN repayments_upload_adikosh ru 
+          ON a.payment_id = ru.payment_id 
+         AND a.lan = ru.lan
+        SET a.bank_date_allocation = ru.bank_date
+        WHERE ru.bank_date IS NOT NULL
+      `;
 
-  try {
-    const sqlAllocation = `
-      UPDATE allocation a
-      JOIN repayments_upload ru 
-        ON a.payment_id = ru.payment_id 
-       AND a.lan = ru.lan
-      SET a.bank_date_allocation = ru.bank_date
-      WHERE ru.bank_date IS NOT NULL
-    `;
+      /* 🔵 allocation_fintree_fsf → only LAN starting with 'GQFSF' */
+      const sqlAllocationFintreeFSF = `
+        UPDATE allocation_fintree_fsf a
+        JOIN repayments_upload ru 
+          ON a.payment_id = ru.payment_id 
+         AND a.lan = ru.lan
+        SET a.bank_date_allocation = ru.bank_date
+        WHERE ru.bank_date IS NOT NULL
+          AND ru.lan LIKE 'GQFSF%'
+      `;
 
-    const sqlAllocationAdikosh = `
-      UPDATE allocation_adikosh a
-      JOIN repayments_upload_adikosh ru 
-        ON a.payment_id = ru.payment_id 
-       AND a.lan = ru.lan
-      SET a.bank_date_allocation = ru.bank_date
-      WHERE ru.bank_date IS NOT NULL
-    `;
+      /* 🟢 allocation_fintree → only LAN starting with 'GQNonFSF' */
+      const sqlAllocationFintree = `
+        UPDATE allocation_fintree a
+        JOIN repayments_upload ru 
+          ON a.payment_id = ru.payment_id 
+         AND a.lan = ru.lan
+        SET a.bank_date_allocation = ru.bank_date
+        WHERE ru.bank_date IS NOT NULL
+          AND ru.lan LIKE 'GQNonFSF%'
+      `;
 
-    /* 🔵 allocation_fintree_fsf → only LAN starting with 'GQFSF' */
-    const sqlAllocationFintreeFSF = `
-      UPDATE allocation_fintree_fsf a
-      JOIN repayments_upload ru 
-        ON a.payment_id = ru.payment_id 
-       AND a.lan = ru.lan
-      SET a.bank_date_allocation = ru.bank_date
-      WHERE ru.bank_date IS NOT NULL
-        AND ru.lan LIKE 'GQFSF%'
-    `;
+      await db.promise().query(sqlAllocation);
+      await db.promise().query(sqlAllocationAdikosh);
+      await db.promise().query(sqlAllocationFintreeFSF);
+      await db.promise().query(sqlAllocationFintree);
 
-    /* 🟢 allocation_fintree → only LAN starting with 'GQNonFSF' */
-    const sqlAllocationFintree = `
-      UPDATE allocation_fintree a
-      JOIN repayments_upload ru 
-        ON a.payment_id = ru.payment_id 
-       AND a.lan = ru.lan
-      SET a.bank_date_allocation = ru.bank_date
-      WHERE ru.bank_date IS NOT NULL
-        AND ru.lan LIKE 'GQNonFSF%'
-    `;
-
-    await db.promise().query(sqlAllocation);
-    await db.promise().query(sqlAllocationAdikosh);
-    await db.promise().query(sqlAllocationFintreeFSF);
-    await db.promise().query(sqlAllocationFintree);
-
-    console.log(`✅ allocation, adikosh, fintree_fsf, fintree bank_date_allocation updated in ${Date.now() - startedAt}ms`);
-  } catch (err) {
-    console.error(`❌ Allocation cron failed after ${Date.now() - startedAt}ms:`, err.sqlMessage || err.message);
-  } finally {
-    isAllocationBankDateCronRunning = false;
-  }
-});
+      console.log(
+        `✅ allocation, adikosh, fintree_fsf, fintree bank_date_allocation updated in ${Date.now() - startedAt}ms`,
+      );
+    } catch (err) {
+      console.error(
+        `❌ Allocation cron failed after ${Date.now() - startedAt}ms:`,
+        err.sqlMessage || err.message,
+      );
+    } finally {
+      isAllocationBankDateCronRunning = false;
+    }
+  },
+  {
+    timezone: "Asia/Kolkata",
+  },
+);
 
 /////////////////   RAPID MONEY WEBHOOK CALL FOR INACTIVE CASES ////////
 
@@ -974,7 +944,6 @@ async function rejectInactiveLoans() {
   }
 }
 
-
 /**
  * Inactive Loan Rejection Cron
  *
@@ -983,9 +952,7 @@ async function rejectInactiveLoans() {
 cron.schedule(
   "40 11 * * *",
   async () => {
-    console.log(
-      "🚫 Running inactive loan rejection cron...",
-    );
+    console.log("🚫 Running inactive loan rejection cron...");
 
     try {
       /**
@@ -996,9 +963,7 @@ cron.schedule(
       const result = await rejectInactiveLoans();
 
       if (result.loans.length === 0) {
-        console.log(
-          "ℹ️ No applications inactive for more than 30 days found.",
-        );
+        console.log("ℹ️ No applications inactive for more than 30 days found.");
         return;
       }
 
@@ -1022,9 +987,9 @@ cron.schedule(
 
           console.error(
             `⚠️ Rejection webhook skipped | ` +
-            `id=${loan.id} | ` +
-            `lan=${loan.lan || "NULL"} | ` +
-            `application_id missing`,
+              `id=${loan.id} | ` +
+              `lan=${loan.lan || "NULL"} | ` +
+              `application_id missing`,
           );
 
           continue;
@@ -1044,9 +1009,9 @@ cron.schedule(
 
           console.log(
             `✅ Rejection webhook sent | ` +
-            `id=${loan.id} | ` +
-            `lan=${loan.lan || "NULL"} | ` +
-            `applicationId=${loan.application_id}`,
+              `id=${loan.id} | ` +
+              `lan=${loan.lan || "NULL"} | ` +
+              `applicationId=${loan.application_id}`,
           );
         } catch (webhookError) {
           webhookFailed++;
@@ -1057,33 +1022,29 @@ cron.schedule(
            */
           console.error(
             `❌ Rejection webhook failed | ` +
-            `id=${loan.id} | ` +
-            `lan=${loan.lan || "NULL"} | ` +
-            `applicationId=${loan.application_id} | ` +
-            `error=${webhookError.message}`,
+              `id=${loan.id} | ` +
+              `lan=${loan.lan || "NULL"} | ` +
+              `applicationId=${loan.application_id} | ` +
+              `error=${webhookError.message}`,
           );
         }
       }
 
       console.log(
         `✅ Inactive loan rejection cron finished | ` +
-        `updated=${result.updated} | ` +
-        `webhook_success=${webhookSuccess} | ` +
-        `webhook_failed=${webhookFailed} | ` +
-        `webhook_skipped=${webhookSkipped}`,
+          `updated=${result.updated} | ` +
+          `webhook_success=${webhookSuccess} | ` +
+          `webhook_failed=${webhookFailed} | ` +
+          `webhook_skipped=${webhookSkipped}`,
       );
     } catch (error) {
-      console.error(
-        "❌ Inactive loan rejection cron failed:",
-        error.message,
-      );
+      console.error("❌ Inactive loan rejection cron failed:", error.message);
     }
   },
   {
     timezone: "Asia/Kolkata",
   },
 );
-
 
 /**
  * Rejection Webhook Backfill Cron
@@ -1119,10 +1080,10 @@ let isRejectionWebhookBackfillRunning = false;
 //       );
 //       return;
 //     }
-// 
+//
 //     isRejectionWebhookBackfillRunning = true;
 //     const startedAt = Date.now();
-// 
+//
 //     try {
 //       const [loans] = await db.promise().query(
 //         `
@@ -1140,38 +1101,38 @@ let isRejectionWebhookBackfillRunning = false;
 //         `,
 //         [REJECTION_WEBHOOK_BACKFILL_BATCH_SIZE],
 //       );
-// 
+//
 //       if (loans.length === 0) {
 //         return;
 //       }
-// 
+//
 //       let success = 0;
 //       let failed = 0;
 //       let skipped = 0;
-// 
+//
 //       for (const loan of loans) {
 //         if (!loan.application_id) {
 //           skipped++;
-// 
+//
 //           console.error(
 //             `⚠️ Rejection webhook backfill skipped | ` +
 //             `id=${loan.id} | ` +
 //             `lan=${loan.lan || "NULL"} | ` +
 //             `application_id missing`,
 //           );
-// 
+//
 //           continue;
 //         }
-// 
+//
 //         try {
 //           await sendRejectionWebhook({
 //             applicationId: loan.application_id,
 //           });
-// 
+//
 //           success++;
 //         } catch (webhookError) {
 //           failed++;
-// 
+//
 //           console.error(
 //             `❌ Rejection webhook backfill failed | ` +
 //             `id=${loan.id} | ` +
@@ -1181,7 +1142,7 @@ let isRejectionWebhookBackfillRunning = false;
 //           );
 //         }
 //       }
-// 
+//
 //       console.log(
 //         `✅ Rejection webhook backfill batch finished in ${Date.now() - startedAt}ms | ` +
 //         `processed=${loans.length} | success=${success} | failed=${failed} | skipped=${skipped}`,
@@ -1199,10 +1160,6 @@ let isRejectionWebhookBackfillRunning = false;
 //     timezone: "Asia/Kolkata",
 //   },
 // );
-
-
-
-
 
 // 5️⃣ WCTL CCOD Interest Accrual Cron
 
@@ -1227,7 +1184,7 @@ let isRejectionWebhookBackfillRunning = false;
 
 // startAadhaarCron();
 
-////// SUPPLY CHAIN DEMAND CRON - every day at 00:05 
+////// SUPPLY CHAIN DEMAND CRON - every day at 00:05
 // cron.schedule("5 0 * * *", async () => {
 //   // Runs daily at 00:05
 //   const today = new Date().toISOString().split("T")[0];
@@ -1334,3 +1291,9 @@ let isRejectionWebhookBackfillRunning = false;
 //     timezone: "Asia/Kolkata",
 //   }
 // );
+//   }
+// );
+
+module.exports = {
+  runDpdAndStatusUpdate,
+};

@@ -1920,11 +1920,17 @@ tbody {
 
 async function generatePdf(outPath, htmlStr) {
   const browser = await puppeteer.launch({
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    headless: "new",
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+    ],
   });
   try {
     const page = await browser.newPage();
-    await page.setContent(htmlStr, { waitUntil: 'networkidle0' });
+    await page.setContent(htmlStr, { waitUntil: 'networkidle0', timeout: 60000 });
     await page.pdf({
       path: outPath,
       format: 'A4',

@@ -11,10 +11,10 @@ const {
 let jobRunning = false;
 
 /*
- * Run every 5 minutes.
+ * Run every 5 minutes (stopped between 12:00 AM - 01:00 AM IST).
  */
 cron.schedule(
-  "*/5 * * * *",
+  "*/5 1-23 * * *",
   async () => {
 
     if (jobRunning) {

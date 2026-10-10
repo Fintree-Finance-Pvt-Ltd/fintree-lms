@@ -287,9 +287,9 @@ function initScheduler() {
     { timezone: tz, noOverlap: true }
   );
 
-  // Send queued SMS every 10 minutes
+  // Send queued SMS every 10 minutes (stopped between 12:00 AM - 01:00 AM IST)
   cron.schedule(
-    "*/10 * * * *",
+    "*/10 1-23 * * *",
     async () => {
       try {
         const n = await sendQueued(300);
