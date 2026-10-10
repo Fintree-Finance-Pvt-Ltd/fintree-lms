@@ -55,7 +55,7 @@ const numberOrNull = (value) => {
   return Number.isNaN(num) ? null : num;
 };
 
-const normalizePan = (value) => String(value || "").trim().toUpperCase();
+const normalizePan = (value) => String(value || "").trim(). toUpperCase();
 
 const normalizeMobile = (value) => String(value || "").replace(/\D/g, "");
 
@@ -707,6 +707,144 @@ router.post("/generate-aadhaar-kyc-url",verifyApiKey, async (req, res) => {
   } catch (error) {
     console.error("Error generating Aadhaar KYC URL:", error.message);
     res.status(500).json({ error: "Failed to generate Aadhaar KYC URL" });
+  }
+});
+
+router.post("/v1/zebrs-aadhaar-webhook", async (req, res) => {
+  try {
+    const payload = req.body || {};
+
+    console.log(
+      "📥 ZEBRS Aadhaar Webhook Payload:",
+      JSON.stringify(payload).slice(0, 500)
+    );
+
+    const transactionId = payload.transactionId;
+    const status = String(payload.status || "").toLowerCase();
+    const data = payload.data || {};
+
+    const uniqueId =
+      data?.uniqueId ||
+      payload?.uniqueId ||
+      payload?.model?.uniqueId ||
+      null;
+
+    // Always acknowledge callbacks that cannot be processed.
+    if (!transactionId && !uniqueId) {
+      console.warn("ZEBRS Aadhaar webhook missing transactionId and uniqueId");
+      return res.status(200).send("ignored");
+    }
+
+    // Find the matching ZEBRS KYC record.
+    const [rows] = await db.promise().query(
+      `SELECT lan, applicant_type
+       FROM kyc_verification_status
+       WHERE (aadhaar_transaction_id = ? AND ? IS NOT NULL)
+          OR (aadhaar_unique_id = ? AND ? IS NOT NULL)
+       LIMIT 1`,
+      [transactionId, transactionId, uniqueId, uniqueId]
+    );
+
+    if (!rows.length) {
+      console.warn("No matching ZEBRS Aadhaar KYC record", {
+        transactionId,
+        uniqueId
+      });
+
+      return res.status(200).send("no-matching-record");
+    }
+
+    const lan = rows[0].lan;
+
+    // Ensure this callback belongs to a ZEBRS loan.
+    const [loanRows] = await db.promise().query(
+      `SELECT lan
+       FROM loan_booking_zebrs
+       WHERE lan = ?
+       LIMIT 1`,
+      [lan]
+    );
+
+    if (!loanRows.length) {
+      console.warn("Aadhaar callback is not for a ZEBRS loan:", lan);
+      return res.status(200).send("not-zebrs-loan");
+    }
+
+    if (status !== "success") {
+      await db.promise().query(
+        `UPDATE kyc_verification_status
+         SET aadhaar_status = 'FAILED',
+             aadhaar_api_response = ?
+         WHERE lan = ?
+           AND aadhaar_transaction_id = ?`,
+        [JSON.stringify(payload), lan, transactionId]
+      );
+
+      console.log("❌ ZEBRS Aadhaar verification failed:", lan);
+      return res.status(200).send("failure-processed");
+    }
+
+    // Successful verification: save the callback response.
+    await db.promise().query(
+      `UPDATE kyc_verification_status
+       SET aadhaar_status = 'VERIFIED',
+           aadhaar_api_response = ?
+       WHERE lan = ?
+         AND aadhaar_transaction_id = ?`,
+      [JSON.stringify(payload), lan, transactionId]
+    );
+
+    console.log("✅ ZEBRS Aadhaar VERIFIED for LAN:", lan);
+
+    return res.status(200).send("ok");
+  } catch (error) {
+    console.error("❌ ZEBRS Aadhaar webhook error:", error);
+
+    // Acknowledge to avoid repeated callbacks; monitor errors in logs.
+    return res.status(200).send("error-logged");
+  }
+});
+
+router.post("/partner/ops-initiate", async (req, res) => {
+  try {
+    const { lan } = req.body;
+
+    if (!lan) {
+      return res.status(400).json({
+        success: false,
+        message: "LAN is required",
+      });
+    }
+
+    const [result] = await db.promise().query(
+      `UPDATE loan_booking_zebrs
+       SET status = 'ops-initiate'
+       WHERE lan = ?
+         AND status = 'Approved'`,
+      [lan],
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(409).json({
+        success: false,
+        message: "Loan not found or loan is not in Approved status",
+        lan,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Loan status updated to ops-initiate",
+      lan,
+      status: "ops-initiate",
+    });
+  } catch (err) {
+    console.error("ZEBRS ops-initiate error:", err.message);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update loan status",
+    });
   }
 });
 
