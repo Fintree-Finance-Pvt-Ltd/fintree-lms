@@ -1,7 +1,7 @@
 const db = require("../../config/db");
 const express = require("express");
 const verifyApiKey = require("../../middleware/apiKeyAuth");
-const initAadhaarKyc = require("../../services/digitapaadharservice");
+const { initAadhaarKyc } = require("../../services/digitapaadharservice");
 const { getPanCardDetails } = require("../../services/pancardapiservice");
 const { initDoqfyEsign } = require("../../services/doqfyEsignService");
 const { initEsign } = require("../../services/esignService");
