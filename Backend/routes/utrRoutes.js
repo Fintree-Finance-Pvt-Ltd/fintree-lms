@@ -542,8 +542,9 @@ const {
 
 const upload = multer();
 const {
-  sendWelcomeLetterAfterUtrUpload,
+  // sendWelcomeLetterAfterUtrUpload,
 } = require("../services/welcomeLetterService");
+const { welcomeLetterQueue } = require("../workers/welcomeLetterQueue");
 
 function excelDateToJSDate(serial) {
   const utc_days = Math.floor(serial - 25569);
@@ -725,7 +726,7 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
             processedCount++;
             insertedLANs.add(lan);
             try {
-              const emailResult = await sendWelcomeLetterAfterUtrUpload({ lan, utrNumber: String(disbursementUTR).trim() });
+              const emailResult = await welcomeLetterQueue.add("send-welcome-letter", { lan, utrNumber: String(disbursementUTR).trim() }, { jobId: `welcome-${lan}-${Date.now()}` });
               welcomeEmailResults.push({ lan, utr: disbursementUTR, recipient: emailResult.recipient, status: "SENT" });
             } catch (error) {
               welcomeEmailErrors.push({ lan, utr: disbursementUTR, reason: error.message, status: "FAILED" });

@@ -87,8 +87,9 @@ const {
 } = require("./routes/QuickMoney/quickMoneyWebhook")
 
 const {
-  sendWelcomeLetterAfterUtrUpload,
+  // sendWelcomeLetterAfterUtrUpload,
 } = require("./services/welcomeLetterService");
+const { welcomeLetterQueue } = require("./workers/welcomeLetterQueue");
 const {
   autoApproveSevenFinCorpIfAllVerified,
 } = require("./routes/Seven Fincorp/sevenFincorpBRE");
@@ -119,6 +120,7 @@ if (process.env.RUN_CRONS === 'true') {
   require("./jobs/rapidMoneyWebhookRetry");
   require("./jobs/quickMoneyWebhookRetry");
   require("./workers/pdfQueue"); // Load the PDF Queue Worker
+  require("./workers/welcomeLetterQueue"); // Load the Welcome Letter Worker
 }
 // Daily WhatsApp Disbursement Case Count Report Scheduler
 if (process.env.RUN_CRONS === 'true' || process.env.WHATSAPP_AUTO_ENABLED === 'true') {
@@ -1028,10 +1030,10 @@ app.post("/api/welcome-letter/send", async (req, res) => {
       utrNumber,
     });
 
-    const emailResult = await sendWelcomeLetterAfterUtrUpload({
+    const emailResult = await welcomeLetterQueue.add("send-welcome-letter", {
       lan,
       utrNumber,
-    });
+    }, { jobId: `welcome-${lan}-${Date.now()}` });
 
     return res.json({
       success: true,

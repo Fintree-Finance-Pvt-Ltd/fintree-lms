@@ -10,8 +10,9 @@ const { sendLoanWebhook } = require("../utils/webhook");
 const partnerLimitService = require("./partnerLimitService");
 const { getMonthYear } = require("../utils/partnerHelpers");
 const {
-  sendWelcomeLetterAfterUtrUpload,
+  // sendWelcomeLetterAfterUtrUpload,
 } = require("./welcomeLetterService");
+const { welcomeLetterQueue } = require("../workers/welcomeLetterQueue");
 
 async function processEmiClubDisbursement({ lan, disbursementUTR, disbursementDate }) {
    console.log("[EMICLUB][START] Processing disbursement", {
@@ -282,10 +283,10 @@ if (existingRps.length > 0) {
  console.log("[Rapid money][SUCCESS] Disbursement completed successfully", { lan, utr: disbursementUTR });
 
     try {
-      const welcomeLetterResult = await sendWelcomeLetterAfterUtrUpload({
+      const welcomeLetterResult = await welcomeLetterQueue.add("send-welcome-letter", {
         lan,
         utrNumber: disbursementUTR,
-      });
+      }, { jobId: `welcome-${lan}-${Date.now()}` });
 
       console.log("[Rapid money][WELCOME_LETTER] Sent", {
         lan,
@@ -535,10 +536,10 @@ async function processQuickMoneyDisbursement({
     );
 
     try {
-      const welcomeLetterResult = await sendWelcomeLetterAfterUtrUpload({
+      const welcomeLetterResult = await welcomeLetterQueue.add("send-welcome-letter", {
         lan,
         utrNumber: disbursementUTR,
-      });
+      }, { jobId: `welcome-${lan}-${Date.now()}` });
 
       console.log("[Quick Money][WELCOME_LETTER] Sent", {
         lan,
