@@ -15,33 +15,36 @@ const welcomeLetterQueue = new Queue("welcome-letter-queue", {
   }
 });
 
-const welcomeLetterWorker = new Worker(
-  "welcome-letter-queue",
-  async (job) => {
-    const { lan, utrNumber } = job.data;
-    console.log(`[WelcomeLetter Worker] Processing for LAN: ${lan}...`);
-    
-    try {
-      const res = await sendWelcomeLetterAfterUtrUpload({ lan, utrNumber });
-      console.log(`[WelcomeLetter Worker] Success for LAN: ${lan}`);
-      return res;
-    } catch (err) {
-      console.error(`[WelcomeLetter Worker] Failed for LAN: ${lan}:`, err.message);
-      throw err;
+let welcomeLetterWorker;
+if (process.env.RUN_CRONS === 'true') {
+  welcomeLetterWorker = new Worker(
+    "welcome-letter-queue",
+    async (job) => {
+      const { lan, utrNumber } = job.data;
+      console.log(`[WelcomeLetter Worker] Processing for LAN: ${lan}...`);
+      
+      try {
+        const res = await sendWelcomeLetterAfterUtrUpload({ lan, utrNumber });
+        console.log(`[WelcomeLetter Worker] Success for LAN: ${lan}`);
+        return res;
+      } catch (err) {
+        console.error(`[WelcomeLetter Worker] Failed for LAN: ${lan}:`, err.message);
+        throw err;
+      }
+    },
+    {
+      connection,
+      concurrency: 2, 
     }
-  },
-  {
-    connection,
-    concurrency: 2, 
-  }
-);
+  );
 
-welcomeLetterWorker.on("completed", (job) => {
-  console.log(`[WelcomeLetter Worker] Job ${job.id} completed!`);
-});
+  welcomeLetterWorker.on("completed", (job) => {
+    console.log(`[WelcomeLetter Worker] Job ${job.id} completed!`);
+  });
 
-welcomeLetterWorker.on("failed", (job, err) => {
-  console.error(`[WelcomeLetter Worker] Job ${job.id} failed with error: ${err.message}`);
-});
+  welcomeLetterWorker.on("failed", (job, err) => {
+    console.error(`[WelcomeLetter Worker] Job ${job.id} failed with error: ${err.message}`);
+  });
+}
 
 module.exports = { welcomeLetterQueue };

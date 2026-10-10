@@ -11,9 +11,7 @@ const queryDB = (sql, params) =>
     });
   });
 
-    const {
-  generateNoc,
-} = require("../../services/noc.service");
+    const { nocQueue } = require("../../workers/nocQueue");
 /**
  * Handle a refund/reversal row (negative transfer_amount) for a LAN —
  * e.g. a NACH mandate that bounced after already being allocated, or a
@@ -368,10 +366,7 @@ if (remaining > 0) {
     console.log(`💠 Loan marked Fully Paid for RAPID MONEY LAN ${lan}`);
      try {
 
-    const nocResult = await generateNoc({
-      lan,
-      baseUrl: process.env.BASE_URL,
-    });
+    const nocResult = await nocQueue.add("generate-noc", { lan }, { jobId: `noc-${lan}-${Date.now()}` });
 
 
     console.log(

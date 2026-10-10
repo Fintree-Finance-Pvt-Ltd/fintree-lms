@@ -1,5 +1,5 @@
 const db = require("../../config/db");
-const { generateNoc } = require("../../services/noc.service");
+const { nocQueue } = require("../../workers/nocQueue");
 
 const queryDB = (sql, params = []) =>
   new Promise((resolve, reject) => {
@@ -113,10 +113,7 @@ const allocateClaimCureBuddy = async (lan, payment) => {
     );
 
     try {
-      const nocResult = await generateNoc({
-        lan: normalizedLan,
-        baseUrl: process.env.BASE_URL || process.env.BACKEND_URL,
-      });
+      const nocResult = await nocQueue.add("generate-noc", { lan: normalizedLan }, { jobId: `noc-${normalizedLan}-${Date.now()}` });
 
       console.log("NOC generated successfully for Claim Cure Buddy", {
         lan: normalizedLan,

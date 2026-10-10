@@ -18,33 +18,36 @@ const pdfQueue = new Queue("pdf-generation", {
 });
 
 // Set up the worker that will process jobs from this queue
-const pdfWorker = new Worker(
-  "pdf-generation",
-  async (job) => {
-    const { reportId } = job.data;
-    console.log(`[PDF Worker] Processing PDF for reportId: ${reportId}...`);
-    
-    try {
-      const res = await generateForReport(reportId);
-      console.log(`[PDF Worker] Success for reportId: ${reportId}`);
-      return res;
-    } catch (err) {
-      console.error(`[PDF Worker] Failed for reportId: ${reportId}:`, err.message);
-      throw err;
+let pdfWorker;
+if (process.env.RUN_CRONS === 'true') {
+  pdfWorker = new Worker(
+    "pdf-generation",
+    async (job) => {
+      const { reportId } = job.data;
+      console.log(`[PDF Worker] Processing PDF for reportId: ${reportId}...`);
+      
+      try {
+        const res = await generateForReport(reportId);
+        console.log(`[PDF Worker] Success for reportId: ${reportId}`);
+        return res;
+      } catch (err) {
+        console.error(`[PDF Worker] Failed for reportId: ${reportId}:`, err.message);
+        throw err;
+      }
+    },
+    {
+      connection,
+      concurrency: 5, // Maximum 5 PDFs generated at the exact same time
     }
-  },
-  {
-    connection,
-    concurrency: 5, // Maximum 5 PDFs generated at the exact same time
-  }
-);
+  );
 
-pdfWorker.on("completed", (job) => {
-  console.log(`[PDF Worker] Job ${job.id} completed!`);
-});
+  pdfWorker.on("completed", (job) => {
+    console.log(`[PDF Worker] Job ${job.id} completed!`);
+  });
 
-pdfWorker.on("failed", (job, err) => {
-  console.error(`[PDF Worker] Job ${job.id} failed with error: ${err.message}`);
-});
+  pdfWorker.on("failed", (job, err) => {
+    console.error(`[PDF Worker] Job ${job.id} failed with error: ${err.message}`);
+  });
+}
 
 module.exports = { pdfQueue };

@@ -11,9 +11,7 @@ const queryDB = (sql, params) =>
     });
   });
 
-  const {
-  generateNoc,
-} = require("../../services/noc.service");
+const { nocQueue } = require("../../workers/nocQueue");
 /**
  * Allocate payments for HELIUM loans.
  * Interest first, then principal. Oldest EMI first.
@@ -264,10 +262,7 @@ if (remaining > 0) {
 
      try {
 
-    const nocResult = await generateNoc({
-      lan,
-      baseUrl: process.env.BASE_URL,
-    });
+    const nocResult = await nocQueue.add("generate-noc", { lan }, { jobId: `noc-${lan}-${Date.now()}` });
 
 
     console.log(

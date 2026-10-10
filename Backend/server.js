@@ -121,6 +121,7 @@ if (process.env.RUN_CRONS === 'true') {
   require("./jobs/quickMoneyWebhookRetry");
   require("./workers/pdfQueue"); // Load the PDF Queue Worker
   require("./workers/welcomeLetterQueue"); // Load the Welcome Letter Worker
+  require("./workers/nocQueue"); // Load the NOC Worker
 }
 // Daily WhatsApp Disbursement Case Count Report Scheduler
 if (process.env.RUN_CRONS === 'true' || process.env.WHATSAPP_AUTO_ENABLED === 'true') {
