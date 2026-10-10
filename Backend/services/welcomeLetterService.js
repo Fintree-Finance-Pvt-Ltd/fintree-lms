@@ -210,13 +210,9 @@ const PARTNER_ROUTES = [
     tenureUnit: "days",
   },
   {
-    prefix: "ZBR",
+    prefix: "ZBCL",
     table: "loan_booking_zebrs",
-
-    /*
-     * No RPS table was included for ZBR in your mapping.
-     */
-    rpsTable: null,
+    rpsTable: "manual_rps_zebrs",
     tenureUnit: "months",
   },
 

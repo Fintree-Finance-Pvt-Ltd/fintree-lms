@@ -977,6 +977,12 @@ WHERE lan = ?`,
              FROM loan_booking_saswat WHERE lan = ?`,
             [lan],
           );
+        } else if (lan.startsWith("ZBCL")) {
+          [loanRes] = await db.promise().query(
+            `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
+             FROM loan_booking_zebrs WHERE lan = ?`,
+            [lan],
+          );
         } else {
           [loanRes] = await db.promise().query(
             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
@@ -1317,6 +1323,11 @@ WHERE lan = ?`,
                 affectedRows: saswatUpdate.affectedRows,
               });
             
+          } else if (lan.startsWith("ZBCL")) {
+            await conn.query(
+              "UPDATE loan_booking_zebrs SET status = 'Disbursed' WHERE lan = ?",
+              [lan],
+            );
           } else {
             await conn.query(
               "UPDATE loan_booking_adikosh SET status = 'Disbursed' WHERE lan = ?",
