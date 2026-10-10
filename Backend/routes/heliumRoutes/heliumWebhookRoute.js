@@ -160,6 +160,7 @@ if (
       {
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.ZEBRS_WEBHOOK_TOKEN}`,
           "x-webhook-source": "lms-digitap-forwarder",
           "x-digitap-unique-id": uniqueId
         },

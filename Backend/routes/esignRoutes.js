@@ -756,12 +756,14 @@ router.post("/v1/doqfy-esign-webhook", async (req, res) => {
             final_status: finalStatus,
           };
 
+          
           const partnerResponse = await axios.post(
             zebrsUrl,
             forwardedPayload,
             {
               headers: {
                 "Content-Type": "application/json",
+                "Authorization": `Bearer ${process.env.ZEBRS_WEBHOOK_TOKEN}`,
                 "x-webhook-source": "lms-doqfy-esign-forwarder",
               },
               timeout: 30000,

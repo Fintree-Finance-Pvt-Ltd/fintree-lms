@@ -1883,6 +1883,7 @@ router.post("/webhooks/digio-mandate", async (req, res) => {
             {
               headers: {
                 "Content-Type": "application/json",
+                "Authorization": `Bearer ${process.env.ZEBRS_WEBHOOK_TOKEN}`,
                 "x-webhook-source": "lms-digio-mandate-forwarder",
               },
               timeout: 30000,
