@@ -655,19 +655,19 @@ const evaluateZebrsPolicy = ({
    * ---------------------------------------------------------
    * LOAN AMOUNT
    *
-   * Minimum ₹50,000
-   * Maximum ₹1,00,000
+   * Minimum ₹25,000
+   * Maximum ₹80,000
    * ---------------------------------------------------------
    */
-  if (loanAmount < 50000) {
+  if (loanAmount < 25000) {
     reasons.push(
-      "LOAN_AMOUNT_BELOW_50000",
+      "LOAN_AMOUNT_BELOW_25000",
     );
   }
 
-  if (loanAmount > 100000) {
+  if (loanAmount > 80000) {
     reasons.push(
-      "LOAN_AMOUNT_ABOVE_100000",
+      "LOAN_AMOUNT_ABOVE_80000",
     );
   }
 

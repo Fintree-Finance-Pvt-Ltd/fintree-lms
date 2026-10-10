@@ -1325,7 +1325,7 @@ WHERE lan = ?`,
             
           } else if (lan.startsWith("ZBCL")) {
             await conn.query(
-              "UPDATE loan_booking_zebrs SET status = 'Disbursed' WHERE lan = ?",
+              "UPDATE loan_booking_zebrs SET status = 'Disbursed', stage = 'Disbursed' WHERE lan = ?",
               [lan],
             );
           } else {

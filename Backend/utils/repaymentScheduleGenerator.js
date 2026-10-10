@@ -11866,9 +11866,6 @@ const generateRepaymentScheduleZebrs = async (
     let remainingPrincipal = Number(loanAmount);
     
     const disbDate = new Date(disbursementDate);
-    let dueDate = new Date(disbDate);
-    dueDate.setMonth(dueDate.getMonth() + 1);
-
     const rpsData = [];
     
     let emi = 0;
@@ -11882,6 +11879,8 @@ const generateRepaymentScheduleZebrs = async (
     }
 
     for (let i = 1; i <= tenure; i++) {
+        const dueDate = new Date(disbDate.getFullYear(), disbDate.getMonth() + i, disbDate.getDate());
+        
         let interest = 0;
         if (annualRate > 0) {
             interest = Math.ceil((remainingPrincipal * annualRate * 30) / 360);
@@ -11901,7 +11900,7 @@ const generateRepaymentScheduleZebrs = async (
             emi,
             interest,
             principal,
-            remainingPrincipalAfter,
+            principal, 
             interest, 
             emi, 
             remainingPrincipal, 
@@ -11910,7 +11909,6 @@ const generateRepaymentScheduleZebrs = async (
         ]);
 
         remainingPrincipal = remainingPrincipalAfter;
-        dueDate.setMonth(dueDate.getMonth() + 1);
     }
 
     await conn.query(
