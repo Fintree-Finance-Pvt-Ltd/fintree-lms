@@ -1382,20 +1382,18 @@ WHERE lan = ?`,
         if (!welcomeEmailAttemptedLANs.has(lan)) {
           welcomeEmailAttemptedLANs.add(lan);
           try {
-            const emailResult = await sendWelcomeLetterAfterUtrUpload({
-              lan,
-              utrNumber: String(disbursementUTR).trim(),
-            });
+            const emailResult = await welcomeLetterQueue.add(
+              "send-welcome-letter",
+              { lan, utrNumber: String(disbursementUTR).trim() },
+              { jobId: `welcome-${lan}-${Date.now()}` }
+            );
             welcomeEmailResults.push({
               lan,
               utr: disbursementUTR,
-              recipient: emailResult.recipient,
-              messageId: emailResult.emailMessageId,
-              partnerTable: emailResult.partnerTable,
-              status: "SENT",
+              status: "QUEUED",
             });
             console.log(
-              `✅ Welcome email sent successfully | LAN: ${lan} | Recipient: ${emailResult.recipient}`,
+              `✅ Welcome email queued successfully | LAN: ${lan}`,
             );
           } catch (welcomeEmailError) {
             console.error(

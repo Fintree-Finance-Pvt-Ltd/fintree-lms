@@ -10980,6 +10980,15 @@ const generateRepaymentSchedule = async (
       disbursementDate,
       product,
     );
+  } else if (lan.startsWith("ZBCL")) {
+    await generateRepaymentScheduleZebrs(
+      conn,
+      lan,
+      loanAmount,
+      interestRate,
+      tenure,
+      disbursementDate
+    );
   } else {
     console.warn(`⚠️ Unknown lender type: ${lender}. Skipping RPS generation.`);
   }
@@ -11842,6 +11851,80 @@ const generateRepaymentScheduleSevenFincorp = async (
   });
 
   return schedule;
+};
+
+const generateRepaymentScheduleZebrs = async (
+  conn,
+  lan,
+  loanAmount,
+  interestRate,
+  tenure,
+  disbursementDate
+) => {
+  try {
+    const annualRate = interestRate / 100;
+    let remainingPrincipal = Number(loanAmount);
+    
+    const disbDate = new Date(disbursementDate);
+    let dueDate = new Date(disbDate);
+    dueDate.setMonth(dueDate.getMonth() + 1);
+
+    const rpsData = [];
+    
+    let emi = 0;
+    if (annualRate > 0) {
+      emi = Math.round(
+          (remainingPrincipal * (annualRate / 12) * Math.pow(1 + annualRate / 12, tenure)) /
+          (Math.pow(1 + annualRate / 12, tenure) - 1)
+      );
+    } else {
+      emi = Math.round(remainingPrincipal / tenure);
+    }
+
+    for (let i = 1; i <= tenure; i++) {
+        let interest = 0;
+        if (annualRate > 0) {
+            interest = Math.ceil((remainingPrincipal * annualRate * 30) / 360);
+        }
+        let principal = emi - interest;
+
+        if (i === tenure) {
+           principal = remainingPrincipal; 
+           emi = principal + interest;
+        }
+
+        const remainingPrincipalAfter = remainingPrincipal - principal;
+
+        rpsData.push([
+            lan,
+            dueDate.toISOString().split("T")[0],
+            emi,
+            interest,
+            principal,
+            remainingPrincipalAfter,
+            interest, 
+            emi, 
+            remainingPrincipal, 
+            remainingPrincipalAfter, 
+            "Pending"
+        ]);
+
+        remainingPrincipal = remainingPrincipalAfter;
+        dueDate.setMonth(dueDate.getMonth() + 1);
+    }
+
+    await conn.query(
+        `INSERT INTO manual_rps_zebrs
+        (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, opening, closing, status)
+        VALUES ?`,
+        [rpsData]
+    );
+
+    console.log(`✅ Zebrs RPS generated for ${lan}`);
+  } catch (err) {
+    console.error(`❌ Zebrs RPS Error for ${lan}:`, err);
+    throw err;
+  }
 };
 
 module.exports = {

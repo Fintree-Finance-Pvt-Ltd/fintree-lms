@@ -1308,7 +1308,7 @@ router.get("/v1/rps",verifyApiKey,
       }));
 
       return res.status(200).json({
-        message: "CarePay repayment schedule fetched successfully.",
+        message: "Zebrs repayment schedule fetched successfully.",
         data: {
           lan: loan.lan,
           partner_loan_id: loan.partner_loan_id,
@@ -1332,7 +1332,7 @@ router.get("/v1/rps",verifyApiKey,
         },
       });
     } catch (error) {
-      console.error("Error fetching CarePay RPS:", error);
+      console.error("Error fetching Zebrs RPS:", error);
 
       return res.status(500).json({
         message: "Internal server error.",
