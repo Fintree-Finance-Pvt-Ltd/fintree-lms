@@ -141,7 +141,7 @@ router.get("/:lan", async (req, res) => {
     partnerLoanIdCol = "lb.partner_loan_id";
     netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
   }
-  
+
   // if (lan.startsWith("STRL")) {
   //   tableName = "loan_booking_sterlion";
   //   loanAmountCol = "COALESCE(lb.loan_amount, lb.request_amount) AS loan_amount";
@@ -245,6 +245,32 @@ router.get("/:lan", async (req, res) => {
     preEmi = "0";
     netDisbursementExpr = `(${loanAmountExpr} - ${processingFeeCol} - ${preEmi})`;
   }
+
+  if (lan.startsWith("ZBCL")) {
+    tableName = "loan_booking_zebrs";
+
+    loanAmountCol = "lb.loan_amount";
+    loanAmountExpr = "lb.loan_amount";
+
+    interestRateCol = "lb.interest_rate";
+    tenureCol = "lb.loan_tenure AS loan_tenure";
+
+    processingFeeCol = "COALESCE(lb.processing_fee, 0) AS processing_fee";
+
+    subventionCol = "0";
+    retentionCol = "0";
+
+    partnerLoanIdCol = "lb.partner_loan_id";
+
+    // Zebrs table does not have agreement_date.
+    // Return NULL without inventing an agreement date.
+    agreementDateExpr = "NULL AS agreement_date";
+
+    // Net disbursement after processing fee.
+    netDisbursementExpr =
+      "(COALESCE(lb.loan_amount, 0) - COALESCE(lb.processing_fee, 0))";
+  }
+
   if (lan.startsWith("SPL")) {
     tableName = "loan_booking_sampada";
     loanAmountCol = "lb.loan_amount";

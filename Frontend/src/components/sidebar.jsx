@@ -123,8 +123,6 @@
 //   //   </aside>
 //   // );
 
-
-
 //   const [activeGroup, setActiveGroup] = useState(null);
 //   return (
 //     <aside className="sidebar">
@@ -176,178 +174,289 @@
 
 // export default Sidebar;
 
-
-import { useContext, useState } from 'react';
-import { AuthContext } from '../context/AuthContext';
-import { Link, useLocation } from 'react-router-dom';
+import { useContext, useState } from "react";
+import { AuthContext } from "../context/AuthContext";
+import { Link, useLocation } from "react-router-dom";
 import {
-  Wallet, Car, Briefcase, Landmark, ShieldCheck,
-  Layers, Zap, BarChart3, Users, Repeat, CreditCard, Hospital,
-  ChevronRight, ArrowLeft,
-} from 'lucide-react';
-import '../styles/Sidebar.css';
- 
+  Wallet,
+  Car,
+  Briefcase,
+  Landmark,
+  ShieldCheck,
+  Layers,
+  Zap,
+  BarChart3,
+  Users,
+  Repeat,
+  CreditCard,
+  Hospital,
+  ChevronRight,
+  ArrowLeft,
+} from "lucide-react";
+import "../styles/Sidebar.css";
+
 const Sidebar = () => {
   const { user } = useContext(AuthContext);
   const location = useLocation();
   const [activeGroup, setActiveGroup] = useState(null);
- 
+
   // Icon Mapping Logic
   const getIcon = (group) => {
     const iconSize = 18;
     const icons = {
-      'LoanBooking': <Wallet size={iconSize} />,
-      'Malhotra EV Loans': <Car size={iconSize} />,
-      'Unsecured BL': <Briefcase size={iconSize} />,
-      'WCTL Business Loans': <Landmark size={iconSize} />,
-      'WCTL FFPL Loans': <Landmark size={iconSize} />,
-      'WCTL CCOD Loans': <CreditCard size={iconSize} />,
-      'GQ FSF Loans': <ShieldCheck size={iconSize} />,
-      'GQ Non-FSF Loans': <ShieldCheck size={iconSize} />,
-      'Embifi Loans': <Zap size={iconSize} />,
-      'Adikosh Loans': <Landmark size={iconSize} />,
-      'ClaimCureBuddy Loans': <ShieldCheck size={iconSize} />,
-      'CirclePe Loans': <Repeat size={iconSize} />,
-      'CirclePe Houser Loans': <Repeat size={iconSize} />,
-      'CarePay Loans': <Car size={iconSize} />,
-      'Sterlion Loans': <Briefcase size={iconSize} />,
-      'Sterlion UBL Loans': <Briefcase size={iconSize} />,   
-      'Elysium Loans': <Layers size={iconSize} />,
-      'EMI Club Loans': <Zap size={iconSize} />,
-      'Zypay Loans': <CreditCard size={iconSize} />,
-      'Fincrest Loans': <Layers size={iconSize} />,
-      'HEY EV Loans': <Car size={iconSize} />,
-      'HEY EV Battery Loans': <Zap size={iconSize} />,
-      'Helium Loans': <Zap size={iconSize} />,
-      'Clayoo Loans': <Layers size={iconSize} />,
-      'Loan Digit': <Layers size={iconSize} />,
-      'RapidMoney Loans': <Layers size={iconSize} />,
-      'Ya Money Loans': <Wallet size={iconSize} />,
-      'Switch My Loans': <Layers size={iconSize} />,
-      'Quick Money Loans': <Layers size={iconSize} />,
-      'Motion Corp': <Users size={iconSize} />,
-      'Sampada': <Users size={iconSize} />,
-      'OmrajPay': <Users size={iconSize} />,
-      'Seven FinCorp': <Users size={iconSize} />,
-      'SRBH ':<BarChart3 size={iconSize} />,
-      'Bundela': <Users size={iconSize} />,
-      'Sterlion Mexon Dexon Loans': <Briefcase size={iconSize} />,
-      'Fundify': <Wallet size={iconSize} />,
-      'Supply Chain Loans': <Repeat size={iconSize} />,
-      'Dealer ALL': <Users size={iconSize} />,
-      'Aldun Loans': <Landmark size={iconSize} />,
-      'MIS Reports': <BarChart3 size={iconSize} />,
-      ' Saswat': <Zap size={iconSize} />,
-      'Claim Buddy Loans': <Hospital size={iconSize} />  //claim buddy
-
+      LoanBooking: <Wallet size={iconSize} />,
+      "Malhotra EV Loans": <Car size={iconSize} />,
+      "Unsecured BL": <Briefcase size={iconSize} />,
+      "WCTL Business Loans": <Landmark size={iconSize} />,
+      "WCTL FFPL Loans": <Landmark size={iconSize} />,
+      "WCTL CCOD Loans": <CreditCard size={iconSize} />,
+      "GQ FSF Loans": <ShieldCheck size={iconSize} />,
+      "GQ Non-FSF Loans": <ShieldCheck size={iconSize} />,
+      "Embifi Loans": <Zap size={iconSize} />,
+      "Adikosh Loans": <Landmark size={iconSize} />,
+      "ClaimCureBuddy Loans": <ShieldCheck size={iconSize} />,
+      "CirclePe Loans": <Repeat size={iconSize} />,
+      "CirclePe Houser Loans": <Repeat size={iconSize} />,
+      "CarePay Loans": <Car size={iconSize} />,
+      "Sterlion Loans": <Briefcase size={iconSize} />,
+      "Sterlion UBL Loans": <Briefcase size={iconSize} />,
+      "Elysium Loans": <Layers size={iconSize} />,
+      "EMI Club Loans": <Zap size={iconSize} />,
+      "Zypay Loans": <CreditCard size={iconSize} />,
+      "Fincrest Loans": <Layers size={iconSize} />,
+      "HEY EV Loans": <Car size={iconSize} />,
+      "HEY EV Battery Loans": <Zap size={iconSize} />,
+      "Helium Loans": <Zap size={iconSize} />,
+      "Clayoo Loans": <Layers size={iconSize} />,
+      "Loan Digit": <Layers size={iconSize} />,
+      "RapidMoney Loans": <Layers size={iconSize} />,
+      "Ya Money Loans": <Wallet size={iconSize} />,
+      "Switch My Loans": <Layers size={iconSize} />,
+      "Quick Money Loans": <Layers size={iconSize} />,
+      "Motion Corp": <Users size={iconSize} />,
+      Sampada: <Users size={iconSize} />,
+      OmrajPay: <Users size={iconSize} />,
+      "Seven FinCorp": <Users size={iconSize} />,
+      "SRBH ": <BarChart3 size={iconSize} />,
+      Bundela: <Users size={iconSize} />,
+      "Sterlion Mexon Dexon Loans": <Briefcase size={iconSize} />,
+      Fundify: <Wallet size={iconSize} />,
+      "Supply Chain Loans": <Repeat size={iconSize} />,
+      "Dealer ALL": <Users size={iconSize} />,
+      "Aldun Loans": <Landmark size={iconSize} />,
+      "MIS Reports": <BarChart3 size={iconSize} />,
+      " Saswat": <Zap size={iconSize} />,
+      "Claim Buddy Loans": <Hospital size={iconSize} />, //claim buddy
+      Zebrs: <Car size={iconSize} />,
     };
     // Return the icon or the first letter if not found
-    return icons[group] || <span className="fallback-char">{group.charAt(0)}</span>;
+    return (
+      icons[group] || <span className="fallback-char">{group.charAt(0)}</span>
+    );
   };
- 
+
   if (!user) return null;
- 
+
   const allowedPages = user.pages || [];
- console.log("User Pages:", allowedPages);
+  console.log("User Pages:", allowedPages);
   const grouped = {
-    LoanBooking: allowedPages.filter(p => !['/ev-loans', '/gq-fsf-loans', '/gq-non-fsf-loans', '/adikosh-loans', '/circlepe-houser-loans', '/wctl-blloans', '/wctl-ffpl-loans', '/wctl-ccod','/seven-fincorp', '/bundela', '/circlepe-loans', '/elysium-loans', '/business-loans', '/embifi-loans', '/emiclub-loans','/emiclub2-loans', '/zypay-loans', '/fincrest-loans', '/fundify-loans', '/hey-ev-loans', '/hey-ev-battery-loans', '/helium-loans', '/dealer-onboarding', '/supply-chain-loans', '/clayoo-loans', '/claimcurebuddy', '/motion-corp', '/sampada', '/loan-digit', '/rapidmoney-loans', '/ya-money', '/sml-loans', '/aldun-loans', '/mis-reports' , '/carepay-loans', '/sterlion-loans', '/srbh' ,'/sterlion-ubl-loans','/sterlion-mexon-dexon','/claimcurebuddy', '/claim-buddy'].some(prefix => p.path.includes(prefix))),
-    'Malhotra EV Loans': allowedPages.filter(p => p.path.includes('/ev-loans')),
-    'Unsecured BL': allowedPages.filter(p => p.path.includes('/business-loans')),
-    'WCTL Business Loans': allowedPages.filter(p => p.path.includes('/wctl-blloans')),
-    'WCTL FFPL Loans': allowedPages.filter(p => p.path.includes('/wctl-ffpl-loans')),
-    'WCTL CCOD Loans': allowedPages.filter(p => p.path.includes('/wctl-ccod')),
-    'GQ FSF Loans': allowedPages.filter(p => p.path.includes('/gq-fsf-loans')),
-    'GQ Non-FSF Loans': allowedPages.filter(p => p.path.includes('/gq-non-fsf-loans')),
-    'Embifi Loans': allowedPages.filter(p => p.path.includes('/embifi-loans')),
-    'Adikosh Loans': allowedPages.filter(p => p.path.includes('/adikosh-loans')),
-    'ClaimCureBuddy Loans': allowedPages.filter(
-      p =>
-        p.path.includes('/claimcurebuddy') &&
-        (
-          p.path.includes('/claimcurebuddy/loan-booking') ||
-          p.path.includes('/claimcurebuddy/draft-cases')||
-          p.path.includes('/claimcurebuddy/all-loans') ||
-          p.path.includes('/claimcurebuddy/disbursed-loans')
-        )
+    LoanBooking: allowedPages.filter(
+      (p) =>
+        ![
+          "/ev-loans",
+          "/gq-fsf-loans",
+          "/gq-non-fsf-loans",
+          "/adikosh-loans",
+          "/circlepe-houser-loans",
+          "/wctl-blloans",
+          "/wctl-ffpl-loans",
+          "/wctl-ccod",
+          "/seven-fincorp",
+          "/bundela",
+          "/circlepe-loans",
+          "/elysium-loans",
+          "/business-loans",
+          "/embifi-loans",
+          "/emiclub-loans",
+          "/emiclub2-loans",
+          "/zypay-loans",
+          "/fincrest-loans",
+          "/fundify-loans",
+          "/hey-ev-loans",
+          "/hey-ev-battery-loans",
+          "/helium-loans",
+          "/dealer-onboarding",
+          "/supply-chain-loans",
+          "/clayoo-loans",
+          "/claimcurebuddy",
+          "/motion-corp",
+          "/zebrs",
+          "/sampada",
+          "/loan-digit",
+          "/rapidmoney-loans",
+          "/ya-money",
+          "/sml-loans",
+          "/aldun-loans",
+          "/mis-reports",
+          "/carepay-loans",
+          "/sterlion-loans",
+          "/srbh",
+          "/sterlion-ubl-loans",
+          "/sterlion-mexon-dexon",
+          "/claimcurebuddy",
+          "/claim-buddy",
+        ].some((prefix) => p.path.includes(prefix)),
     ),
-    'CirclePe Loans': allowedPages.filter(p => p.path.includes('/circlepe-loans')),
-    'CirclePe Houser Loans': allowedPages.filter(p => p.path.includes('/circlepe-houser-loans')),
-    'CarePay Loans': allowedPages.filter(p => p.path.includes('/carepay-loans')),
-    'Sterlion Loans': allowedPages.filter(p => p.path.includes('/sterlion-loans')),
-    'Sterlion UBL Loans': allowedPages.filter( p => p.path.includes('/sterlion-ubl-loans')),
-    'Elysium Loans': allowedPages.filter(p => p.path.includes('/elysium-loans')),
-    'EMI Club Loans': allowedPages.filter(p => p.path.includes('/emiclub-loans')),
-    'EMI Club2 Loans': allowedPages.filter(p => p.path.includes('/emiclub2-loans')),
-    'Zypay Loans': allowedPages.filter(p => p.path.includes('/zypay-loans')),
-    'Fincrest Loans': allowedPages.filter(p => p.path.includes('/fincrest-loans')),
-    'HEY EV Loans': allowedPages.filter(p => p.path.includes('/hey-ev-loans')),
-    'HEY EV Battery Loans': allowedPages.filter(p => p.path.includes('/hey-ev-battery-loans')),
-    'Helium Loans': allowedPages.filter(p => p.path.includes('/helium-loans')),
-    'Clayoo Loans': allowedPages.filter(p => p.path.includes('/clayoo-loans')),
-    'Motion Corp': allowedPages.filter(p => p.path.includes('/motion-corp')),
-    'Sampada': allowedPages.filter(p => p.path.includes('/sampada')),
-    'OmrajPay': allowedPages.filter(p => p.path.includes('/omrajpay')),
-    'Seven FinCorp': allowedPages.filter(p => p.path.includes('/seven-fincorp')),
-    'SRBH ': allowedPages.filter(p => p.path.includes('/srbh')),
-    'Bundela': allowedPages.filter(p => p.path.includes('/bundela')),
-    'Fundify': allowedPages.filter(p => p.path.includes('/fundify-loans')),
-    'Loan Digit': allowedPages.filter(p => p.path.includes('/loan-digit')),
-    'RapidMoney Loans': allowedPages.filter(p => p.path.includes('/rapidmoney-loans')),
-    'Ya Money Loans': allowedPages.filter(p => p.path.includes('/ya-money')),
-    'Switch My Loans': allowedPages.filter(p => p.path.includes('/sml-loans')),
-    'Quick Money Loans': allowedPages.filter(p => p.path.includes('/qml-loans')),
-    'Sterlion Mexon Dexon Loans': allowedPages.filter((p) => p.path.includes('/sterlion-mexon-dexon')),
-    'Supply Chain Loans': allowedPages.filter(p => p.path.includes('/supply-chain-loans')),
-    'Saswat ': allowedPages.filter(p => p.path.includes('/saswat')),
+    "Malhotra EV Loans": allowedPages.filter((p) =>
+      p.path.includes("/ev-loans"),
+    ),
+    "Unsecured BL": allowedPages.filter((p) =>
+      p.path.includes("/business-loans"),
+    ),
+    "WCTL Business Loans": allowedPages.filter((p) =>
+      p.path.includes("/wctl-blloans"),
+    ),
+    "WCTL FFPL Loans": allowedPages.filter((p) =>
+      p.path.includes("/wctl-ffpl-loans"),
+    ),
+    "WCTL CCOD Loans": allowedPages.filter((p) =>
+      p.path.includes("/wctl-ccod"),
+    ),
+    "GQ FSF Loans": allowedPages.filter((p) =>
+      p.path.includes("/gq-fsf-loans"),
+    ),
+    "GQ Non-FSF Loans": allowedPages.filter((p) =>
+      p.path.includes("/gq-non-fsf-loans"),
+    ),
+    "Embifi Loans": allowedPages.filter((p) =>
+      p.path.includes("/embifi-loans"),
+    ),
+    "Adikosh Loans": allowedPages.filter((p) =>
+      p.path.includes("/adikosh-loans"),
+    ),
+    "ClaimCureBuddy Loans": allowedPages.filter(
+      (p) =>
+        p.path.includes("/claimcurebuddy") &&
+        (p.path.includes("/claimcurebuddy/loan-booking") ||
+          p.path.includes("/claimcurebuddy/draft-cases") ||
+          p.path.includes("/claimcurebuddy/all-loans") ||
+          p.path.includes("/claimcurebuddy/disbursed-loans")),
+    ),
+    "CirclePe Loans": allowedPages.filter((p) =>
+      p.path.includes("/circlepe-loans"),
+    ),
+    "CirclePe Houser Loans": allowedPages.filter((p) =>
+      p.path.includes("/circlepe-houser-loans"),
+    ),
+    "CarePay Loans": allowedPages.filter((p) =>
+      p.path.includes("/carepay-loans"),
+    ),
+    "Sterlion Loans": allowedPages.filter((p) =>
+      p.path.includes("/sterlion-loans"),
+    ),
+    "Sterlion UBL Loans": allowedPages.filter((p) =>
+      p.path.includes("/sterlion-ubl-loans"),
+    ),
+    "Elysium Loans": allowedPages.filter((p) =>
+      p.path.includes("/elysium-loans"),
+    ),
+    "EMI Club Loans": allowedPages.filter((p) =>
+      p.path.includes("/emiclub-loans"),
+    ),
+    "EMI Club2 Loans": allowedPages.filter((p) =>
+      p.path.includes("/emiclub2-loans"),
+    ),
+    "Zypay Loans": allowedPages.filter((p) => p.path.includes("/zypay-loans")),
+    "Fincrest Loans": allowedPages.filter((p) =>
+      p.path.includes("/fincrest-loans"),
+    ),
+    "HEY EV Loans": allowedPages.filter((p) =>
+      p.path.includes("/hey-ev-loans"),
+    ),
+    "HEY EV Battery Loans": allowedPages.filter((p) =>
+      p.path.includes("/hey-ev-battery-loans"),
+    ),
+    "Helium Loans": allowedPages.filter((p) =>
+      p.path.includes("/helium-loans"),
+    ),
+    "Clayoo Loans": allowedPages.filter((p) =>
+      p.path.includes("/clayoo-loans"),
+    ),
+    "Motion Corp": allowedPages.filter((p) => p.path.includes("/motion-corp")),
+    Sampada: allowedPages.filter((p) => p.path.includes("/sampada")),
+    OmrajPay: allowedPages.filter((p) => p.path.includes("/omrajpay")),
+    "Seven FinCorp": allowedPages.filter((p) =>
+      p.path.includes("/seven-fincorp"),
+    ),
+    "SRBH ": allowedPages.filter((p) => p.path.includes("/srbh")),
+    Bundela: allowedPages.filter((p) => p.path.includes("/bundela")),
+    Fundify: allowedPages.filter((p) => p.path.includes("/fundify-loans")),
+    "Loan Digit": allowedPages.filter((p) => p.path.includes("/loan-digit")),
+    "RapidMoney Loans": allowedPages.filter((p) =>
+      p.path.includes("/rapidmoney-loans"),
+    ),
+    "Ya Money Loans": allowedPages.filter((p) => p.path.includes("/ya-money")),
+    "Switch My Loans": allowedPages.filter((p) =>
+      p.path.includes("/sml-loans"),
+    ),
+    "Quick Money Loans": allowedPages.filter((p) =>
+      p.path.includes("/qml-loans"),
+    ),
+    "Sterlion Mexon Dexon Loans": allowedPages.filter((p) =>
+      p.path.includes("/sterlion-mexon-dexon"),
+    ),
+    "Supply Chain Loans": allowedPages.filter((p) =>
+      p.path.includes("/supply-chain-loans"),
+    ),
+    "Saswat ": allowedPages.filter((p) => p.path.includes("/saswat")),
     //Claim Buddy
-    'Claim Buddy Loans': allowedPages.filter(
-  p => p.path.includes('/claim-buddy')
-),
+    "Claim Buddy Loans": allowedPages.filter((p) =>
+      p.path.includes("/claim-buddy"),
+    ),
+    Zebrs: allowedPages.filter((p) => p.path.startsWith("/zebrs/")),
 
-    'Dealer ALL': allowedPages.filter(p => p.path.includes('/dealer-onboarding')),
-    'Aldun Loans': allowedPages.filter(p => p.path.includes('/aldun-loans')),
-    'MIS Reports': allowedPages.filter(p => p.path.includes('/mis-reports')), 
-
+    "Dealer ALL": allowedPages.filter((p) =>
+      p.path.includes("/dealer-onboarding"),
+    ),
+    "Aldun Loans": allowedPages.filter((p) => p.path.includes("/aldun-loans")),
+    "MIS Reports": allowedPages.filter((p) => p.path.includes("/mis-reports")),
   };
- 
+
   return (
     <aside className="sidebar">
       <ul className="sidebar-menu">
- 
         {/* STEP 1: Main View */}
         {!activeGroup &&
-          Object.keys(grouped).map((group) => (
-            grouped[group].length > 0 && (
-              <li key={group} className="sidebar-group-item">
-                <div className="sidebar-group-title" onClick={() => setActiveGroup(group)}>
-                  <div className="group-info">
-                    <div className="group-avatar">
-                      {getIcon(group)}
+          Object.keys(grouped).map(
+            (group) =>
+              grouped[group].length > 0 && (
+                <li key={group} className="sidebar-group-item">
+                  <div
+                    className="sidebar-group-title"
+                    onClick={() => setActiveGroup(group)}
+                  >
+                    <div className="group-info">
+                      <div className="group-avatar">{getIcon(group)}</div>
+                      <span>{group}</span>
                     </div>
-                    <span>{group}</span>
+                    <ChevronRight size={14} className="group-chevron" />
                   </div>
-                  <ChevronRight size={14} className="group-chevron" />
-                </div>
-              </li>
-            )
-          ))}
- 
+                </li>
+              ),
+          )}
+
         {/* STEP 2: Drill Down View */}
         {activeGroup && (
           <>
             <li className="sidebar-back">
-              <div onClick={() => setActiveGroup(null)}>
-                Back to Menu
-              </div>
+              <div onClick={() => setActiveGroup(null)}>Back to Menu</div>
             </li>
- 
+
             <li className="sidebar-group-header">
-               <div className="group-avatar small">
-                  {getIcon(activeGroup)}
-               </div>
-               <span>{activeGroup}</span>
+              <div className="group-avatar small">{getIcon(activeGroup)}</div>
+              <span>{activeGroup}</span>
             </li>
- 
+
             {grouped[activeGroup].map((p) => (
               <li key={p.id}>
                 <Link
@@ -364,6 +473,5 @@ const Sidebar = () => {
     </aside>
   );
 };
- 
+
 export default Sidebar;
- 

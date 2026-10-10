@@ -358,6 +358,17 @@ import ClaimBuddyApprovedLoanDetails from "./components/ClaimBuddy/ClaimBuddyApp
 import ClaimBuddyOpsCheckerScreen from "./components/ClaimBuddy/ClaimBuddyOpsCheckerScreen";
 // import ClaimBuddyApproveInitiateScreen from "./components/ClaimBuddy/ClaimBuddyApproveInitiateScreen";
 
+// ===================== Zebrs Imports =====================
+import ZebrsDealerLists from "./components/Zebrs/ZebrsDealerLists";
+import ZebrsDealerLoginActions from "./components/Zebrs/ZebrsDealerLoginActions";
+import ZebrsDealerDetails from "./components/Zebrs/ZebrsDealerDetails";
+import ZebrsAllLoans from "./components/Zebrs/ZebrsAllLoans";
+import ZebrsUpdateData from "./components/Zebrs/ZebrsUpdateData";
+import ZebrsDisburseInitiate from "./components/Zebrs/ZebrsDisburseInitiate";
+import ZebrsApproved from "./components/Zebrs/ZebrsApproved";
+import ZebrsOperationApproval from "./components/Zebrs/ZebrsOperationApproval";
+import ZebrsBRERejectedLoans from "./components/Zebrs/ZebrsBRERejectedLoans.jsx";
+
 function App() {
   return (
     <Router>
@@ -373,7 +384,6 @@ function App() {
         {/* ✅ Public routes */}
         <Route path="/" element={<Navigate to="/login" />} />
         <Route path="/login" element={<Login />} />
-
         {/* ✅ Protected + Layout wrapper */}
         <Route
           element={
@@ -700,7 +710,6 @@ function App() {
             }
           />
           {/* Claim Buddy */}
-
           <Route
             path="/claim-buddy/hospital-entry"
             element={
@@ -709,7 +718,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/claim-buddy/hospital-lists"
             element={
@@ -718,7 +726,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/claim-buddy/hospital-login-actions"
             element={
@@ -727,7 +734,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/claim-buddy/loan-booking"
             element={
@@ -736,7 +742,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/claim-buddy/login-cases"
             element={
@@ -745,7 +750,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/claim-buddy/login-actions"
             element={
@@ -754,7 +758,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/claim-buddy/credit-approved-loans"
             element={
@@ -763,7 +766,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/claim-buddy/all-claim-buddy-loans-screen"
             element={
@@ -772,7 +774,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/claim-buddy/operation-all-loans"
             element={
@@ -781,7 +782,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/claim-buddy/bre-rejected-loans"
             element={
@@ -790,7 +790,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/claim-buddy/hospital-details/:lan"
             element={
@@ -799,7 +798,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/approved-loan-details-claim-buddy/:lan"
             element={
@@ -808,7 +806,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/claim-buddy/update-data/:lan"
             element={
@@ -817,7 +814,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/claim-buddy/ops-checker"
             element={
@@ -826,7 +822,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           {/* <Route
             path="/claim-buddy/approve-initiate"
             element={
@@ -835,7 +830,6 @@ function App() {
               </PermissionRoute>
             }
           /> */}
-
           {/* Loan Digit */}
           <Route
             path="/loan-digit/login-cases"
@@ -2901,12 +2895,7 @@ function App() {
               </PermissionRoute>
             }
           />
-          
-          <Route 
-             path="/payout-reinitiate" 
-             element={<PayoutReinitiate />} 
-          />
-
+          <Route path="/payout-reinitiate" element={<PayoutReinitiate />} />
           <Route
             path="/saswat/approved-loans"
             element={
@@ -2940,8 +2929,82 @@ function App() {
             }
           />
           {/* Protected Layout parent yahan close hoga */}
+          {/* ===================== ZEBRS ROUTES ===================== */}
+          <Route
+            path="/zebrs/dealer-list"
+            element={
+              <PermissionRoute pageName="Zebrs Dealer Lists">
+                <ZebrsDealerLists />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/zebrs/dealer-login-actions"
+            element={
+              <PermissionRoute pageName="Zebrs Dealer Credit Approval List">
+                <ZebrsDealerLoginActions />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/zebrs/dealer-details/:lan"
+            element={
+              <PermissionRoute pageName="Zebrs Dealer Details">
+                <ZebrsDealerDetails />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/zebrs/all-loans"
+            element={
+              <PermissionRoute pageName="Zebrs Customer All Cases Screen">
+                <ZebrsAllLoans />
+              </PermissionRoute>
+            }
+          />
+          {/* ================= ZEBRS UPDATE DATA ================= */}
+          <Route
+            path="/zebrs/update-data"
+            element={
+              <PermissionRoute pageName="Zebrs Update Data">
+                <ZebrsUpdateData />
+              </PermissionRoute>
+            }
+          />
+          {/* ===================== ZEBRS CREDIT INITIATED ===================== */}
+          <Route
+            path="/zebrs/credit-initiated-loans"
+            element={
+              <PermissionRoute pageName="Zebrs Credit Initiated Loans">
+                <ZebrsDisburseInitiate />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/zebrs/operation-approval-cases"
+            element={
+              <PermissionRoute pageName="Zebrs Operation Approval Cases Screen">
+                <ZebrsOperationApproval />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/zebrs/credit-approved-cases"
+            element={
+              <PermissionRoute pageName="Zebrs Credit Approved Cases Screen">
+                <ZebrsApproved />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/zebrs/bre-rejected-loans"
+            element={
+              <PermissionRoute pageName="Zebrs BRE Rejected Cases Screen">
+                <ZebrsBRERejectedLoans />
+              </PermissionRoute>
+            }
+          />
         </Route>
-
         {/* Optional commented route */}
         {/* 
 <Route
