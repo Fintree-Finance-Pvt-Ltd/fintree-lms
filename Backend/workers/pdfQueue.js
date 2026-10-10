@@ -37,7 +37,7 @@ if (process.env.RUN_CRONS === 'true') {
     },
     {
       connection,
-      concurrency: 5, // Maximum 5 PDFs generated at the exact same time
+      concurrency: 2, // Lowered to 2 because VPS only has 2 CPU cores
     }
   );
 

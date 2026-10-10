@@ -34,7 +34,7 @@ if (process.env.RUN_CRONS === 'true') {
     },
     {
       connection,
-      concurrency: 2, 
+      concurrency: 1, // Lowered to 1 because VPS only has 2 CPU cores (Puppeteer is heavy)
     }
   );
 
