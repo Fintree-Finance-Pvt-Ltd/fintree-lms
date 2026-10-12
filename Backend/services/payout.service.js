@@ -575,6 +575,7 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
         },
       };
     } else {
+      console.log("💸 Initiating real payout via Easebuzz API easebuzz key: ", process.env.EASEBUZZ_KEY);
       response = await axios.post(
         "https://wire.easebuzz.in/api/v1/quick_transfers/initiate/",
         {

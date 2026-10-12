@@ -41,12 +41,35 @@ function formatWhatsAppNumber(mobile) {
 }
 
 /**
+ * Parse single or multiple mobile numbers from string or array.
+ * Supports comma, semicolon, space or newline delimited numbers.
+ * e.g. "918010878231, 918355930723, 919930899999"
+ *
+ * @param {string|string[]} input
+ * @returns {string[]} Array of formatted unique WhatsApp numbers
+ */
+function parseWhatsAppNumbers(input) {
+  if (!input) return [];
+  const rawList = Array.isArray(input) ? input : String(input).split(/[,;\s\n\r]+/);
+  const formatted = rawList
+    .map((num) => formatWhatsAppNumber(String(num || "").trim()))
+    .filter((num) => num && num.length >= 10);
+  return Array.from(new Set(formatted));
+}
+
+/**
  * Mask mobile number for safe responses and logs.
  * e.g. "919876543210" -> "9198****3210"
  */
 function maskPhoneNumber(mobile) {
   if (!mobile) return "unknown";
+  if (Array.isArray(mobile)) {
+    return mobile.map(m => maskPhoneNumber(m)).join(", ");
+  }
   const str = String(mobile);
+  if (str.includes(",")) {
+    return str.split(",").map(m => maskPhoneNumber(m.trim())).join(", ");
+  }
   if (str.length <= 6) return "***";
   const start = str.slice(0, 4);
   const end = str.slice(-4);
@@ -62,9 +85,10 @@ function getWhatsAppConfig() {
   const phoneNumberId = (process.env.WHATSAPP_PHONE_NUMBER_ID || "653172951223151").trim();
   const wabaId = (process.env.WHATSAPP_WABA_ID || "2769475950109615").trim();
   const accessToken = (process.env.WHATSAPP_ACCESS_TOKEN || "").trim();
-  const adminNumber = formatWhatsAppNumber(process.env.WHATSAPP_ADMIN_NUMBER || "");
-  const templateName = (process.env.WHATSAPP_CASE_COUNT_TEMPLATE || "countofcase").trim();
-  const imageTemplateName = (process.env.WHATSAPP_DISBURSEMENT_IMAGE_TEMPLATE || "daily_disbursement_count").trim();
+  const adminNumbers = parseWhatsAppNumbers(process.env.WHATSAPP_ADMIN_NUMBER || "");
+  const adminNumber = adminNumbers[0] || ""; // Backward-compatibility
+  const templateName = (process.env.WHATSAPP_CASE_COUNT_TEMPLATE || "casecount").trim();
+  const imageTemplateName = (process.env.WHATSAPP_DISBURSEMENT_IMAGE_TEMPLATE || "casecount").trim();
   const timeoutMs = parseInt(process.env.WHATSAPP_REQUEST_TIMEOUT, 10) || 30000;
   const templateLang = (process.env.WHATSAPP_TEMPLATE_LANGUAGE || "en").trim();
 
@@ -75,6 +99,7 @@ function getWhatsAppConfig() {
     wabaId,
     accessToken,
     adminNumber,
+    adminNumbers,
     templateName,
     imageTemplateName,
     timeoutMs,
@@ -188,39 +213,60 @@ async function sendDocumentTemplateMessage({
     throw new Error("Recipient WhatsApp number is missing.");
   }
 
-  const tName = templateName || config.templateName || "countofcase";
+  const tName = templateName || config.templateName || "casecount";
   let lang = languageCode || config.templateLang || "en";
 
   const messageUrl = `${config.baseUrl}/${config.apiVersion}/${config.phoneNumberId}/messages`;
+  const isImageTemplate =
+    tName === "casecount" || (filename && /\.(png|jpg|jpeg)$/i.test(filename));
 
-  const makePayload = (code) => ({
-    messaging_product: "whatsapp",
-    recipient_type: "individual",
-    to,
-    type: "template",
-    template: {
-      name: tName,
-      language: {
-        code,
-      },
-      components: [
-        {
-          "type": "header",
-          "parameters": [
-            {
-              "type": "document",
-              "document": {
-                "id": mediaId,
-                "filename": filename,
+  const makePayload = (code) => {
+    const components = [
+      {
+        type: "header",
+        parameters: [
+          isImageTemplate
+            ? {
+                type: "image",
+                image: {
+                  id: mediaId,
+                },
+              }
+            : {
+                type: "document",
+                document: {
+                  id: mediaId,
+                  filename: filename,
+                },
               },
-            },
-          ],
-        },
-      ],
-    },
-  });
+        ],
+      },
+    ];
 
-  console.log(`[WhatsAppService] Sending template '${tName}' (${lang}) to ${maskPhoneNumber(to)} with document media ID: ${mediaId}`);
+    if (isImageTemplate) {
+      components.push({
+        type: "body",
+        parameters: [],
+      });
+    }
+
+    return {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to,
+      type: "template",
+      template: {
+        name: tName,
+        language: {
+          code,
+        },
+        components,
+      },
+      biz_opaque_callback_data: `casecount_${Date.now()}`,
+    };
+  };
+
+  console.log(`[WhatsAppService] Sending template '${tName}' (${lang}) to ${maskPhoneNumber(to)} with media ID: ${mediaId}`);
 
   try {
     const response = await axios.post(messageUrl, makePayload(lang), {
@@ -354,9 +400,10 @@ async function uploadWhatsAppImage(filePath, fileName) {
  * @param {object} options
  * @param {string} options.recipientNumber - Destination mobile number
  * @param {string} options.mediaId - WhatsApp media ID of uploaded image
- * @param {string} [options.templateName] - Template name (default: daily_disbursement_count)
+ * @param {string} [options.templateName] - Template name (default: casecount)
  * @param {string} [options.languageCode] - Language code (default: en)
- * @param {string} [options.dateText] - Date string for {{1}} body parameter (e.g. '09 October 2026')
+ * @param {string} [options.dateText] - Date string for {{1}} body parameter (if template requires it)
+ * @param {string} [options.callbackData] - Optional biz_opaque_callback_data
  * @returns {Promise<{ success: boolean, messageId: string, rawResponse: any }>}
  */
 async function sendImageTemplateMessage({
@@ -365,6 +412,7 @@ async function sendImageTemplateMessage({
   templateName,
   languageCode,
   dateText,
+  callbackData,
 }) {
   const config = getWhatsAppConfig();
 
@@ -377,12 +425,13 @@ async function sendImageTemplateMessage({
     throw new Error("Recipient WhatsApp number is missing.");
   }
 
-  const tName = templateName || config.imageTemplateName || "daily_disbursement_count";
+  const tName = templateName || config.imageTemplateName || config.templateName || "casecount";
   let lang = languageCode || config.templateLang || "en";
 
   const messageUrl = `${config.baseUrl}/${config.apiVersion}/${config.phoneNumberId}/messages`;
 
   const makePayload = (code, includeBodyParam = true) => {
+    const hasBodyParam = Boolean(includeBodyParam && dateText && tName !== "casecount");
     const components = [
       {
         type: "header",
@@ -395,19 +444,18 @@ async function sendImageTemplateMessage({
           },
         ],
       },
-    ];
-
-    if (includeBodyParam && dateText) {
-      components.push({
+      {
         type: "body",
-        parameters: [
-          {
-            type: "text",
-            text: String(dateText),
-          },
-        ],
-      });
-    }
+        parameters: hasBodyParam
+          ? [
+              {
+                type: "text",
+                text: String(dateText),
+              },
+            ]
+          : [],
+      },
+    ];
 
     return {
       messaging_product: "whatsapp",
@@ -421,10 +469,11 @@ async function sendImageTemplateMessage({
         },
         components,
       },
+      biz_opaque_callback_data: callbackData || `casecount_${Date.now()}`,
     };
   };
 
-  console.log(`[WhatsAppService] Sending image template '${tName}' (${lang}) to ${maskPhoneNumber(to)} with media ID: ${mediaId}${dateText ? ` (date: ${dateText})` : ""}`);
+  console.log(`[WhatsAppService] Sending image template '${tName}' (${lang}) to ${maskPhoneNumber(to)} with media ID: ${mediaId}${dateText && tName !== "casecount" ? ` (date: ${dateText})` : ""}`);
 
   const postMessage = async (payload) => {
     return axios.post(messageUrl, payload, {
@@ -503,6 +552,7 @@ async function sendImageTemplateMessage({
 module.exports = {
   getWhatsAppConfig,
   formatWhatsAppNumber,
+  parseWhatsAppNumbers,
   maskPhoneNumber,
   redactSecrets,
   uploadWhatsAppDocument,

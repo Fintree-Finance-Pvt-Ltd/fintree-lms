@@ -2041,7 +2041,7 @@ router.get("/login-loans", (req, res) => {
     dealer_onboarding: true,
     loan_booking_srbh: true,
     loan_booking_saswat: true,
-    loan_booking_claim_buddy: true
+    loan_booking_claim_buddy: true,
   };
 
   if (!allowedTables[table]) {
@@ -2394,6 +2394,7 @@ router.get("/all-loans", async (req, res) => {
     loan_booking_ya_money: true,
     loan_booking_sabgrow: true,
     loan_booking_claim_buddy: true,
+    loan_booking_zebrs: true, //Zebrs
   };
 
   if (!allowedTables[table]) {
@@ -2416,6 +2417,13 @@ router.get("/all-loans", async (req, res) => {
     "status",
   ];
   const sortCol = allowedSort.includes(sortBy) ? sortBy : "LAN";
+
+  if (
+    table === "loan_booking_zebrs" &&
+    ["app_id", "agreement_date"].includes(sortCol)
+  ) {
+    sortCol = "lan";
+  }
 
   try {
     const likeVal = `${prefix}%`;
@@ -2547,6 +2555,7 @@ router.get("/approved-loans", async (req, res) => {
     loan_booking_srbh: true,
     loan_booking_saswat: true,
     loan_booking_sterlion_ubl: true,
+    loan_booking_zebrs: true,
   };
   if (!allowedTables[table])
     return res.status(400).json({ message: "Invalid table name" });
@@ -2575,16 +2584,36 @@ router.get("/approved-loans", async (req, res) => {
       : [];
 
     // For switch_my_loan (RML), approved status is BRE_APPROVED
+
     const statusFilter =
-      table === "loan_booking_switch_my_loan"
-        ? `lb.status IN ('Approved', 'BRE_APPROVED')`
-        : table === "loan_booking_quick_money"
+      table === "loan_booking_zebrs"
+        ? `lb.status = 'Operations Initiated'
+       AND lb.stage = 'Credit Approved'`
+        : table === "loan_booking_switch_my_loan"
           ? `lb.status IN ('Approved', 'BRE_APPROVED')`
-          : table === "loan_booking_carepay"
-            ? `LOWER(lb.status) = 'approved'`
-            : `lb.status = 'Approved'`;
-    const countSql = `SELECT COUNT(*) AS total FROM ?? lb WHERE ${statusFilter} AND lb.LAN LIKE ?${searchClause}`;
-    const dataSql = `SELECT lb.* FROM ?? lb WHERE ${statusFilter} AND lb.LAN LIKE ?${searchClause} ORDER BY lb.${sortCol} ${safeSortDir} LIMIT ? OFFSET ?`;
+          : table === "loan_booking_quick_money"
+            ? `lb.status IN ('Approved', 'BRE_APPROVED')`
+            : table === "loan_booking_carepay"
+              ? `LOWER(lb.status) = 'approved'`
+              : `lb.status = 'Approved'`;
+
+    const countSql = `
+  SELECT COUNT(*) AS total
+  FROM ?? lb
+  WHERE ${statusFilter}
+    AND lb.LAN LIKE ?
+    ${searchClause}
+`;
+
+    const dataSql = `
+  SELECT lb.*
+  FROM ?? lb
+  WHERE ${statusFilter}
+    AND lb.LAN LIKE ?
+    ${searchClause}
+  ORDER BY lb.${sortCol} ${safeSortDir}
+  LIMIT ? OFFSET ?
+`;
 
     const [[countRows], [rows]] = await Promise.all([
       db.promise().query(countSql, [table, likeVal, ...searchParams]),
@@ -11030,7 +11059,7 @@ router.post("/v1/wctl-ffpl-upload", upload.single("file"), async (req, res) => {
         /* -----------------------------------------
              GENERATE LAN AND PARTNER LOAN ID
           ----------------------------------------- */
-        
+
         // Redefine partnerName since it was commented out above
         const partnerName = "WCTL FFPL";
         const today = new Date();
@@ -14726,15 +14755,9 @@ router.get("/loan-info/:lan", async (req, res) => {
     });
   }
 
-  const runOptionalQuery = async (
-    label,
-    sql,
-    params = [],
-  ) => {
+  const runOptionalQuery = async (label, sql, params = []) => {
     try {
-      const [rows] = await db
-        .promise()
-        .query(sql, params);
+      const [rows] = await db.promise().query(sql, params);
 
       return rows;
     } catch (error) {
@@ -14760,17 +14783,15 @@ router.get("/loan-info/:lan", async (req, res) => {
      * SASWAT LOAN
      * ===============================
      */
-    const [loanRows] = await db
-      .promise()
-      .query(
-        `
+    const [loanRows] = await db.promise().query(
+      `
         SELECT *
         FROM loan_booking_saswat
         WHERE UPPER(TRIM(lan)) = ?
         LIMIT 1
         `,
-        [lan],
-      );
+      [lan],
+    );
 
     if (!loanRows.length) {
       return res.status(404).json({
@@ -14851,17 +14872,13 @@ router.get("/loan-info/:lan", async (req, res) => {
       ),
     ]);
 
-    const borrowerKyc =
-      borrowerKycRows[0] || {};
+    const borrowerKyc = borrowerKycRows[0] || {};
 
-    const guarantorKyc =
-      guarantorKycRows[0] || {};
+    const guarantorKyc = guarantorKycRows[0] || {};
 
-    const coApplicantKyc =
-      coApplicantKycRows[0] || {};
+    const coApplicantKyc = coApplicantKycRows[0] || {};
 
-    const disbursement =
-      disbursementRows[0] || {};
+    const disbursement = disbursementRows[0] || {};
 
     /*
      * Main loan response
@@ -14871,15 +14888,10 @@ router.get("/loan-info/:lan", async (req, res) => {
     const loan = {
       ...row,
 
-      lan:
-        row.lan ||
-        row.LAN ||
-        lan,
+      lan: row.lan || row.LAN || lan,
 
       disbursement_date:
-        row.disbursement_date ||
-        disbursement.disbursement_date ||
-        null,
+        row.disbursement_date || disbursement.disbursement_date || null,
 
       disbursement_utr:
         disbursement.Disbursement_UTR ||
@@ -14891,20 +14903,12 @@ router.get("/loan-info/:lan", async (req, res) => {
        * Future BRE columns.
        * Safe even if columns are not added yet.
        */
-      saswat_bre_status:
-        row.saswat_bre_status ??
-        row.bre_status ??
-        null,
+      saswat_bre_status: row.saswat_bre_status ?? row.bre_status ?? null,
 
-      saswat_bre_reason:
-        row.saswat_bre_reason ??
-        row.bre_reason ??
-        null,
+      saswat_bre_reason: row.saswat_bre_reason ?? row.bre_reason ?? null,
 
       saswat_bre_checked_at:
-        row.saswat_bre_checked_at ??
-        row.bre_checked_at ??
-        null,
+        row.saswat_bre_checked_at ?? row.bre_checked_at ?? null,
 
       saswat_bureau_score:
         row.saswat_bureau_score ??
@@ -14914,69 +14918,37 @@ router.get("/loan-info/:lan", async (req, res) => {
         null,
 
       saswat_enquiries_30d:
-        row.saswat_enquiries_30d ??
-        row.enquiries_30d ??
-        null,
+        row.saswat_enquiries_30d ?? row.enquiries_30d ?? null,
 
-      saswat_dpd_3m_flag:
-        row.saswat_dpd_3m_flag ??
-        row.dpd_3m_flag ??
-        null,
+      saswat_dpd_3m_flag: row.saswat_dpd_3m_flag ?? row.dpd_3m_flag ?? null,
 
-      saswat_dpd_6m_flag:
-        row.saswat_dpd_6m_flag ??
-        row.dpd_6m_flag ??
-        null,
+      saswat_dpd_6m_flag: row.saswat_dpd_6m_flag ?? row.dpd_6m_flag ?? null,
 
       saswat_dpd_12m_count:
-        row.saswat_dpd_12m_count ??
-        row.dpd_12m_count ??
-        null,
+        row.saswat_dpd_12m_count ?? row.dpd_12m_count ?? null,
 
       saswat_dpd_24m_60_flag:
-        row.saswat_dpd_24m_60_flag ??
-        row.dpd_24m_60_flag ??
-        null,
+        row.saswat_dpd_24m_60_flag ?? row.dpd_24m_60_flag ?? null,
 
       saswat_dpd_36m_90_flag:
-        row.saswat_dpd_36m_90_flag ??
-        row.dpd_36m_90_flag ??
-        null,
+        row.saswat_dpd_36m_90_flag ?? row.dpd_36m_90_flag ?? null,
 
-      saswat_overdue_flag:
-        row.saswat_overdue_flag ??
-        row.overdue_flag ??
-        null,
+      saswat_overdue_flag: row.saswat_overdue_flag ?? row.overdue_flag ?? null,
 
       saswat_writtenoff_flag:
-        row.saswat_writtenoff_flag ??
-        row.writtenoff_flag ??
-        null,
+        row.saswat_writtenoff_flag ?? row.writtenoff_flag ?? null,
 
       saswat_moratorium_flag:
-        row.saswat_moratorium_flag ??
-        row.moratorium_flag ??
-        null,
+        row.saswat_moratorium_flag ?? row.moratorium_flag ?? null,
 
       saswat_restructured_flag:
-        row.saswat_restructured_flag ??
-        row.restructured_flag ??
-        null,
+        row.saswat_restructured_flag ?? row.restructured_flag ?? null,
 
-      saswat_deviation:
-        row.saswat_deviation ??
-        row.deviation ??
-        null,
+      saswat_deviation: row.saswat_deviation ?? row.deviation ?? null,
 
-      saswat_emi_overdue:
-        row.saswat_emi_overdue ??
-        row.emi_overdue ??
-        null,
+      saswat_emi_overdue: row.saswat_emi_overdue ?? row.emi_overdue ?? null,
 
-      saswat_cc_overdue:
-        row.saswat_cc_overdue ??
-        row.cc_overdue ??
-        null,
+      saswat_cc_overdue: row.saswat_cc_overdue ?? row.cc_overdue ?? null,
     };
 
     /*
@@ -14986,90 +14958,52 @@ router.get("/loan-info/:lan", async (req, res) => {
      */
     const kyc = {
       borrower: {
-        pan_status:
-          borrowerKyc.pan_status ||
-          "PENDING",
+        pan_status: borrowerKyc.pan_status || "PENDING",
 
-        aadhaar_status:
-          borrowerKyc.aadhaar_status ||
-          "PENDING",
+        aadhaar_status: borrowerKyc.aadhaar_status || "PENDING",
 
-        bureau_status:
-          borrowerKyc.bureau_status ||
-          "PENDING",
+        bureau_status: borrowerKyc.bureau_status || "PENDING",
 
-        bank_status:
-          borrowerKyc.bank_status ||
-          row.bank_status ||
-          "PENDING",
+        bank_status: borrowerKyc.bank_status || row.bank_status || "PENDING",
 
         agreement_esign_status:
           borrowerKyc.agreement_esign_status ||
           row.agreement_esign_status ||
           "PENDING",
 
-        aadhaar_kyc_url:
-          borrowerKyc.aadhaar_kyc_url ||
-          null,
+        aadhaar_kyc_url: borrowerKyc.aadhaar_kyc_url || null,
 
-        aadhaar_initiated_at:
-          borrowerKyc.aadhaar_initiated_at ||
-          null,
+        aadhaar_initiated_at: borrowerKyc.aadhaar_initiated_at || null,
 
-        aadhaar_verified_at:
-          borrowerKyc.aadhaar_verified_at ||
-          null,
+        aadhaar_verified_at: borrowerKyc.aadhaar_verified_at || null,
       },
 
       guarantor: {
-        exists:
-          borrowerKycRows.length >= 0 &&
-          guarantorKycRows.length > 0,
+        exists: borrowerKycRows.length >= 0 && guarantorKycRows.length > 0,
 
-        pan_status:
-          guarantorKyc.pan_status ||
-          "PENDING",
+        pan_status: guarantorKyc.pan_status || "PENDING",
 
-        aadhaar_status:
-          guarantorKyc.aadhaar_status ||
-          "PENDING",
+        aadhaar_status: guarantorKyc.aadhaar_status || "PENDING",
 
-        bureau_status:
-          guarantorKyc.bureau_status ||
-          "PENDING",
+        bureau_status: guarantorKyc.bureau_status || "PENDING",
 
-        aadhaar_kyc_url:
-          guarantorKyc.aadhaar_kyc_url ||
-          null,
+        aadhaar_kyc_url: guarantorKyc.aadhaar_kyc_url || null,
 
-        aadhaar_initiated_at:
-          guarantorKyc.aadhaar_initiated_at ||
-          null,
+        aadhaar_initiated_at: guarantorKyc.aadhaar_initiated_at || null,
 
-        aadhaar_verified_at:
-          guarantorKyc.aadhaar_verified_at ||
-          null,
+        aadhaar_verified_at: guarantorKyc.aadhaar_verified_at || null,
       },
 
       co_applicant: {
-        exists:
-          coApplicantKycRows.length > 0,
+        exists: coApplicantKycRows.length > 0,
 
-        pan_status:
-          coApplicantKyc.pan_status ||
-          "PENDING",
+        pan_status: coApplicantKyc.pan_status || "PENDING",
 
-        aadhaar_status:
-          coApplicantKyc.aadhaar_status ||
-          "PENDING",
+        aadhaar_status: coApplicantKyc.aadhaar_status || "PENDING",
 
-        bureau_status:
-          coApplicantKyc.bureau_status ||
-          "PENDING",
+        bureau_status: coApplicantKyc.bureau_status || "PENDING",
 
-        aadhaar_kyc_url:
-          coApplicantKyc.aadhaar_kyc_url ||
-          null,
+        aadhaar_kyc_url: coApplicantKyc.aadhaar_kyc_url || null,
       },
     };
 
@@ -15078,22 +15012,13 @@ router.get("/loan-info/:lan", async (req, res) => {
      * for frontend convenience.
      */
     const verification = {
-      pan_status:
-        borrowerKyc.pan_status ||
-        "PENDING",
+      pan_status: borrowerKyc.pan_status || "PENDING",
 
-      aadhaar_status:
-        borrowerKyc.aadhaar_status ||
-        "PENDING",
+      aadhaar_status: borrowerKyc.aadhaar_status || "PENDING",
 
-      bureau_status:
-        borrowerKyc.bureau_status ||
-        "PENDING",
+      bureau_status: borrowerKyc.bureau_status || "PENDING",
 
-      bank_status:
-        borrowerKyc.bank_status ||
-        row.bank_status ||
-        "PENDING",
+      bank_status: borrowerKyc.bank_status || row.bank_status || "PENDING",
 
       agreement_esign_status:
         borrowerKyc.agreement_esign_status ||
@@ -15101,30 +15026,21 @@ router.get("/loan-info/:lan", async (req, res) => {
         "PENDING",
     };
 
-    console.log(
-      "[SASWAT LOAN INFO]",
-      {
-        lan,
+    console.log("[SASWAT LOAN INFO]", {
+      lan,
 
-        borrowerKycFound:
-          borrowerKycRows.length > 0,
+      borrowerKycFound: borrowerKycRows.length > 0,
 
-        guarantorKycFound:
-          guarantorKycRows.length > 0,
+      guarantorKycFound: guarantorKycRows.length > 0,
 
-        coApplicantKycFound:
-          coApplicantKycRows.length > 0,
+      coApplicantKycFound: coApplicantKycRows.length > 0,
 
-        panStatus:
-          verification.pan_status,
+      panStatus: verification.pan_status,
 
-        aadhaarStatus:
-          verification.aadhaar_status,
+      aadhaarStatus: verification.aadhaar_status,
 
-        bureauStatus:
-          verification.bureau_status,
-      },
-    );
+      bureauStatus: verification.bureau_status,
+    });
 
     return res.status(200).json({
       success: true,
@@ -15133,18 +15049,12 @@ router.get("/loan-info/:lan", async (req, res) => {
       verification,
     });
   } catch (err) {
-    console.error(
-      "❌ Error fetching Saswat loan-info:",
-      err,
-    );
+    console.error("❌ Error fetching Saswat loan-info:", err);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Failed to fetch Saswat loan details",
-      error:
-        err.sqlMessage ||
-        err.message,
+      message: "Failed to fetch Saswat loan details",
+      error: err.sqlMessage || err.message,
     });
   }
 });
