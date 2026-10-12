@@ -1810,7 +1810,7 @@ async function runBRE(data, options = {}) {
     !bureauScoreMissing && Number(bureau.score) < POLICY.MIN_BUREAU_SCORE;
 
   if (bureauScoreMissing) addReason(reasons, "BUREAU_SCORE_MISSING");
-  if (bureauScoreBelowMinimum) addReason(reasons, "BUREAU_SCORE_BELOW_650");
+  if (bureauScoreBelowMinimum) addReason(reasons, "BUREAU_SCORE_BELOW_700");
 
   rules.BUREAU_SCORE_CHECK_RPM = rule(
     !bureauScoreMissing && !bureauScoreBelowMinimum,
