@@ -818,6 +818,47 @@ router.post("/trigger", authenticateUser, async (req, res) => {
           if (normalizedReportId === "bank-payment-file-report") {
             // ⚙️ Use custom helper for bank payment file
             await exportBankPaymentFile(finalRows, filePath);
+
+            // ✅ Mark exported loans so they do not appear in subsequent reports
+            try {
+              const lenderClean = String(lenderName || "")
+                .toLowerCase()
+                .replace(/-/g, " ")
+                .trim();
+              let targetTable = "loan_booking_emiclub";
+              if (["rapid money", "rapidmoney", "rml"].includes(lenderClean)) {
+                targetTable = "loan_booking_switch_my_loan";
+              } else if (
+                ["quick money", "quickmoney", "qml"].includes(lenderClean)
+              ) {
+                targetTable = "loan_booking_quick_money";
+              }
+
+              const exportedLans = [
+                ...new Set(
+                  finalRows
+                    .map((r) => String(r.Remark || "").split(",")[0].trim())
+                    .filter(Boolean),
+                ),
+              ];
+
+              if (exportedLans.length > 0) {
+                await db
+                  .promise()
+                  .query(
+                    `UPDATE ?? SET is_bank_file_generated = 1, bank_file_generated_at = NOW() WHERE lan IN (?)`,
+                    [targetTable, exportedLans],
+                  );
+                console.log(
+                  `✅ Marked ${exportedLans.length} loans in ${targetTable} as bank file generated.`,
+                );
+              }
+            } catch (markErr) {
+              console.error(
+                "⚠️ Failed to mark bank file generated rows:",
+                markErr,
+              );
+            }
           } else if (
             normalizedReportId === "bank-payment-file-bank-holiday-report"
           ) {
