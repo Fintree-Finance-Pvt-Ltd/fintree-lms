@@ -516,7 +516,39 @@ const autoApproveClaimBuddyIfAllVerified = async (lan) => {
   const pool = db.promise();
 
   // ==================================================
+  // 0. ONLY RUN FOR LOANS STILL AT BRE STAGE
+  // Webhook retries / Aadhaar re-share must not
+  // reset a loan that has already moved ahead.
+  // ==================================================
+
+  const [statusRows] = await pool.query(
+    `
+        SELECT status
+        FROM loan_booking_claim_buddy
+        WHERE lan = ?
+        `,
+    [lan],
+  );
+
+  if (!statusRows.length) {
+    console.log("Claim Buddy loan not found:", lan);
+
+    return;
+  }
+
+  const currentStatus = statusRows[0].status;
+
+  if (!["Login", "BRE FAILED"].includes(currentStatus)) {
+    console.log(
+      `Claim Buddy BRE skipped for ${lan}: status already ${currentStatus}`,
+    );
+
+    return;
+  }
+
+  // ==================================================
   // 1. KYC
+  // PAN, Aadhaar and Bureau must all be VERIFIED
   // ==================================================
 
   const [kycRows] = await pool.query(

@@ -13,6 +13,9 @@ const {
 const {
   autoApproveCarePayIfBureauVerified,
 } = require("../routes/CarePay/carePayBreEngine");
+const {
+  autoApproveClaimBuddyIfAllVerified,
+} = require("../routes/ClaimBuddy/claimBuddyBreEngine");
 
 /* ============================================================ */
 /*                     STATE CODES (shared)                     */
@@ -151,6 +154,30 @@ const PARTNERS = {
       current_state: "current_state",
       current_pincode: "current_pincode",
       annual_income: "annual_income",
+      loan_amount: "loan_amount",
+      loan_tenure: "loan_tenure",
+    },
+  },
+
+  claim_buddy: {
+    key: "claim_buddy",
+    lanPrefix: "CBF",
+    table: "loan_booking_claim_buddy",
+    scoreColumn: "cibil_score",
+    breTrigger: autoApproveClaimBuddyIfAllVerified,
+    columns: {
+      first_name: "first_name",
+      middle_name: "middle_name",
+      last_name: "last_name",
+      mobile_number: "mobile_number",
+      pan_number: "pan_number",
+      dob: "dob",
+      gender: "gender",
+      current_address: "current_address",
+      current_city: "current_village_city",
+      current_state: "current_state",
+      current_pincode: "current_pincode",
+      annual_income: "net_monthly_income",
       loan_amount: "loan_amount",
       loan_tenure: "loan_tenure",
     },

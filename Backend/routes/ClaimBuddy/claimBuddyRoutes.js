@@ -13,8 +13,8 @@ const { approveAndInitiatePayout } = require("../../services/payout.service");
 const { autoApproveClaimBuddyIfAllVerified } = require("./claimBuddyBreEngine");
 
 const {
-  generateRepaymentScheduleClaimBuddy,
-} = require("../../utils/repaymentScheduleGenerator");
+  processClaimBuddyDisbursement,
+} = require("../../services/processClaimBuddyDisbursement");
 
 const fs = require("fs");
 const path = require("path");
@@ -301,7 +301,7 @@ router.get("/hospitals", async (req, res) => {
         status,
         created_at
       FROM claim_buddy_hospital_booking
-      WHERE lan LIKE 'CBFHO10%'
+      WHERE lan LIKE 'CBFH%'
       ORDER BY created_at DESC
     `);
 
@@ -1701,124 +1701,32 @@ router.post("/initiate-disbursement/:lan", async (req, res) => {
 // ==========================================
 
 router.patch("/disburse/:lan", async (req, res) => {
-  const conn = await db.promise().getConnection();
+  const { lan } = req.params;
+
+  const { utr, disbursement_date } = req.body || {};
+
+  // RPS is generated only when the UTR is received
+  if (!String(utr || "").trim() || !disbursement_date) {
+    return res.status(400).json({
+      success: false,
+      message: "UTR and disbursement_date are required to mark disbursed",
+    });
+  }
 
   try {
-    const { lan } = req.params;
-
-    await conn.beginTransaction();
-
-    // 1. Get complete loan details required for Bullet RPS
-    const [[loan]] = await conn.query(
-      `
-      SELECT
-        lan,
-        status,
-        loan_amount,
-        interest_rate,
-        loan_tenure,
-        final_limit,
-        approved_limit,
-        product,
-        lender
-      FROM loan_booking_claim_buddy
-      WHERE lan = ?
-      FOR UPDATE
-      `,
-      [lan],
-    );
-
-    if (!loan) {
-      await conn.rollback();
-
-      return res.status(404).json({
-        success: false,
-        message: "Loan not found",
-      });
-    }
-
-    // 2. Validate current status
-    if (loan.status !== "DISBURSEMENT INITIATED") {
-      await conn.rollback();
-
-      return res.status(400).json({
-        success: false,
-        message: "Loan is not in DISBURSEMENT INITIATED status",
-        current_status: loan.status,
-      });
-    }
-
-    // 3. Determine actual disbursed principal
-    const disbursedAmount = Number(
-      loan.final_limit || loan.approved_limit || loan.loan_amount || 0,
-    );
-
-    if (!Number.isFinite(disbursedAmount) || disbursedAmount <= 0) {
-      await conn.rollback();
-
-      return res.status(400).json({
-        success: false,
-        message: "Invalid disbursement amount",
-        loan_amount: loan.loan_amount,
-        final_limit: loan.final_limit,
-        approved_limit: loan.approved_limit,
-      });
-    }
-
-    // 4. Validate RPS inputs
-    const interestRate = Number(loan.interest_rate || 0);
-    const tenure = Number(loan.loan_tenure || 0);
-
-    if (!Number.isFinite(interestRate)) {
-      await conn.rollback();
-
-      return res.status(400).json({
-        success: false,
-        message: "Invalid interest rate",
-        interest_rate: loan.interest_rate,
-      });
-    }
-
-    if (!Number.isInteger(tenure) || tenure <= 0) {
-      await conn.rollback();
-
-      return res.status(400).json({
-        success: false,
-        message: "Invalid loan tenure",
-        loan_tenure: loan.loan_tenure,
-      });
-    }
-
-    // 5. Use today's date as disbursement date
-    const disbursementDate = new Date();
-
-    // 6. Generate Claim Buddy BULLET RPS
-    await generateRepaymentScheduleClaimBuddy(
-      conn,
+    const result = await processClaimBuddyDisbursement({
       lan,
-      disbursedAmount,
-      interestRate,
-      tenure,
-      disbursementDate,
-      loan.product,
-      loan.lender || "CLAIM-BUDDY",
-    );
+      disbursementUTR: utr,
+      disbursementDate: disbursement_date,
+    });
 
-    // 7. Mark loan as DISBURSED
-    await conn.query(
-      `
-      UPDATE loan_booking_claim_buddy
-      SET
-        status = 'DISBURSED',
-        stage = 'DISBURSED',
-        disbursed_at = NOW()
-      WHERE lan = ?
-      `,
-      [lan],
-    );
-
-    // 8. Commit everything together
-    await conn.commit();
+    if (result?.skipped) {
+      return res.status(400).json({
+        success: false,
+        message: result.reason,
+        lan,
+      });
+    }
 
     return res.json({
       success: true,
@@ -1826,13 +1734,9 @@ router.patch("/disburse/:lan", async (req, res) => {
       lan,
       status: "DISBURSED",
       rps_generated: true,
-      disbursed_amount: disbursedAmount,
-      interest_rate: interestRate,
-      tenure: tenure,
+      disbursed_amount: result.disbursedAmount,
     });
   } catch (err) {
-    await conn.rollback();
-
     console.error("Claim Buddy disbursement error:", err);
 
     return res.status(500).json({
@@ -1840,8 +1744,6 @@ router.patch("/disburse/:lan", async (req, res) => {
       message: "Disbursement failed",
       error: err.message,
     });
-  } finally {
-    conn.release();
   }
 });
 

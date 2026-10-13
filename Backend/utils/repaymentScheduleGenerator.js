@@ -10650,6 +10650,15 @@ const generateRepaymentSchedule = async (
       product,
       lender,
     );
+  } else if (lender === "CLAIM-BUDDY") {
+    await generateRepaymentScheduleClaimBuddy(
+      conn,
+      lan,
+      loanAmount,
+      interestRate,
+      tenure,
+      disbursementDate,
+    );
   } else if (lender === "LOAN-DIGIT") {
     await generateRepaymentScheduleLoanDigit(
       conn,

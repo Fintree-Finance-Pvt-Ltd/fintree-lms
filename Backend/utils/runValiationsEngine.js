@@ -46,8 +46,12 @@ const generateAndStoreSampadaPanVerificationPdf = async ({
   const outputDirectory = path.join(__dirname, "../uploads");
   await fs.promises.mkdir(outputDirectory, { recursive: true });
 
-  const safeLan = String(lan ?? "").trim().replace(/[^a-zA-Z0-9_-]/g, "_");
-  const normalizedApplicantType = String(applicantType || "").trim().toUpperCase();
+  const safeLan = String(lan ?? "")
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]/g, "_");
+  const normalizedApplicantType = String(applicantType || "")
+    .trim()
+    .toUpperCase();
   const normalizedPartyNo = Number(partyNo) || 1;
   const fileName = `PAN_Verification_${safeLan}_${normalizedApplicantType}_${normalizedPartyNo}_${Date.now()}.pdf`;
   const filePath = path.join(outputDirectory, fileName);
@@ -122,8 +126,12 @@ const generateAndStoreSampadaPanVerificationPdf = async ({
         const label = readableLabel(rawLabel);
         const value = printableValue(rawValue);
         document.font("Helvetica").fontSize(9);
-        const labelHeight = document.heightOfString(label, { width: labelWidth - 18 });
-        const valueHeight = document.heightOfString(value, { width: valueWidth - 18 });
+        const labelHeight = document.heightOfString(label, {
+          width: labelWidth - 18,
+        });
+        const valueHeight = document.heightOfString(value, {
+          width: valueWidth - 18,
+        });
         const rowHeight = Math.max(28, labelHeight + 14, valueHeight + 14);
         ensureSpace(rowHeight, drawTableHeader);
         const y = document.y;
@@ -152,7 +160,11 @@ const generateAndStoreSampadaPanVerificationPdf = async ({
     const drawSectionTitle = (title) => {
       ensureSpace(34);
       document.moveDown(0.8);
-      document.fillColor("#173866").font("Helvetica-Bold").fontSize(12).text(title);
+      document
+        .fillColor("#173866")
+        .font("Helvetica-Bold")
+        .fontSize(12)
+        .text(title);
       document.moveDown(0.45);
     };
 
@@ -177,7 +189,10 @@ const generateAndStoreSampadaPanVerificationPdf = async ({
       ["Applicant Name", applicantName || "-"],
       ["PAN Number", panNumber],
       ["Verification Status", "VERIFIED"],
-      ["Generated At", new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })],
+      [
+        "Generated At",
+        new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
+      ],
     ]);
 
     drawSectionTitle("PAN Provider Response");
@@ -389,7 +404,10 @@ async function runApplicantValidation({
             response: panResult.response || panResult,
           });
         } catch (pdfError) {
-          console.error(`Sampada PAN PDF generation failed for ${lan}:`, pdfError);
+          console.error(
+            `Sampada PAN PDF generation failed for ${lan}:`,
+            pdfError,
+          );
         }
       }
     } else if (runPanValidation) {

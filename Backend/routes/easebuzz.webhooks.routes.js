@@ -25,6 +25,9 @@ const {
 } = require("../services/easebuzz/easebuzzMandateService");
 const partnerLimitService = require("../services/partnerLimitService");
 const {
+  processClaimBuddyDisbursement,
+} = require("../services/processClaimBuddyDisbursement");
+const {
   sendFintreePlDisbursementWebhook,
 } = require("../services/payout.service");
 
@@ -638,23 +641,19 @@ router.post("/payout", async (req, res) => {
       }
       // CLAIM BUDDY
       else if (lan?.startsWith("CBF")) {
-        await db.promise().query(
-          `
-      UPDATE loan_booking_claim_buddy
-      SET
-        status = 'DISBURSED',
-        stage = 'DISBURSED',
-        disbursed_at = COALESCE(disbursed_at, NOW()),
-        updated_at = NOW()
-      WHERE lan = ?
-        AND status = 'DISBURSEMENT INITIATED'
-    `,
-          [lan],
-        );
+        // UTR received -> bullet RPS + UTR + DISBURSED in one transaction
+        const claimBuddyResult = await processClaimBuddyDisbursement({
+          lan,
+          disbursementUTR: effectiveUtr,
+          disbursementDate,
+        });
 
-        console.log("Claim Buddy payout webhook success stored", {
+        console.log("Claim Buddy internal processing result", {
           lan,
           utr: effectiveUtr,
+          success: claimBuddyResult?.success,
+          skipped: claimBuddyResult?.skipped,
+          reason: claimBuddyResult?.reason,
         });
       } else if (lan?.startsWith("FTPL") || lan?.startsWith("PLP")) {
         /*

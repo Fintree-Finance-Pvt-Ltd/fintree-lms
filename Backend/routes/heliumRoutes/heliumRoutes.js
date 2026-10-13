@@ -4,6 +4,7 @@ const authenticateUser = require("../../middleware/verifyToken");
 const { runAllValidations } = require("../../services/heliumValidationEngine");
 const { autoApproveIfAllVerified } = require("../../services/heliumValidationEngine");
 const { autoApproveClayyoIfAllVerified } = require("../clyooRoutes/clayyoBreEngine");
+const { autoApproveClaimBuddyIfAllVerified } = require("../ClaimBuddy/claimBuddyBreEngine");
 const axios = require("axios");
 const path = require("path");
 const fs = require("fs");
@@ -1489,6 +1490,11 @@ if (xmlLink) {
     else if(lan.startsWith("CLY")){
       console.log("Triggering CLAYYO auto-approval check for LAN:", lan);
       await autoApproveClayyoIfAllVerified(lan);
+    }
+    else if(lan.startsWith("CBF")){
+      // BRE engine runs only when PAN, Aadhaar and Bureau are all VERIFIED
+      console.log("Triggering Claim Buddy BRE check for LAN:", lan);
+      await autoApproveClaimBuddyIfAllVerified(lan);
     }
     else {
       console.log("⚠️ LAN does not start with HEL, skipping auto-approval:", lan);

@@ -184,7 +184,7 @@ exports.claimBuddyRunAllValidations = async (lan) => {
     let bureauResult;
 
     try {
-      let bureauResult = await runBureau({
+      bureauResult = await runBureau({
         enquiry_reason: "05",
 
         customer_name: loan.customer_name,
@@ -314,9 +314,31 @@ ${bureauResult?.score ?? "N/A"}
 
     // ========================================
     // TRIGGER BRE EVALUATION
+    //
+    // BRE normally runs from the Aadhaar webhook.
+    // Only run it here if the webhook already
+    // arrived while the bureau pull was in progress,
+    // otherwise that webhook-time BRE would have
+    // seen bureau as INITIATED and stopped.
     // ========================================
 
-    await autoApproveClaimBuddyIfAllVerified(lan);
+    const [[kycAfterValidation]] = await pool.query(
+      `
+      SELECT aadhaar_status
+      FROM kyc_verification_status
+      WHERE lan=?
+      LIMIT 1
+      `,
+      [lan],
+    );
+
+    if (kycAfterValidation?.aadhaar_status === "VERIFIED") {
+      await autoApproveClaimBuddyIfAllVerified(lan);
+    } else {
+      console.log(
+        `⏳ Claim Buddy BRE deferred until Aadhaar webhook for LAN: ${lan}`,
+      );
+    }
   } catch (err) {
     console.error("❌ Claim Buddy Validation Failed:", err);
   }

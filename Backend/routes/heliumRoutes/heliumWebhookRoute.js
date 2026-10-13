@@ -16,6 +16,9 @@ const {
 const {
   autoApproveMotionCorpIfAllVerified,
 } = require("../MotionCorp/motionCorpBRE");
+const {
+  autoApproveClaimBuddyIfAllVerified,
+} = require("../ClaimBuddy/claimBuddyBreEngine");
 const router = express.Router();
 
 const uploadPath = path.join(__dirname, "../../uploads");
@@ -323,6 +326,10 @@ if (
     } else if (lan.startsWith("MC")) {
       console.log("Triggering Motion Corp auto-approval check for LAN:", lan);
       await autoApproveMotionCorpIfAllVerified(lan);
+    } else if (lan.startsWith("CBF")) {
+      // BRE engine runs only when PAN, Aadhaar and Bureau are all VERIFIED
+      console.log("Triggering Claim Buddy BRE check for LAN:", lan);
+      await autoApproveClaimBuddyIfAllVerified(lan);
     } else {
       console.log(
         "⚠️ LAN does not start with HEL, skipping auto-approval:",

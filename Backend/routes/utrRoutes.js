@@ -1,4 +1,6 @@
-const { processEmiClub2Disbursement } = require("../services/processEmiClub2Disbursement");
+const {
+  processEmiClub2Disbursement,
+} = require("../services/processEmiClub2Disbursement");
 // const express = require("express");
 // const router = express.Router();
 // const multer = require("multer");
@@ -599,7 +601,7 @@ function getPartnerNameByLan(lan, lender, product) {
   if (lan.startsWith("STRL")) return "STERLION";
   if (lan.startsWith("UBLF")) return "sterlion-ubl"; // UBLF prefix for Sterlion UBL
   if (lan.startsWith("SW")) return "Saswat";
-  if (lan.startsWith("CBF")) return "CLAIM-BUDDY";   // CLAIM BUDDY
+  if (lan.startsWith("CBF")) return "CLAIM-BUDDY"; // CLAIM BUDDY
 
   if (lender && String(lender).trim()) return String(lender).trim();
   if (product && String(product).trim()) return String(product).trim();
@@ -733,7 +735,11 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
 
       if (lan.startsWith("FINE2")) {
         try {
-          const result = await processEmiClub2Disbursement({ lan, disbursementUTR, disbursementDate });
+          const result = await processEmiClub2Disbursement({
+            lan,
+            disbursementUTR,
+            disbursementDate,
+          });
           if (result.success && !result.alreadyDisbursed) {
             processedCount++;
             insertedLANs.add(lan);
@@ -741,14 +747,30 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
               const emailResult = await welcomeLetterQueue.add("send-welcome-letter", { lan, utrNumber: String(disbursementUTR).trim() }, { jobId: `welcome-${lan}-${Date.now()}` });
               welcomeEmailResults.push({ lan, utr: disbursementUTR, recipient: emailResult.recipient, status: "SENT" });
             } catch (error) {
-              welcomeEmailErrors.push({ lan, utr: disbursementUTR, reason: error.message, status: "FAILED" });
+              welcomeEmailErrors.push({
+                lan,
+                utr: disbursementUTR,
+                reason: error.message,
+                status: "FAILED",
+              });
             }
           } else {
             duplicateUTRs.push(disbursementUTR);
           }
-          if (result.webhookSent === false) rowErrors.push({ lan, utr: disbursementUTR, stage: "webhook", reason: result.webhookError });
+          if (result.webhookSent === false)
+            rowErrors.push({
+              lan,
+              utr: disbursementUTR,
+              stage: "webhook",
+              reason: result.webhookError,
+            });
         } catch (error) {
-          rowErrors.push({ lan, utr: disbursementUTR, stage: "emiclub2-disbursement", reason: error.message });
+          rowErrors.push({
+            lan,
+            utr: disbursementUTR,
+            stage: "emiclub2-disbursement",
+            reason: error.message,
+          });
         }
         continue;
       }
@@ -1073,15 +1095,14 @@ WHERE lan = ?`,
              FROM loan_booking_clayyo WHERE lan = ?`,
             [lan],
           );
-        } 
-        
-        //CLAIM BUDDY
+        }
 
+        //CLAIM BUDDY
         else if (lan.startsWith("CBF")) {
           [loanRes] = await db.promise().query(
             `
-    SELECT 
-      loan_amount,
+    SELECT
+      COALESCE(final_limit, approved_limit, loan_amount) AS loan_amount,
       interest_rate,
       loan_tenure,
       product,
@@ -1361,6 +1382,13 @@ WHERE lan = ?`,
               "UPDATE loan_booking_clayyo SET status = 'Disbursed' , stage = 'Disbursed' WHERE lan = ?",
               [lan],
             );
+          } else if (lan.startsWith("CBF")) {
+            await conn.query(
+              `UPDATE loan_booking_claim_buddy
+               SET status = 'DISBURSED', stage = 'DISBURSED', disbursed_at = ?
+               WHERE lan = ?`,
+              [disbursementDate, lan],
+            );
           } else if (lan.startsWith("LDF")) {
             await conn.query(
               "UPDATE loan_booking_loan_digit SET status = 'Disbursed' WHERE lan = ?",
@@ -1463,9 +1491,8 @@ WHERE lan = ?`,
               [preEmiDays, preEmiAmount, netDisbursement, lan],
             );
           } else if (lan.startsWith("SW")) {
-
-              const [saswatUpdate] = await conn.query(
-                `
+            const [saswatUpdate] = await conn.query(
+              `
                   UPDATE loan_booking_saswat
                   SET status = 'Disbursed'
                   WHERE lan = ?
@@ -1533,6 +1560,18 @@ WHERE lan = ?`,
         conn = null;
         insertedLANs.add(lan);
         processedCount++;
+
+        // Seven Fincorp: count this disbursement against the monthly limit.
+        // Runs after commit and never throws, so it cannot undo or block a
+        // disbursement that already happened. Deduped per LAN, so a LAN already
+        // recorded by the payout API (UTR in its response) is not counted twice.
+        if (lan.startsWith("SFL")) {
+          await partnerLimitService.recordDisbursementUsage(db.promise(), {
+            partnerName: "Seven Fincorp",
+            amount: Number(loan_amount),
+            lan,
+          });
+        }
 
         if (!welcomeEmailAttemptedLANs.has(lan)) {
           welcomeEmailAttemptedLANs.add(lan);

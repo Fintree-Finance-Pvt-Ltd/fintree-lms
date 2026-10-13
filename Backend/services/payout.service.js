@@ -29,6 +29,10 @@ const {
   processClaimCureBuddyDisbursement,
 } = require("./processClaimCureBuddyDisbursement");
 
+const {
+  processClaimBuddyDisbursement,
+} = require("./processClaimBuddyDisbursement");
+
 const ALLOWED_PAYOUT_TABLES = [
   "loan_booking_emiclub2",
   "loan_booking_emiclub",
@@ -402,7 +406,7 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
 
     // CLAIM BUDDY
     if (table === "loan_booking_claim_buddy") {
-  loanQuery = `
+      loanQuery = `
     SELECT
       name_in_bank AS beneficiary_name,
       final_limit AS loan_amount,
@@ -412,7 +416,7 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
     WHERE lan = ?
     LIMIT 1
   `;
-}
+    }
 
     if (table === "pl_partner_applications") {
       loanQuery = `
@@ -878,23 +882,11 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
         disbursementDate: new Date(tr.transfer_date),
       });
     } else if (table === "loan_booking_claim_buddy") {
-      await db.promise().query(
-        `
-      UPDATE loan_booking_claim_buddy
-      SET
-        status = 'DISBURSED',
-        stage = 'DISBURSED',
-        disbursed_at = NOW(),
-        updated_at = NOW()
-      WHERE lan = ?
-        AND status = 'DISBURSEMENT INITIATED'
-    `,
-        [lan],
-      );
-
-      console.log("Claim Buddy payout success stored", {
+      // UTR received -> bullet RPS + UTR + DISBURSED in one transaction
+      await processClaimBuddyDisbursement({
         lan,
-        utr: tr.unique_transaction_reference,
+        disbursementUTR: tr.unique_transaction_reference,
+        disbursementDate: new Date(tr.transfer_date),
       });
     } else if (table === "pl_partner_applications") {
       /*
