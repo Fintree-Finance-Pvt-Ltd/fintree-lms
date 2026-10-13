@@ -29,9 +29,9 @@ const {
   processClaimCureBuddyDisbursement,
 } = require("./processClaimCureBuddyDisbursement");
 
-const {
-  processClaimBuddyDisbursement,
-} = require("./processClaimBuddyDisbursement");
+// const {
+//   processClaimBuddyDisbursement,
+// } = require("./processClaimBuddyDisbursement");
 
 const ALLOWED_PAYOUT_TABLES = [
   "loan_booking_emiclub2",
