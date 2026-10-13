@@ -32,10 +32,40 @@ async function parseAadhaarXML(xmlBuffer) {
 }
 
 // ======================================================
+// ======================================================
+// MARK ROW FAILED IN DB (PREVENTS INFINITE CRON RETRIES)
+// ======================================================
+
+async function markAadhaarRowFailed(row, errorMsg) {
+  let meta = {};
+  try {
+    meta = JSON.parse(row.meta_json || "{}");
+  } catch {}
+
+  meta.aadhaar_pdf_failed = true;
+  meta.aadhaar_pdf_error = String(errorMsg || "UNKNOWN_ERROR").slice(0, 500);
+  meta.aadhaar_pdf_failed_at = new Date().toISOString();
+
+  try {
+    await db.promise().query(
+      `
+      UPDATE loan_documents
+      SET meta_json = ?
+      WHERE id = ?
+      `,
+      [JSON.stringify(meta), row.id],
+    );
+    console.log(`⚠️ Marked Row ID ${row.id} as failed in DB: ${errorMsg}`);
+  } catch (dbErr) {
+    console.error(
+      `❌ Error updating meta_json for failed Row ID ${row.id}:`,
+      dbErr.message,
+    );
+  }
+}
+
+// ======================================================
 // PROCESS A SINGLE ROW
-// (pulled out of the loop, unchanged logic — just properly
-// awaited now instead of firing a nested callback that let
-// the loop race ahead to the next row before this one finished)
 // ======================================================
 
 async function processAadhaarRow(row) {
@@ -46,12 +76,11 @@ async function processAadhaarRow(row) {
   } catch {}
 
   // ======================================================
-  // SKIP IF PDF ALREADY GENERATED
+  // SKIP IF PDF ALREADY GENERATED OR MARKED FAILED
   // ======================================================
 
-  if (meta.aadhaar_pdf_generated === true) {
-
-    console.log("➡ PDF already generated. Skipping.");
+  if (meta.aadhaar_pdf_generated === true || meta.aadhaar_pdf_failed === true) {
+    console.log("➡ PDF already generated or marked as failed. Skipping.");
     return;
   }
 
@@ -85,55 +114,67 @@ async function processAadhaarRow(row) {
     console.log("🌐 Local file missing.");
     console.log("📥 Downloading from source_url");
 
-    const response = await axios.get(
-      row.source_url,
-      {
-        responseType: "arraybuffer",
-        timeout: 20000,
-      }
-    );
-
-    fileBuffer = response.data;
-
-    console.log("✅ Downloaded from source_url");
-
-    // SAVE DOWNLOADED FILE LOCALLY
-
-    const newFileName =
-      `${Date.now()}_${row.id}.xml`;
-
-    localPath = path.join(
-      "uploads",
-      newFileName
-    );
-
-    fs.writeFileSync(
-      localPath,
-      fileBuffer
-    );
-
-    console.log("💾 Downloaded XML saved:");
-    console.log(localPath);
-
-    // UPDATE DB FILE NAME
-
     try {
-      await db.promise().query(
-        `
-        UPDATE loan_documents
-        SET file_name=?
-        WHERE id=?
-        `,
-        [newFileName, row.id],
+      const response = await axios.get(
+        row.source_url,
+        {
+          responseType: "arraybuffer",
+          timeout: 20000,
+        }
       );
-    } catch (updateErr) {
-      console.error(
-        "❌ Error updating file_name:",
-        updateErr
-      );
-    }
 
-    row.file_name = newFileName;
+      fileBuffer = response.data;
+
+      console.log("✅ Downloaded from source_url");
+
+      // SAVE DOWNLOADED FILE LOCALLY
+
+      const newFileName =
+        `${Date.now()}_${row.id}.xml`;
+
+      localPath = path.join(
+        "uploads",
+        newFileName
+      );
+
+      fs.writeFileSync(
+        localPath,
+        fileBuffer
+      );
+
+      console.log("💾 Downloaded XML saved:");
+      console.log(localPath);
+
+      // UPDATE DB FILE NAME
+
+      try {
+        await db.promise().query(
+          `
+          UPDATE loan_documents
+          SET file_name=?
+          WHERE id=?
+          `,
+          [newFileName, row.id],
+        );
+      } catch (updateErr) {
+        console.error(
+          "❌ Error updating file_name:",
+          updateErr
+        );
+      }
+
+      row.file_name = newFileName;
+    } catch (downloadErr) {
+      console.error(
+        `❌ Download failed for Row ID ${row.id}:`,
+        downloadErr.message
+      );
+      await markAadhaarRowFailed(
+        row,
+        `DOWNLOAD_FAILED: ${downloadErr.message}`
+      );
+      return;
+    }
   }
 
   // ======================================================
@@ -146,6 +187,10 @@ async function processAadhaarRow(row) {
       "❌ No local file and no source_url."
     );
 
+    await markAadhaarRowFailed(
+      row,
+      "NO_LOCAL_FILE_AND_NO_SOURCE_URL"
+    );
     return;
   }
 
@@ -159,6 +204,10 @@ async function processAadhaarRow(row) {
   ) {
 
     console.log("❌ Invalid or empty Aadhaar file.");
+    await markAadhaarRowFailed(
+      row,
+      "INVALID_OR_EMPTY_AADHAAR_FILE"
+    );
     return;
   }
 
@@ -171,27 +220,39 @@ async function processAadhaarRow(row) {
 
   let parsedData = null;
 
-  // ======================================================
-  // JSON FILE
-  // ======================================================
+  try {
+    // ======================================================
+    // JSON FILE
+    // ======================================================
 
-  if (fileText.startsWith("{")) {
+    if (fileText.startsWith("{")) {
 
-    console.log("📘 Detected Aadhaar JSON");
+      console.log("📘 Detected Aadhaar JSON");
 
-    parsedData = JSON.parse(fileText);
-  }
+      parsedData = JSON.parse(fileText);
+    }
 
-  // ======================================================
-  // XML FILE
-  // ======================================================
+    // ======================================================
+    // XML FILE
+    // ======================================================
 
-  else {
+    else {
 
-    console.log("📘 Detected Aadhaar XML");
+      console.log("📘 Detected Aadhaar XML");
 
-    parsedData =
-      await parseAadhaarXML(fileBuffer);
+      parsedData =
+        await parseAadhaarXML(fileBuffer);
+    }
+  } catch (parseErr) {
+    console.error(
+      `❌ Failed to parse Aadhaar file for Row ID ${row.id}:`,
+      parseErr.message
+    );
+    await markAadhaarRowFailed(
+      row,
+      `PARSE_ERROR: ${parseErr.message}`
+    );
+    return;
   }
 
   console.log("✅ Aadhaar Parsed Successfully");
@@ -211,6 +272,10 @@ async function processAadhaarRow(row) {
       "❌ Invalid Aadhaar structure."
     );
 
+    await markAadhaarRowFailed(
+      row,
+      "INVALID_AADHAAR_STRUCTURE"
+    );
     return;
   }
 
@@ -414,8 +479,12 @@ function startAadhaarCron() {
           )
           AND (
             meta_json IS NULL 
-            OR meta_json NOT LIKE '%"aadhaar_pdf_generated":true%'
+            OR (
+              meta_json NOT LIKE '%"aadhaar_pdf_generated":true%'
+              AND meta_json NOT LIKE '%"aadhaar_pdf_failed":true%'
+            )
           )
+        ORDER BY id DESC
         LIMIT 20
       `;
 
@@ -442,6 +511,7 @@ function startAadhaarCron() {
               `❌ Error on Row ID ${row.id}:`,
               e.message
             );
+            await markAadhaarRowFailed(row, e.message);
           }
         }
 
