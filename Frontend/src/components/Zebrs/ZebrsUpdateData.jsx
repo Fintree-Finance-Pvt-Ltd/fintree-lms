@@ -4,6 +4,116 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 
 import api from "../../api/api";
 
+// Align the existing Zebrs API response with the EXACT Motion Corp UI layout.
+// No loan_booking_motion_corp-only columns are requested from the database.
+function normalizeZebrsResponse(payload = {}) {
+  const r = payload.loan || {};
+  const kyc = payload.kyc || {};
+  const verification = r.verification_status || {};
+  const borrower =
+    verification.borrower || (Object.keys(kyc).length ? kyc : null);
+  const guarantor = verification.guarantor || null;
+  const bre = payload.bre || {};
+  return {
+    ...payload,
+    loan: {
+      ...r,
+      guarantor:
+        r.guarantor ||
+        (r.guarantor_name
+          ? {
+              name: r.guarantor_name,
+              pan: r.guarantor_pan,
+              mobile: r.guarantor_mobile,
+              email: r.guarantor_email,
+              dob: r.guarantor_dob,
+              relationship_with_borrower: r.relationship_with_borrower,
+            }
+          : null),
+      co_applicant: r.co_applicant || null,
+      permanent_address: r.permanent_address || {
+        address_line_1: r.permanent_address_line_1,
+        address_line_2: r.permanent_address_line_2,
+        city: r.permanent_village_city,
+        district: r.permanent_district,
+        state: r.permanent_state,
+        pincode: r.permanent_pincode,
+      },
+      loan_details: r.loan_details || {
+        requested_loan_amount: r.requested_loan_amount,
+        loan_amount: r.loan_amount,
+        loan_tenure: r.loan_tenure,
+        interest_rate: r.interest_rate,
+        processing_fee: r.processing_fee,
+        processing_fee_percentage: r.processing_fee_percentage,
+        disbursal_amount: r.disbursal_amount,
+      },
+      bank_details: r.bank_details || {
+        customer_bank_name: r.customer_bank_name,
+        customer_name_as_per_bank: r.customer_name_as_per_bank,
+        customer_account_number: r.customer_account_number,
+        bank_ifsc_code: r.bank_ifsc_code,
+      },
+      dealer_details: r.dealer_details || {
+        dealer_id: r.dealer_id,
+        dealer_name: r.dealer_name,
+        dealer_contact: r.dealer_contact,
+      },
+      product_details: r.product_details || {
+        battery_name: r.battery_name,
+        battery_type: r.battery_type,
+        battery_serial_no_1: r.battery_serial_no_1,
+        battery_serial_no_2: r.battery_serial_no_2,
+        chassis_no: r.chassis_no,
+      },
+      insurance_details: r.insurance_details || {},
+      verification_status: {
+        borrower,
+        guarantor,
+        co_applicant: verification.co_applicant || null,
+      },
+      verification_links: r.verification_links || {
+        borrower_aadhaar_url: borrower?.aadhaar_kyc_url || null,
+        guarantor_aadhaar_url: guarantor?.aadhaar_kyc_url || null,
+        co_applicant_aadhaar_url:
+          verification.co_applicant?.aadhaar_kyc_url || null,
+      },
+      nach_details: r.nach_details || {
+        umrn: r.enach_umrn || null,
+        auth_url: null,
+      },
+    },
+    bre: {
+      ...bre,
+      bre_status: bre.bre_status ?? bre.status ?? r.zebrs_bre_status,
+      bre_reason: bre.bre_reason ?? bre.reason ?? r.zebrs_bre_reason,
+      fintree_cibil_score:
+        bre.fintree_cibil_score ??
+        bre.cibil_score ??
+        r.cibil_score ??
+        r.bureau_score,
+      enquiries_30d: bre.enquiries_30d ?? r.zebrs_enquiries_30d,
+      dpd_3m_flag: bre.dpd_3m_flag ?? null,
+      dpd_6m_flag: bre.dpd_6m_flag ?? r.zebrs_dpd_6m_flag,
+      overdue_12m_flag: bre.overdue_12m_flag ?? r.zebrs_overdue_12m_flag,
+      written_off_3y_flag:
+        bre.written_off_3y_flag ?? r.zebrs_written_off_3y_flag,
+      dpd_60plus_24m_flag:
+        bre.dpd_60plus_24m_flag ??
+        bre.dpd_30plus_24m_flag ??
+        r.zebrs_30plus_24m_flag,
+      dpd_90plus_36m_flag: bre.dpd_90plus_36m_flag ?? r.zebrs_90plus_36m_flag,
+      deviation_flag: bre.deviation_flag ?? r.zebrs_deviation_flag,
+      emi_overdue_amount: bre.emi_overdue_amount ?? r.zebrs_emi_overdue_amount,
+      cc_overdue_amount:
+        bre.cc_overdue_amount ??
+        bre.credit_card_overdue_amount ??
+        r.zebrs_cc_overdue_amount ??
+        r.zebrs_credit_card_overdue_amount,
+    },
+  };
+}
+
 function ExternalLinkField({
   label,
 
@@ -232,108 +342,6 @@ function InsuranceInput({
   );
 }
 
-// Zebrs returns flat loan_booking_zebrs columns plus per-party verification.
-// This adapter preserves the Motion Corp component's nested presentation shape.
-function normalizeZebrsResponse(payload = {}) {
-  const r = payload.loan || {};
-  const rawKyc = payload.kyc || {};
-  const v = r.verification_status || {};
-  const borrower = v.borrower || rawKyc;
-  const guarantor = r.guarantor_name ? v.guarantor || null : null;
-  const bre = payload.bre || {};
-  return {
-    ...payload,
-    loan: {
-      ...r,
-      guarantor:
-        r.guarantor ||
-        (r.guarantor_name
-          ? {
-              name: r.guarantor_name,
-              dob: r.guarantor_dob,
-              pan: r.guarantor_pan,
-              mobile: r.guarantor_mobile,
-              email: r.guarantor_email,
-              relationship_with_borrower: r.relationship_with_borrower,
-            }
-          : null),
-      co_applicant: null,
-      permanent_address: r.permanent_address || {
-        address_line_1: r.permanent_address_line_1,
-        address_line_2: r.permanent_address_line_2,
-        city: r.permanent_village_city,
-        district: r.permanent_district,
-        state: r.permanent_state,
-        pincode: r.permanent_pincode,
-      },
-      loan_details: r.loan_details || {
-        requested_loan_amount: r.requested_loan_amount,
-        loan_amount: r.loan_amount,
-        loan_tenure: r.loan_tenure,
-        interest_rate: r.interest_rate,
-        processing_fee: r.processing_fee,
-        processing_fee_percentage: r.processing_fee_percentage,
-        disbursal_amount: r.disbursal_amount,
-      },
-      bank_details: r.bank_details || {
-        customer_bank_name: r.customer_bank_name,
-        customer_name_as_per_bank: r.customer_name_as_per_bank,
-        customer_account_number: r.customer_account_number,
-        bank_ifsc_code: r.bank_ifsc_code,
-      },
-      dealer_details: r.dealer_details || {
-        dealer_id: r.dealer_id,
-        dealer_name: r.dealer_name,
-        dealer_contact: r.dealer_contact,
-      },
-      product_details: r.product_details || {
-        battery_name: r.battery_name,
-        battery_type: r.battery_type,
-        battery_serial_no_1: r.battery_serial_no_1,
-        battery_serial_no_2: r.battery_serial_no_2,
-        chassis_no: r.chassis_no,
-      },
-      insurance_details: {},
-      verification_status: {
-        borrower,
-        guarantor,
-        co_applicant: null,
-      },
-      verification_links: r.verification_links || {
-        borrower_aadhaar_url: borrower?.aadhaar_kyc_url || null,
-        guarantor_aadhaar_url: guarantor?.aadhaar_kyc_url || null,
-        co_applicant_aadhaar_url: null,
-        nach_url: null,
-      },
-      nach_details: r.nach_details || {
-        umrn: r.enach_umrn || null,
-        auth_url: null,
-      },
-    },
-    bre: {
-      ...bre,
-      bre_status: bre.bre_status ?? bre.status ?? r.zebrs_bre_status,
-      bre_reason: bre.bre_reason ?? bre.reason ?? r.zebrs_bre_reason,
-      bre_checked_at:
-        bre.bre_checked_at ?? bre.checked_at ?? r.zebrs_bre_checked_at,
-      fintree_cibil_score:
-        bre.fintree_cibil_score ?? bre.cibil_score ?? r.cibil_score,
-      enquiries_30d: bre.enquiries_30d ?? r.zebrs_enquiries_30d,
-      dpd_3m_flag: null,
-      dpd_6m_flag: bre.dpd_6m_flag ?? r.zebrs_dpd_6m_flag,
-      overdue_12m_flag: bre.overdue_12m_flag ?? r.zebrs_overdue_12m_flag,
-      written_off_3y_flag:
-        bre.written_off_3y_flag ?? r.zebrs_written_off_3y_flag,
-      dpd_60plus_24m_flag: null,
-      dpd_90plus_36m_flag: bre.dpd_90plus_36m_flag ?? r.zebrs_90plus_36m_flag,
-      emi_overdue_amount: bre.emi_overdue_amount ?? r.zebrs_emi_overdue_amount,
-      cc_overdue_amount:
-        bre.credit_card_overdue_amount ?? r.zebrs_credit_card_overdue_amount,
-      deviation_flag: bre.deviation_flag ?? r.zebrs_deviation_flag,
-    },
-  };
-}
-
 const ZebrsUpdateData = () => {
   const [searchParams] = useSearchParams();
 
@@ -497,7 +505,7 @@ const ZebrsUpdateData = () => {
 
    * 2. FAILED/PENDING is inside the
 
-   *    24-hour waiting period.
+   *    3-hour waiting period.
 
    */
 
@@ -601,9 +609,114 @@ const ZebrsUpdateData = () => {
 
    */
 
-  // Disabled until Zebrs applicant-specific initiation/retry route is implemented.
-  const handleAadhaarRetry = async () => {
-    alert("Zebrs applicant-specific Aadhaar retry API is not configured yet.");
+  const handleAadhaarRetry = async (applicantType) => {
+    if (!lan || retryingApplicant) {
+      return;
+    }
+
+    const normalizedApplicantType = String(applicantType || "")
+      .trim()
+
+      .toUpperCase();
+
+    if (!["BORROWER", "GUARANTOR"].includes(normalizedApplicantType)) {
+      alert("Invalid applicant type.");
+
+      return;
+    }
+
+    const refreshFromDatabase = async () => {
+      const latestResponse = await api.get(
+        `/zebrs/customer-details/${encodeURIComponent(lan)}`,
+
+        {
+          params: {
+            _refresh: Date.now(),
+          },
+        },
+      );
+
+      setDetails(normalizeZebrsResponse(latestResponse.data));
+
+      setRetryClock(Date.now());
+
+      return latestResponse.data;
+    };
+
+    try {
+      setRetryingApplicant(normalizedApplicantType);
+
+      const response = await api.post(
+        "/zebrs/init-aadhaar",
+
+        {
+          lan,
+
+          applicantType: normalizedApplicantType,
+        },
+      );
+
+      /*
+
+       * Backend has already saved:
+
+       *
+
+       * INITIATED + provider link,
+
+       * or the applicable database status.
+
+       *
+
+       * Read database values again.
+
+       */
+
+      await refreshFromDatabase();
+
+      alert(
+        response.data?.message ||
+          `${normalizedApplicantType} Aadhaar initiated successfully.`,
+      );
+    } catch (error) {
+      const errorPayload = error.response?.data || {};
+
+      console.error(
+        "Aadhaar retry failed:",
+
+        {
+          lan,
+
+          applicantType: normalizedApplicantType,
+
+          error: errorPayload,
+        },
+      );
+
+      /*
+
+       * Provider failure and 3-hour
+
+       * waiting responses are also
+
+       * followed by a database refresh.
+
+       */
+
+      try {
+        await refreshFromDatabase();
+      } catch (refreshError) {
+        console.error(
+          "Failed to refresh Aadhaar status after retry error:",
+
+          refreshError,
+        );
+      }
+
+      alert(errorPayload.message || "Failed to retry Aadhaar verification.");
+    } finally {
+      setRetryingApplicant("");
+    }
   };
 
   const handleInsuranceChange = (event) => {
@@ -618,12 +731,9 @@ const ZebrsUpdateData = () => {
     setInsuranceMessage("");
   };
 
-  // Zebrs schema does not contain Motion Corp insurance columns.
   const handleInsuranceSubmit = async (event) => {
     event.preventDefault();
-    setInsuranceMessage(
-      "Insurance editing is unavailable until Zebrs database fields and PATCH API exist.",
-    );
+    setInsuranceMessage("Insurance editing is not configured for Zebrs.");
   };
 
   if (loading) {
@@ -665,6 +775,8 @@ const ZebrsUpdateData = () => {
                 transform: rotate(0deg);
 
               }
+
+
 
               100% {
 
@@ -1228,7 +1340,7 @@ const ZebrsUpdateData = () => {
                 marginTop: 0,
               }}
             >
-              Insurance Details (Zebrs: read-only until configured)
+              Insurance Details (Read-only for Zebrs)
             </h4>
 
             <Grid>
@@ -1240,7 +1352,7 @@ const ZebrsUpdateData = () => {
                 step="0.01"
                 value={insuranceForm.insurance_cost}
                 onChange={handleInsuranceChange}
-                disabled={true}
+                disabled={insuranceSubmitted || insuranceSaving}
               />
 
               <InsuranceInput
@@ -1248,7 +1360,7 @@ const ZebrsUpdateData = () => {
                 name="insurance_company_provider"
                 value={insuranceForm.insurance_company_provider}
                 onChange={handleInsuranceChange}
-                disabled={true}
+                disabled={insuranceSubmitted || insuranceSaving}
               />
 
               <InsuranceInput
@@ -1256,7 +1368,7 @@ const ZebrsUpdateData = () => {
                 name="insurance_policy_number"
                 value={insuranceForm.insurance_policy_number}
                 onChange={handleInsuranceChange}
-                disabled={true}
+                disabled={insuranceSubmitted || insuranceSaving}
               />
 
               <InsuranceInput
@@ -1265,7 +1377,7 @@ const ZebrsUpdateData = () => {
                 type="date"
                 value={insuranceForm.policy_issued_date}
                 onChange={handleInsuranceChange}
-                disabled={true}
+                disabled={insuranceSubmitted || insuranceSaving}
               />
 
               <InsuranceInput
@@ -1274,7 +1386,7 @@ const ZebrsUpdateData = () => {
                 placeholder="Example: 12 months"
                 value={insuranceForm.period_of_insurance}
                 onChange={handleInsuranceChange}
-                disabled={true}
+                disabled={insuranceSubmitted || insuranceSaving}
               />
             </Grid>
 
@@ -1319,10 +1431,10 @@ const ZebrsUpdateData = () => {
               }}
             >
               {insuranceSubmitted
-                ? "Insurance editing unavailable"
+                ? "✓ Insurance Details Submitted"
                 : insuranceSaving
                   ? "Saving..."
-                  : "Submit Insurance Details"}
+                  : "Insurance editing unavailable"}
             </button>
           </form>
         </>
@@ -1705,6 +1817,7 @@ const ApplicantVerificationBlock = ({
 
   const retryCount = Number(status.aadhaar_retry_count || 0);
 
+  // Matches current Zebrs backend: two TOTAL attempts (initial + one retry).
   const maxRetries = 2;
 
   /*
@@ -1748,7 +1861,7 @@ const ApplicantVerificationBlock = ({
 
   const retryAvailableAtMs =
     backendRetryAvailableAtMs ||
-    (initiatedAtMs ? initiatedAtMs + 24 * 60 * 60 * 1000 : null);
+    (initiatedAtMs ? initiatedAtMs + 3 * 60 * 60 * 1000 : null);
 
   const currentTime = Number(nowMs || Date.now());
 
@@ -1793,7 +1906,7 @@ const ApplicantVerificationBlock = ({
 
    * All later attempts follow backend
 
-   * 24-hour permission.
+   * 3-hour permission.
 
    */
 
@@ -1816,7 +1929,7 @@ const ApplicantVerificationBlock = ({
 
    */
 
-  const showRetryButton = retryableStatus;
+  const showRetryButton = retryableStatus && applicantType !== "CO_APPLICANT";
 
   const retryButtonDisabled =
     isRetrying || retryLimitReached || !canRetryAadhaar;
@@ -1905,7 +2018,7 @@ const ApplicantVerificationBlock = ({
         <div>
           <VerificationField label="Aadhaar Status" value={aadhaarStatus} />
 
-          {false && showRetryButton && (
+          {showRetryButton && (
             <button
               type="button"
               disabled={retryButtonDisabled}
@@ -1952,7 +2065,7 @@ const ApplicantVerificationBlock = ({
                 lineHeight: "1.5",
               }}
             >
-              Aadhaar retry is locked for 24 hours from the previous attempt.{" "}
+              Aadhaar retry is locked for 3 hours from the previous attempt.{" "}
               {formatRemainingTime()} remaining.
             </div>
           )}

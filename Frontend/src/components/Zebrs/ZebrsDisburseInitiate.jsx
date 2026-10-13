@@ -1,9 +1,17 @@
-
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/api";
 import DataTable from "../ui/DataTable";
 import LoaderOverlay from "../ui/LoaderOverlay";
+
+const normalize = (value) =>
+  String(value ?? "")
+    .trim()
+    .toUpperCase();
+
+const isCreditInitiated = (row) =>
+  normalize(row?.status) === "CREDIT INITIATED" &&
+  ["BRE APPROVED", "BRE DEVIATION"].includes(normalize(row?.stage));
 
 const ZebrsDisburseInitiate = () => {
   const navigate = useNavigate();
@@ -11,49 +19,59 @@ const ZebrsDisburseInitiate = () => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [actioningLan, setActioningLan] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  // Rejection popup
-  const [rejectModal, setRejectModal] = useState(null);
-  const [rejectRemark, setRejectRemark] = useState("");
-  const [rejectError, setRejectError] = useState("");
+  const refresh = useCallback(() => {
+    setRefreshKey((previous) => previous + 1);
+  }, []);
 
+  // Fetch only Credit Initiated loans
   const fetchLoans = useCallback(async (signal) => {
     try {
       setLoading(true);
       setError("");
 
-      const response = await api.get(
-        "/zebrs/credit-initiated-loans",
-        {
-          params: {
-            page: 1,
-            pageSize: 100,
-            sortBy: "created_at",
-            sortDir: "desc",
-          },
-          signal,
-        }
-      );
+      const response = await api.get("/zebrs/credit-initiated-loans", {
+        params: {
+          page: 1,
+          pageSize: 100,
+          sortBy: "created_at",
+          sortDir: "desc",
+        },
+        signal,
+      });
 
-      setRows(
-        Array.isArray(response.data?.rows)
-          ? response.data.rows
-          : []
-      );
+      if (signal.aborted) return;
+
+      if (response.data?.success === false) {
+        throw new Error(
+          response.data?.message || "Failed to fetch Credit Initiated loans.",
+        );
+      }
+
+      const fetchedRows = Array.isArray(response.data?.rows)
+        ? response.data.rows
+        : [];
+
+      setRows(fetchedRows.filter(isCreditInitiated));
     } catch (err) {
-      if (signal?.aborted || err.code === "ERR_CANCELED") {
+      if (signal.aborted || err?.code === "ERR_CANCELED") {
         return;
       }
 
-      console.error("Zebrs loans fetch error:", err);
+      console.error("Zebrs fetch error:", err);
 
       setError(
         err.response?.data?.message ||
-          "Failed to fetch Zebrs credit initiated loans."
+          err.message ||
+          "Failed to fetch Zebrs Credit Initiated loans.",
       );
+
+      setRows([]);
     } finally {
-      if (!signal?.aborted) {
+      if (!signal.aborted) {
         setLoading(false);
       }
     }
@@ -65,139 +83,96 @@ const ZebrsDisburseInitiate = () => {
     fetchLoans(controller.signal);
 
     return () => controller.abort();
-  }, [fetchLoans]);
+  }, [fetchLoans, refreshKey]);
 
-  const openCustomerDetails = (row) => {
-    if (!row?.lan) return;
+  // Customer details navigation
+  const openCustomerDetails = useCallback(
+    (row) => {
+      if (!row?.lan) return;
 
-    navigate(
-      `/zebrs/update-data?lan=${encodeURIComponent(row.lan)}`
-    );
-  };
+      navigate(`/zebrs/update-data?lan=${encodeURIComponent(row.lan)}`);
+    },
+    [navigate],
+  );
 
-  const isRejected = (row) =>
-    String(row?.status || "").toLowerCase() === "rejected" ||
-    String(row?.stage || "").toLowerCase() === "credit rejected";
+  // Credit Approve -> Operations Initiated
+  const handleApprove = useCallback(
+    async (row) => {
+      if (!row?.lan || actioningLan) return;
 
-  // Approve loan without Approved Amount input
-  const handleApprove = async (row) => {
-    if (!row?.lan || actioningLan) return;
-
-    const confirmed = window.confirm(
-      `Approve Zebrs loan ${row.lan}?\n\nExisting Loan Amount: ₹${Number(
-        row.loan_amount || 0
-      ).toLocaleString("en-IN")}`
-    );
-
-    if (!confirmed) return;
-
-    try {
-      setActioningLan(row.lan);
-      setError("");
-
-      await api.patch(
-        `/zebrs/credit-decision/${encodeURIComponent(row.lan)}`,
-        {
-          action: "approve",
-        }
-      );
-
-      setRows((previous) =>
-        previous.filter((item) => item.lan !== row.lan)
-      );
-    } catch (err) {
-      console.error("Zebrs approval error:", err);
-
-      setError(
-        err.response?.data?.message ||
-          "Failed to approve Zebrs loan."
-      );
-    } finally {
-      setActioningLan("");
-    }
-  };
-
-  const openRejectModal = (row) => {
-    if (!row?.lan || actioningLan) return;
-
-    setRejectModal(row);
-    setRejectRemark("");
-    setRejectError("");
-  };
-
-  const closeRejectModal = () => {
-    if (actioningLan) return;
-
-    setRejectModal(null);
-    setRejectRemark("");
-    setRejectError("");
-  };
-
-  const handleReject = async (event) => {
-    event.preventDefault();
-
-    const lan = rejectModal?.lan;
-    const remark = rejectRemark.trim();
-
-    if (!lan || actioningLan) return;
-
-    if (!remark) {
-      setRejectError("Rejection reason is required.");
-      return;
-    }
-
-    if (remark.length < 5) {
-      setRejectError(
-        "Please enter at least 5 characters."
-      );
-      return;
-    }
-
-    if (remark.length > 1000) {
-      setRejectError(
-        "Reason cannot exceed 1000 characters."
-      );
-      return;
-    }
-
-    try {
-      setActioningLan(lan);
-      setRejectError("");
-
-      const response = await api.patch(
-        `/zebrs/credit-decision/${encodeURIComponent(lan)}`,
-        {
-          action: "reject",
-          remark,
-        }
-      );
-
-      if (!response.data?.success) {
-        throw new Error(response.data?.message || "Failed to reject loan.");
+      if (!isCreditInitiated(row)) {
+        setError("Only Credit Initiated loans can be approved here.");
+        return;
       }
-      // Move this loan into the Rejected queue.
-      setRows((previous) => previous.filter((row) => row.lan !== lan));
-      setRejectModal(null);
-      setRejectRemark("");
-    } catch (err) {
-      console.error("Zebrs rejection error:", err);
 
-      setRejectError(
-        err.response?.data?.message ||
-          "Failed to reject the Zebrs loan."
+      const confirmed = window.confirm(
+        `Approve Zebrs loan ${row.lan}?\n\n` +
+          `Customer: ${row.customer_name || "—"}\n` +
+          `Loan Amount: ₹${Number(row.loan_amount || 0).toLocaleString(
+            "en-IN",
+          )}\n\n` +
+          "The case will move to Operations Approval.\n" +
+          "Status: Operations Initiated\n" +
+          "Stage: Credit Approved",
       );
-    } finally {
-      setActioningLan("");
-    }
-  };
 
+      if (!confirmed) return;
+
+      try {
+        setActioningLan(row.lan);
+        setError("");
+        setSuccess("");
+
+        const response = await api.patch(
+          `/zebrs/credit-decision/${encodeURIComponent(row.lan)}`,
+          {
+            action: "approve",
+          },
+        );
+
+        const result = response.data;
+
+        if (result?.success !== true) {
+          throw new Error(result?.message || "Approval failed.");
+        }
+
+        // Verify backend actually saved the intended transition
+        if (
+          normalize(result.status) !== "OPERATIONS INITIATED" ||
+          normalize(result.stage) !== "CREDIT APPROVED"
+        ) {
+          throw new Error("Unexpected approval response. Check loan status.");
+        }
+
+        // Remove approved loan from this screen
+        setRows((previous) => previous.filter((item) => item.lan !== row.lan));
+
+        setSuccess(
+          `${row.lan} approved successfully. Moving to Operations Approval.`,
+        );
+
+        // Navigate to Operations Approval screen
+        navigate("/zebrs/operation-approval-cases");
+      } catch (err) {
+        console.error("Zebrs credit approval error:", err);
+
+        setError(
+          err.response?.data?.message ||
+            err.message ||
+            "Unable to approve Zebrs loan.",
+        );
+      } finally {
+        setActioningLan("");
+      }
+    },
+    [actioningLan, navigate],
+  );
+
+  // Status badge styling
   const statusStyle = (value) => {
-    const normalized = String(value || "").toLowerCase();
+    const text = normalize(value);
 
-    if (
-      normalized.includes("rejected") ||
-      normalized.includes("failed")
-    ) {
+    if (text.includes("REJECTED") || text.includes("FAILED")) {
       return {
         background: "#fee2e2",
         color: "#991b1b",
@@ -205,10 +180,7 @@ const ZebrsDisburseInitiate = () => {
       };
     }
 
-    if (
-      normalized.includes("approved") ||
-      normalized.includes("operations initiated")
-    ) {
+    if (text.includes("APPROVED") || text.includes("OPERATIONS INITIATED")) {
       return {
         background: "#dcfce7",
         color: "#166534",
@@ -223,298 +195,285 @@ const ZebrsDisburseInitiate = () => {
     };
   };
 
-  const StatusBadge = ({ value }) => (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        padding: "6px 11px",
-        borderRadius: "999px",
-        fontSize: "12px",
-        fontWeight: 700,
-        whiteSpace: "nowrap",
-        ...statusStyle(value),
-      }}
-    >
+  const renderStatus = (value) => (
+    <span className="zebrs-ci-status" style={statusStyle(value)}>
       {value || "Pending"}
     </span>
   );
 
-  const actionButtonStyle = (type, disabled) => ({
-    padding: "8px 12px",
-    borderRadius: 8,
-    border: "1px solid transparent",
-    background:
-      type === "approve" ? "#10b981" : "#ef4444",
-    borderColor:
-      type === "approve" ? "#059669" : "#dc2626",
-    color: "#ffffff",
-    cursor: disabled ? "not-allowed" : "pointer",
-    opacity: disabled ? 0.5 : 1,
-    fontSize: 13,
-    fontWeight: 700,
-    whiteSpace: "nowrap",
-  });
-
-  const columns = [
-    {
-      key: "customer_name",
-      header: "Loan Details",
-      sortable: true,
-      width: 220,
-      render: (row) => (
-        <button
-          type="button"
-          onClick={() => openCustomerDetails(row)}
-          className="zebrs-loan-link"
-        >
-          {row.customer_name || "—"}
-        </button>
-      ),
-      sortAccessor: (row) =>
-        String(row.customer_name || "").toLowerCase(),
-    },
-    {
-      key: "lender",
-      header: "Lender",
-      width: 120,
-      render: () => "Zebrs",
-      csvAccessor: () => "Zebrs",
-    },
-    {
-      key: "partner_loan_id",
-      header: "Partner Loan ID",
-      sortable: true,
-      width: 160,
-    },
-    {
-      key: "lan",
-      header: "LAN",
-      sortable: true,
-      width: 145,
-      render: (row) => (
-        <button
-          type="button"
-          onClick={() => openCustomerDetails(row)}
-          className="zebrs-loan-link"
-        >
-          {row.lan || "—"}
-        </button>
-      ),
-    },
-    {
-      key: "mobile_number",
-      header: "Mobile Number",
-      sortable: true,
-      width: 160,
-      render: (row) =>
-        row.mobile_number ? (
-          <a
-            href={`tel:${row.mobile_number}`}
-            style={{
-              color: "#2563eb",
-              fontWeight: 600,
-              textDecoration: "none",
-            }}
+  const columns = useMemo(
+    () => [
+      {
+        key: "customer_name",
+        header: "Loan Details",
+        sortable: true,
+        width: 210,
+        render: (row) => (
+          <button
+            type="button"
+            className="zebrs-ci-link"
+            onClick={() => openCustomerDetails(row)}
           >
-            {row.mobile_number}
-          </a>
-        ) : (
-          "—"
+            {row.customer_name || "—"}
+          </button>
         ),
-    },
-    {
-      key: "status",
-      header: "Status",
-      sortable: true,
-      width: 160,
-      render: (row) => (
-        <StatusBadge value={row.status} />
-      ),
-    },
-    {
-      key: "stage",
-      header: "Stage",
-      sortable: true,
-      width: 160,
-      render: (row) => (
-        <StatusBadge value={row.stage} />
-      ),
-    },
-
-    // No Approved Amount column
-
-    {
-      key: "docs",
-      header: "Documents",
-      width: 120,
-      csvAccessor: () => "",
-      render: (row) => (
-        <button
-          type="button"
-          onClick={() =>
-            navigate(
-              `/documents/${encodeURIComponent(row.lan)}`
-            )
-          }
-          style={{
-            padding: "8px 10px",
-            borderRadius: 8,
-            border: "1px solid #93c5fd",
-            background: "#ffffff",
-            color: "#1d4ed8",
-            cursor: "pointer",
-            fontWeight: 600,
-          }}
-        >
-          📂 Docs
-        </button>
-      ),
-    },
-    {
-      key: "actions",
-      header: "Actions",
-      width: 230,
-      csvAccessor: () => "",
-      render: (row) => {
-        const busy = actioningLan === row.lan;
-        const disabled = Boolean(actioningLan);
-
-        if (isRejected(row)) {
-          return (
-            <StatusBadge value="Rejected" />
-          );
-        }
-
-        return (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            <button
-              type="button"
-              disabled={disabled}
-              style={actionButtonStyle(
-                "approve",
-                disabled
-              )}
-              onClick={() => handleApprove(row)}
-            >
-              {busy ? "Processing..." : "✅ Approve"}
-            </button>
-
-            <button
-              type="button"
-              disabled={disabled}
-              style={actionButtonStyle(
-                "reject",
-                disabled
-              )}
-              onClick={() => openRejectModal(row)}
-            >
-              ❌ Reject
-            </button>
-          </div>
-        );
+        sortAccessor: (row) => String(row.customer_name || "").toLowerCase(),
       },
-    },
-  ];
+      {
+        key: "lender",
+        header: "Lender",
+        width: 110,
+        render: () => "Zebrs",
+        csvAccessor: () => "Zebrs",
+      },
+      {
+        key: "partner_loan_id",
+        header: "Partner Loan ID",
+        sortable: true,
+        width: 160,
+      },
+      {
+        key: "lan",
+        header: "LAN",
+        sortable: true,
+        width: 150,
+        render: (row) => (
+          <button
+            type="button"
+            className="zebrs-ci-link"
+            onClick={() => openCustomerDetails(row)}
+          >
+            {row.lan || "—"}
+          </button>
+        ),
+      },
+      {
+        key: "mobile_number",
+        header: "Mobile Number",
+        sortable: true,
+        width: 155,
+        render: (row) =>
+          row.mobile_number ? (
+            <a className="zebrs-ci-link" href={`tel:${row.mobile_number}`}>
+              {row.mobile_number}
+            </a>
+          ) : (
+            "—"
+          ),
+      },
+      {
+        key: "loan_amount",
+        header: "Loan Amount",
+        sortable: true,
+        width: 145,
+        render: (row) =>
+          row.loan_amount != null
+            ? `₹${Number(row.loan_amount).toLocaleString("en-IN", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}`
+            : "—",
+      },
+      {
+        key: "status",
+        header: "Loan Status",
+        sortable: true,
+        width: 170,
+        render: (row) => renderStatus(row.status),
+      },
+      {
+        key: "stage",
+        header: "Stage",
+        sortable: true,
+        width: 150,
+        render: (row) => renderStatus(row.stage),
+      },
+      {
+        key: "docs",
+        header: "Documents",
+        width: 120,
+        csvAccessor: () => "",
+        render: (row) => (
+          <button
+            type="button"
+            className="zebrs-ci-docs"
+            onClick={() =>
+              navigate(`/documents/${encodeURIComponent(row.lan)}`)
+            }
+          >
+            📂 Docs
+          </button>
+        ),
+      },
+      {
+        key: "actions",
+        header: "Actions",
+        width: 245,
+        csvAccessor: () => "",
+        render: (row) => {
+          const busy = actioningLan === row.lan;
+          const disabled = Boolean(actioningLan) || !isCreditInitiated(row);
+
+          return (
+            <div className="zebrs-ci-actions">
+              <button
+                type="button"
+                className="zebrs-ci-approve"
+                disabled={disabled}
+                onClick={() => handleApprove(row)}
+              >
+                {busy ? "Processing..." : "✓ Approve"}
+              </button>
+
+              {/* Reject temporarily disabled */}
+              <button
+                type="button"
+                className="zebrs-ci-reject"
+                disabled
+                title="Reject functionality is temporarily disabled"
+              >
+                ✕ Reject
+              </button>
+            </div>
+          );
+        },
+      },
+    ],
+    [actioningLan, handleApprove, navigate, openCustomerDetails],
+  );
 
   return (
-    <>
+    <div className="zebrs-ci-page">
       <style>{`
-        .zebrs-loan-link {
+        .zebrs-ci-page {
+          width: 100%;
+          min-width: 0;
+          font-family: inherit;
+        }
+
+        .zebrs-ci-link {
           border: none;
+          padding: 0;
           background: transparent;
           color: #2563eb;
-          font-weight: 700;
+          font: inherit;
           font-size: 13px;
+          font-weight: 700;
+          text-decoration: none;
           text-align: left;
-          padding: 0;
           cursor: pointer;
         }
 
-        .zebrs-loan-link:hover {
+        .zebrs-ci-link:hover {
+          color: #1d4ed8;
           text-decoration: underline;
         }
 
-        .zebrs-reject-overlay {
-          position: fixed;
-          inset: 0;
-          background: rgba(15, 23, 42, 0.58);
-          z-index: 9999;
-          display: flex;
-          justify-content: center;
+        .zebrs-ci-status {
+          display: inline-flex;
           align-items: center;
-          padding: 18px;
-        }
-
-        .zebrs-reject-card {
-          width: 100%;
-          max-width: 520px;
-          background: #ffffff;
-          border-radius: 16px;
-          padding: 26px;
-          box-shadow: 0 20px 50px rgba(0,0,0,0.2);
-        }
-
-        .zebrs-reject-card h2 {
-          margin: 0 0 8px;
-          font-size: 22px;
-          color: #0f172a;
-        }
-
-        .zebrs-reject-subtitle {
-          color: #64748b;
-          font-size: 13px;
-          margin-bottom: 20px;
-        }
-
-        .zebrs-reject-card label {
-          display: block;
-          color: #334155;
-          font-size: 13px;
+          padding: 7px 11px;
+          border-radius: 999px;
+          font-size: 11px;
           font-weight: 700;
-          margin-bottom: 9px;
+          white-space: nowrap;
         }
 
-        .zebrs-reject-card textarea {
-          width: 100%;
-          min-height: 125px;
-          resize: vertical;
-          padding: 12px 14px;
-          box-sizing: border-box;
-          border: 1px solid #cbd5e1;
+        .zebrs-ci-actions {
+          display: flex;
+          align-items: center;
+          gap: 9px;
+          white-space: nowrap;
+        }
+
+        .zebrs-ci-approve,
+        .zebrs-ci-reject {
+          padding: 9px 13px;
+          border-radius: 8px;
+          font-size: 12px;
+          font-weight: 700;
+          white-space: nowrap;
+          transition: background 0.15s;
+        }
+
+        .zebrs-ci-approve {
+          background: #15803d;
+          color: #fff;
+          border: 1px solid #15803d;
+          cursor: pointer;
+        }
+
+        .zebrs-ci-approve:hover:not(:disabled) {
+          background: #166534;
+        }
+
+        .zebrs-ci-reject {
+          background: #fef2f2;
+          color: #b91c1c;
+          border: 1px solid #fca5a5;
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
+
+        .zebrs-ci-approve:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .zebrs-ci-docs {
+          padding: 8px 12px;
+          background: #eff6ff;
+          color: #1d4ed8;
+          border: 1px solid #bfdbfe;
+          border-radius: 8px;
+          font-weight: 700;
+          font-size: 12px;
+          cursor: pointer;
+        }
+
+        .zebrs-ci-docs:hover {
+          background: #dbeafe;
+        }
+
+        .zebrs-ci-alert {
+          padding: 13px 16px;
+          margin-bottom: 15px;
           border-radius: 10px;
-          font: inherit;
-          font-size: 14px;
-          outline: none;
+          font-size: 13px;
+          font-weight: 600;
         }
 
-        .zebrs-reject-card textarea:focus {
-          border-color: #2563eb;
-          box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        .zebrs-ci-alert-error {
+          background: #fef2f2;
+          color: #991b1b;
+          border: 1px solid #fecaca;
         }
 
-        .zebrs-reject-actions {
+        .zebrs-ci-alert-success {
+          background: #ecfdf5;
+          color: #065f46;
+          border: 1px solid #a7f3d0;
+        }
+
+        .zebrs-ci-toolbar {
           display: flex;
           justify-content: flex-end;
-          gap: 10px;
-          margin-top: 22px;
+          margin-bottom: 12px;
         }
 
-        .zebrs-reject-actions button {
-          padding: 11px 18px;
-          border-radius: 9px;
+        .zebrs-ci-refresh {
+          padding: 9px 14px;
+          background: #17396d;
+          color: #fff;
+          border: 1px solid #17396d;
+          border-radius: 8px;
+          font-size: 12px;
           font-weight: 700;
           cursor: pointer;
         }
 
-        .zebrs-reject-actions button:disabled {
-          opacity: 0.6;
+        .zebrs-ci-refresh:disabled {
+          opacity: 0.5;
           cursor: not-allowed;
         }
       `}</style>
@@ -525,20 +484,27 @@ const ZebrsDisburseInitiate = () => {
       />
 
       {error && (
-        <div
-          role="alert"
-          style={{
-            background: "#fef2f2",
-            border: "1px solid #fecaca",
-            color: "#b91c1c",
-            padding: 14,
-            borderRadius: 8,
-            marginBottom: 16,
-          }}
-        >
+        <div className="zebrs-ci-alert zebrs-ci-alert-error" role="alert">
           {error}
         </div>
       )}
+
+      {success && (
+        <div className="zebrs-ci-alert zebrs-ci-alert-success" role="status">
+          {success}
+        </div>
+      )}
+
+      <div className="zebrs-ci-toolbar">
+        <button
+          type="button"
+          className="zebrs-ci-refresh"
+          disabled={loading || Boolean(actioningLan)}
+          onClick={refresh}
+        >
+          ↻ Refresh
+        </button>
+      </div>
 
       <DataTable
         title="Zebrs Credit Initiated Loans"
@@ -554,105 +520,7 @@ const ZebrsDisburseInitiate = () => {
         ]}
         exportFileName="Zebrs_Credit_Initiated_Loans"
       />
-
-      {/* Reject popup */}
-      {rejectModal && (
-        <div className="zebrs-reject-overlay">
-          <form
-            className="zebrs-reject-card"
-            onSubmit={handleReject}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="zebrs-reject-title"
-          >
-            <h2 id="zebrs-reject-title">
-              Reject Loan Application
-            </h2>
-
-            <p className="zebrs-reject-subtitle">
-              LAN: <strong>{rejectModal.lan}</strong>
-              <br />
-              Customer: {rejectModal.customer_name || "—"}
-            </p>
-
-            <label htmlFor="zebrs-reject-reason">
-              Rejection Reason
-              <span style={{ color: "#dc2626" }}> *</span>
-            </label>
-
-            <textarea
-              id="zebrs-reject-reason"
-              value={rejectRemark}
-              maxLength={1000}
-              required
-              autoFocus
-              disabled={Boolean(actioningLan)}
-              placeholder="Enter the reason for rejecting this application..."
-              onChange={(e) => {
-                setRejectRemark(e.target.value);
-                setRejectError("");
-              }}
-            />
-
-            <div
-              style={{
-                marginTop: 7,
-                textAlign: "right",
-                color: "#94a3b8",
-                fontSize: 12,
-              }}
-            >
-              {rejectRemark.length}/1000
-            </div>
-
-            {rejectError && (
-              <p
-                role="alert"
-                style={{
-                  color: "#dc2626",
-                  fontSize: 13,
-                  marginTop: 12,
-                }}
-              >
-                {rejectError}
-              </p>
-            )}
-
-            <div className="zebrs-reject-actions">
-              <button
-                type="button"
-                disabled={Boolean(actioningLan)}
-                onClick={closeRejectModal}
-                style={{
-                  border: "1px solid #cbd5e1",
-                  background: "#ffffff",
-                  color: "#334155",
-                }}
-              >
-                Cancel
-              </button>
-
-              <button
-                type="submit"
-                disabled={
-                  Boolean(actioningLan) ||
-                  rejectRemark.trim().length < 5
-                }
-                style={{
-                  border: "none",
-                  background: "#dc2626",
-                  color: "#ffffff",
-                }}
-              >
-                {actioningLan
-                  ? "Rejecting..."
-                  : "Confirm Rejection"}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-    </>
+    </div>
   );
 };
 

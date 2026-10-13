@@ -679,16 +679,109 @@ router.post("/generate-aadhaar-kyc-url", verifyApiKey, async (req, res) => {
   }
 });
 
+// router.post("/v1/zebrs-aadhaar-webhook", async (req, res) => {
+//   try {
+//     const payload = req.body || {};
+
+//     console.log(
+//       "📥 ZEBRS Aadhaar Webhook Payload:",
+//       JSON.stringify(payload).slice(0, 500),
+//     );
+
+//     const transactionId = payload.transactionId;
+//     const status = String(payload.status || "").toLowerCase();
+//     const data = payload.data || {};
+
+//     const uniqueId =
+//       data?.uniqueId || payload?.uniqueId || payload?.model?.uniqueId || null;
+
+//     // Always acknowledge callbacks that cannot be processed.
+//     if (!transactionId && !uniqueId) {
+//       console.warn("ZEBRS Aadhaar webhook missing transactionId and uniqueId");
+//       return res.status(200).send("ignored");
+//     }
+
+//     // Find the matching ZEBRS KYC record.
+//     const [rows] = await db.promise().query(
+//       `SELECT lan, applicant_type
+//        FROM kyc_verification_status
+//        WHERE (aadhaar_transaction_id = ? AND ? IS NOT NULL)
+//           OR (aadhaar_unique_id = ? AND ? IS NOT NULL)
+//        LIMIT 1`,
+//       [transactionId, transactionId, uniqueId, uniqueId],
+//     );
+
+//     if (!rows.length) {
+//       console.warn("No matching ZEBRS Aadhaar KYC record", {
+//         transactionId,
+//         uniqueId,
+//       });
+
+//       return res.status(200).send("no-matching-record");
+//     }
+
+//     const lan = rows[0].lan;
+
+//     // Ensure this callback belongs to a ZEBRS loan.
+//     const [loanRows] = await db.promise().query(
+//       `SELECT lan
+//        FROM loan_booking_zebrs
+//        WHERE lan = ?
+//        LIMIT 1`,
+//       [lan],
+//     );
+
+//     if (!loanRows.length) {
+//       console.warn("Aadhaar callback is not for a ZEBRS loan:", lan);
+//       return res.status(200).send("not-zebrs-loan");
+//     }
+
+//     if (status !== "success") {
+//       await db.promise().query(
+//         `UPDATE kyc_verification_status
+//          SET aadhaar_status = 'FAILED',
+//              aadhaar_api_response = ?
+//          WHERE lan = ?
+//            AND aadhaar_transaction_id = ?`,
+//         [JSON.stringify(payload), lan, transactionId],
+//       );
+
+//       console.log("❌ ZEBRS Aadhaar verification failed:", lan);
+//       return res.status(200).send("failure-processed");
+//     }
+
+//     // Successful verification: save the callback response.
+//     await db.promise().query(
+//       `UPDATE kyc_verification_status
+//        SET aadhaar_status = 'VERIFIED',
+//            aadhaar_api_response = ?
+//        WHERE lan = ?
+//          AND aadhaar_transaction_id = ?`,
+//       [JSON.stringify(payload), lan, transactionId],
+//     );
+
+//     console.log("✅ ZEBRS Aadhaar VERIFIED for LAN:", lan);
+
+//     return res.status(200).send("ok");
+//   } catch (error) {
+//     console.error("❌ ZEBRS Aadhaar webhook error:", error);
+
+//     // Acknowledge to avoid repeated callbacks; monitor errors in logs.
+//     return res.status(200).send("error-logged");
+//   }
+// });
+
+
 router.post("/v1/zebrs-aadhaar-webhook", async (req, res) => {
   try {
     const payload = req.body || {};
 
     console.log(
-      "📥 ZEBRS Aadhaar Webhook Payload:",
-      JSON.stringify(payload).slice(0, 500)
+      "📥 ZEBRS Aadhaar Webhook Received:",
+      JSON.stringify(payload).slice(0, 500),
     );
 
-    const transactionId = payload.transactionId;
+    const transactionId = payload.transactionId || null;
     const status = String(payload.status || "").toLowerCase();
     const data = payload.data || {};
 
@@ -698,83 +791,117 @@ router.post("/v1/zebrs-aadhaar-webhook", async (req, res) => {
       payload?.model?.uniqueId ||
       null;
 
-    // Always acknowledge callbacks that cannot be processed.
     if (!transactionId && !uniqueId) {
-      console.warn("ZEBRS Aadhaar webhook missing transactionId and uniqueId");
+      console.warn("Zebrs Aadhaar webhook missing identifiers");
       return res.status(200).send("ignored");
     }
 
-    // Find the matching ZEBRS KYC record.
+    // Find the exact KYC record
     const [rows] = await db.promise().query(
-      `SELECT lan, applicant_type
-       FROM kyc_verification_status
-       WHERE (aadhaar_transaction_id = ? AND ? IS NOT NULL)
-          OR (aadhaar_unique_id = ? AND ? IS NOT NULL)
-       LIMIT 1`,
-      [transactionId, transactionId, uniqueId, uniqueId]
+      `
+      SELECT
+        id,
+        lan,
+        applicant_type,
+        aadhaar_transaction_id,
+        aadhaar_unique_id
+      FROM kyc_verification_status
+      WHERE
+        (aadhaar_transaction_id = ? AND ? IS NOT NULL)
+        OR
+        (aadhaar_unique_id = ? AND ? IS NOT NULL)
+      ORDER BY id DESC
+      LIMIT 1
+      `,
+      [transactionId, transactionId, uniqueId, uniqueId],
     );
 
     if (!rows.length) {
-      console.warn("No matching ZEBRS Aadhaar KYC record", {
-        transactionId,
-        uniqueId
-      });
-
+      console.warn("No matching Zebrs Aadhaar KYC record");
       return res.status(200).send("no-matching-record");
     }
 
-    const lan = rows[0].lan;
+    const matchedKyc = rows[0];
+    const lan = matchedKyc.lan;
 
-    // Ensure this callback belongs to a ZEBRS loan.
+    // When both IDs are supplied, both must match the same record.
+    if (
+      (transactionId &&
+        matchedKyc.aadhaar_transaction_id !== transactionId) ||
+      (uniqueId &&
+        matchedKyc.aadhaar_unique_id !== uniqueId)
+    ) {
+      console.warn("Zebrs Aadhaar webhook identifier mismatch", lan);
+      return res.status(200).send("identifier-mismatch");
+    }
+
+    // Ensure the callback belongs to a Zebrs loan
     const [loanRows] = await db.promise().query(
-      `SELECT lan
-       FROM loan_booking_zebrs
-       WHERE lan = ?
-       LIMIT 1`,
-      [lan]
+      `
+      SELECT lan
+      FROM loan_booking_zebrs
+      WHERE lan = ?
+      LIMIT 1
+      `,
+      [lan],
     );
 
     if (!loanRows.length) {
-      console.warn("Aadhaar callback is not for a ZEBRS loan:", lan);
+      console.warn("Callback does not belong to Zebrs loan:", lan);
       return res.status(200).send("not-zebrs-loan");
     }
 
-    if (status !== "success") {
-      await db.promise().query(
-        `UPDATE kyc_verification_status
-         SET aadhaar_status = 'FAILED',
-             aadhaar_api_response = ?
-         WHERE lan = ?
-           AND aadhaar_transaction_id = ?`,
-        [JSON.stringify(payload), lan, transactionId]
-      );
+    // Keep original success/failure logic
+    const aadhaarStatus =
+      status === "success" ? "VERIFIED" : "FAILED";
 
-      console.log("❌ ZEBRS Aadhaar verification failed:", lan);
-      return res.status(200).send("failure-processed");
-    }
-
-    // Successful verification: save the callback response.
-    await db.promise().query(
-      `UPDATE kyc_verification_status
-       SET aadhaar_status = 'VERIFIED',
-           aadhaar_api_response = ?
-       WHERE lan = ?
-         AND aadhaar_transaction_id = ?`,
-      [JSON.stringify(payload), lan, transactionId]
+    const [result] = await db.promise().query(
+      `
+      UPDATE kyc_verification_status
+      SET
+        aadhaar_status = ?,
+        aadhaar_api_response = ?
+      WHERE id = ?
+        AND (? IS NULL OR aadhaar_transaction_id = ?)
+        AND (? IS NULL OR aadhaar_unique_id = ?)
+      `,
+      [
+        aadhaarStatus,
+        JSON.stringify(payload),
+        matchedKyc.id,
+        transactionId,
+        transactionId,
+        uniqueId,
+        uniqueId,
+      ],
     );
 
-    console.log("✅ ZEBRS Aadhaar VERIFIED for LAN:", lan);
+    if (result.affectedRows === 0) {
+      console.warn("Zebrs Aadhaar KYC row not updated", lan);
+      return res.status(200).send("no-update");
+    }
 
-    return res.status(200).send("ok");
+    console.log(
+      `Zebrs Aadhaar ${aadhaarStatus} for LAN ${lan}`,
+    );
+
+    return res.status(200).send(
+      aadhaarStatus === "VERIFIED"
+        ? "ok"
+        : "failure-processed",
+    );
   } catch (error) {
-    console.error("❌ ZEBRS Aadhaar webhook error:", error);
+    console.error("Zebrs Aadhaar webhook error:", error);
 
-    // Acknowledge to avoid repeated callbacks; monitor errors in logs.
-    return res.status(200).send("error-logged");
+    return res.status(500).json({
+      success: false,
+      message: "Aadhaar webhook processing failed",
+    });
   }
 });
 
-router.post("/partner/ops-initiate", async (req, res) => {
+
+router.post("/partner/ops-initiate", authenticateUser, async (req, res) => {
   try {
     const { lan } = req.body;
 
@@ -819,60 +946,187 @@ router.post("/partner/ops-initiate", async (req, res) => {
 
 // pan verification
 
+// router.post("/pan-verify", verifyApiKey, async (req, res) => {
+//   try {
+//     const { lan, pan_number, customer_name } = req.body;
+//     console.log("Received request to verify PAN number:", pan_number);
+
+//     const [loanRows] = await db
+//       .promise()
+//       .query("SELECT * FROM loan_booking_zebrs WHERE lan = ?", [lan]);
+
+//     if (loanRows.length === 0) {
+//       console.log("❌ Loan not found. Cannot validate.");
+//       return;
+//     }
+
+//     const loan = loanRows[0];
+
+//     await db
+//       .promise()
+//       .query("INSERT IGNORE INTO kyc_verification_status (lan) VALUES (?)", [
+//         lan,
+//       ]);
+//     await db
+//       .promise()
+//       .query(
+//         "UPDATE kyc_verification_status SET pan_status='INITIATED' WHERE lan=?",
+//         [lan],
+//       );
+//     const panDetails = await getPanCardDetails(pan_number, customer_name);
+
+//     await db
+//       .promise()
+//       .query(
+//         "UPDATE kyc_verification_status SET pan_status=?, pan_api_response=? WHERE lan=?",
+//         [
+//           // panDetails.success ? "VERIFIED" : "FAILED",
+//           panDetails.success ? "VERIFIED" : "FAILED",
+//           JSON.stringify(panDetails.response || {}),
+//           lan,
+//         ],
+//       );
+//     console.log(
+//       "Successfully verified PAN number for LAN:",
+//       lan,
+//       "PAN:",
+//       pan_number,
+//       "Result:",
+//       panDetails,
+//     );
+//     res.json({ panDetails: panDetails });
+//   } catch (error) {
+//     console.error("Error verifying PAN number:", error.message);
+//     res.status(500).json({ error: "Failed to verify PAN number" });
+//   }
+// });
+
+
 router.post("/pan-verify", verifyApiKey, async (req, res) => {
   try {
     const { lan, pan_number, customer_name } = req.body;
-    console.log("Received request to verify PAN number:", pan_number);
 
-    const [loanRows] = await db
-      .promise()
-      .query("SELECT * FROM loan_booking_zebrs WHERE lan = ?", [lan]);
-
-    if (loanRows.length === 0) {
-      console.log("❌ Loan not found. Cannot validate.");
-      return;
+    if (!lan || !pan_number || !customer_name) {
+      return res.status(400).json({
+        success: false,
+        message: "lan, pan_number and customer_name are required",
+      });
     }
 
-    const loan = loanRows[0];
-
-    await db
-      .promise()
-      .query("INSERT IGNORE INTO kyc_verification_status (lan) VALUES (?)", [
-        lan,
-      ]);
-    await db
-      .promise()
-      .query(
-        "UPDATE kyc_verification_status SET pan_status='INITIATED' WHERE lan=?",
-        [lan],
-      );
-    const panDetails = await getPanCardDetails(pan_number, customer_name);
-
-    await db
-      .promise()
-      .query(
-        "UPDATE kyc_verification_status SET pan_status=?, pan_api_response=? WHERE lan=?",
-        [
-          // panDetails.success ? "VERIFIED" : "FAILED",
-          panDetails.success ? "VERIFIED" : "FAILED",
-          JSON.stringify(panDetails.response || {}),
-          lan,
-        ],
-      );
-    console.log(
-      "Successfully verified PAN number for LAN:",
-      lan,
-      "PAN:",
-      pan_number,
-      "Result:",
-      panDetails,
+    // 1. Validate Zebrs loan
+    const [loanRows] = await db.promise().query(
+      `SELECT lan, pan_card
+       FROM loan_booking_zebrs
+       WHERE lan = ?
+       LIMIT 1`,
+      [lan]
     );
-    res.json({ panDetails: panDetails });
+
+    if (!loanRows.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Zebrs loan not found",
+      });
+    }
+
+    // 2. Get borrower KYC record
+    const [kycRows] = await db.promise().query(
+      `SELECT id
+       FROM kyc_verification_status
+       WHERE lan = ?
+         AND applicant_type = 'BORROWER'
+         AND party_no = 1
+       ORDER BY id DESC
+       LIMIT 1`,
+      [lan]
+    );
+
+    let kycId;
+
+    if (kycRows.length) {
+      kycId = kycRows[0].id;
+    } else {
+      const [result] = await db.promise().query(
+        `INSERT INTO kyc_verification_status
+         (lan, applicant_type, party_no, pan_status)
+         VALUES (?, 'BORROWER', 1, 'PENDING')`,
+        [lan]
+      );
+
+      kycId = result.insertId;
+    }
+
+    // 3. Set initiated
+    await db.promise().query(
+      `UPDATE kyc_verification_status
+       SET pan_status = 'INITIATED'
+       WHERE id = ?`,
+      [kycId]
+    );
+
+    // 4. Existing ZOOP API call
+    const panDetails = await getPanCardDetails(
+      pan_number,
+      customer_name
+    );
+
+    const zoopResponse =
+      panDetails?.response || panDetails?.raw || {};
+
+    // ZOOP "No Record Found" must NOT be verified
+    const hasPanRecord =
+      zoopResponse.result !== null &&
+      typeof zoopResponse.result === "object" &&
+      !Array.isArray(zoopResponse.result) &&
+      Object.keys(zoopResponse.result).length > 0;
+
+    // Reject all non-success result codes.
+    // Confirm successful code from ZOOP documentation.
+    const providerVerified =
+      panDetails?.success === true &&
+      zoopResponse.success === true &&
+      String(zoopResponse.response_code) !== "101" &&
+      hasPanRecord;
+
+    const panStatus = providerVerified
+      ? "VERIFIED"
+      : "FAILED";
+
+    // 5. Update only borrower KYC
+    await db.promise().query(
+      `UPDATE kyc_verification_status
+       SET pan_status = ?,
+           pan_api_response = ?
+       WHERE id = ?`,
+      [
+        panStatus,
+        JSON.stringify(zoopResponse),
+        kycId
+      ]
+    );
+
+    return res.status(200).json({
+      success: true,
+      lan,
+      applicantType: "BORROWER",
+      pan_status: panStatus,
+      provider: "ZOOP",
+      response_code: zoopResponse.response_code || null,
+      response_message: zoopResponse.response_message || null,
+      panDetails
+    });
+
   } catch (error) {
-    console.error("Error verifying PAN number:", error.message);
-    res.status(500).json({ error: "Failed to verify PAN number" });
+    console.error("Zebrs PAN verification error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to verify PAN number",
+      error: error.message
+    });
   }
 });
+
 
 router.post("/esign-initiate", verifyApiKey, async (req, res) => {
   try {
@@ -1008,37 +1262,37 @@ async function runZebrsBureauValidation({
     [lan, applicantType, partyNo],
   );
 
-  const bureauResult = await runBureau({
-    enquiry_reason: 3,
-    finance_purpose: 11,
+  // const bureauResult = await runBureau({
+  //   enquiry_reason: 3,
+  //   finance_purpose: 11,
 
-    customer_name: applicantData.customer_name,
-    first_name: applicantData.first_name,
-    last_name: applicantData.last_name,
-    dob: applicantData.dob,
-    gender: applicantData.gender,
+  //   customer_name: applicantData.customer_name,
+  //   first_name: applicantData.first_name,
+  //   last_name: applicantData.last_name,
+  //   dob: applicantData.dob,
+  //   gender: applicantData.gender,
 
-    pan_number: panNumber,
-    mobile_number: applicantData.mobile_number,
+  //   pan_number: panNumber,
+  //   mobile_number: applicantData.mobile_number,
 
-    current_address: applicantData.current_address,
-    current_village_city: applicantData.current_village_city,
-    current_state: applicantData.current_state,
-    current_pincode: applicantData.current_pincode,
+  //   current_address: applicantData.current_address,
+  //   current_village_city: applicantData.current_village_city,
+  //   current_state: applicantData.current_state,
+  //   current_pincode: applicantData.current_pincode,
 
-    loan_amount: applicantData.loan_amount,
-    loan_tenure: applicantData.loan_tenure,
-  }).catch((error) => {
-    console.error(`❌ Zebrs ${applicantType}-${partyNo} Bureau Error:`, error);
+  //   loan_amount: applicantData.loan_amount,
+  //   loan_tenure: applicantData.loan_tenure,
+  // }).catch((error) => {
+  //   console.error(`❌ Zebrs ${applicantType}-${partyNo} Bureau Error:`, error);
 
-    return {
-      success: false,
-      score: null,
-      response: {
-        error: error.message || String(error),
-      },
-    };
-  });
+  //   return {
+  //     success: false,
+  //     score: null,
+  //     response: {
+  //       error: error.message || String(error),
+  //     },
+  //   };
+  // });
 
   /*
    * Dummy bureau response for Zebrs testing.
@@ -1060,6 +1314,50 @@ async function runZebrsBureauValidation({
   //     generated_at: new Date().toISOString(),
   //   },
   // };
+
+  const mockBureauEnabled =
+  process.env.NODE_ENV !== "production" &&
+  process.env.ZEBRS_UAT_MOCK_BUREAU === "true";
+
+const bureauResult = mockBureauEnabled
+  ? {
+      success: true,
+      score: 750,
+      response: {
+        provider: "ZEBRS_UAT_MOCK",
+        status: "SUCCESS",
+        score: 750,
+        pan_number: panNumber,
+        customer_name: applicantData.customer_name,
+        test_only: true,
+      },
+    }
+  : await runBureau({
+      enquiry_reason: 3,
+      finance_purpose: 11,
+      customer_name: applicantData.customer_name,
+      first_name: applicantData.first_name,
+      last_name: applicantData.last_name,
+      dob: applicantData.dob,
+      gender: applicantData.gender,
+      pan_number: panNumber,
+      mobile_number: applicantData.mobile_number,
+      current_address: applicantData.current_address,
+      current_village_city: applicantData.current_village_city,
+      current_state: applicantData.current_state,
+      current_pincode: applicantData.current_pincode,
+      loan_amount: applicantData.loan_amount,
+      loan_tenure: applicantData.loan_tenure,
+    }).catch((error) => ({
+      success: false,
+      score: null,
+      response: { error: error.message },
+    }));
+
+  /*
+   * Dummy bureau response for Zebrs testing.
+   * This does not call the actual bureau provider.
+   */
 
   // const bureauStatus = bureauResult.success ? "VERIFIED" : "FAILED";
   const bureauScore =
@@ -1146,6 +1444,7 @@ async function runZebrsBureauValidation({
   };
 }
 
+
 router.post("/bre/zebrs/:lan", verifyApiKey, async (req, res) => {
   try {
     const lan = String(req.params.lan || "")
@@ -1161,11 +1460,11 @@ router.post("/bre/zebrs/:lan", verifyApiKey, async (req, res) => {
 
     const [loanRows] = await db.promise().query(
       `
-        SELECT lan
-        FROM loan_booking_zebrs
-        WHERE lan = ?
-        LIMIT 1
-        `,
+      SELECT lan, status, stage
+      FROM loan_booking_zebrs
+      WHERE lan = ?
+      LIMIT 1
+      `,
       [lan],
     );
 
@@ -1176,11 +1475,42 @@ router.post("/bre/zebrs/:lan", verifyApiKey, async (req, res) => {
       });
     }
 
+    const loan = loanRows[0];
+
+    const currentStatus = String(loan.status || "")
+      .trim()
+      .toUpperCase();
+
+    const currentStage = String(loan.stage || "")
+      .trim()
+      .toUpperCase();
+
+    // Allow BRE rerun only before manual credit/operations decisions.
+    const eligibleForRerun =
+      currentStatus === "LOGIN" ||
+      (
+        currentStatus === "REJECTED" &&
+        ["BRE REJECTED", "BRE FAILED"].includes(currentStage)
+      );
+
+    if (!eligibleForRerun) {
+      return res.status(409).json({
+        success: false,
+        message: "BRE rerun not allowed after workflow decision",
+        current_status: loan.status,
+        current_stage: loan.stage,
+      });
+    }
+
     console.log(`🚀 Manually running Zebrs BRE for ${lan}`);
 
+    // Original BRE evaluation function unchanged
     const breResult = await autoApproveZebrsIfBureauVerified(lan);
 
-    console.log(`✅ Manual Zebrs BRE completed for ${lan}:`, breResult);
+    console.log(
+      `✅ Manual Zebrs BRE completed for ${lan}:`,
+      breResult,
+    );
 
     return res.status(200).json({
       success: true,
@@ -1198,6 +1528,7 @@ router.post("/bre/zebrs/:lan", verifyApiKey, async (req, res) => {
     });
   }
 });
+
 
 // ============================================
 // GET ZEBRS LOAN STATUS BY LAN
@@ -1481,8 +1812,7 @@ router.get("/dealers-login-cases", authenticateUser, async (req, res) => {
         login_date,
         created_at
       FROM zebrs_dealer_booking
-      WHERE UPPER(COALESCE(status, 'ACTIVE'))
-        IN ('ACTIVE', 'APPROVED', 'REJECTED')
+      WHERE UPPER(TRIM(status)) = 'ACTIVE'
       ORDER BY created_at DESC
     `);
 
@@ -1767,7 +2097,9 @@ router.get("/customer-details/:lan", authenticateUser, async (req, res) => {
 
     // Current shared Zebrs schema does not contain
     // co-applicant information.
-    const coApplicant = null;
+    const coApplicant = row.co_applicant_name
+      ? formatVerification("CO_APPLICANT")
+      : null;
 
     // 3. Complete loan response
     const loan = {
@@ -1781,6 +2113,24 @@ router.get("/customer-details/:lan", authenticateUser, async (req, res) => {
             mobile: row.guarantor_mobile,
             email: row.guarantor_email,
             relationship_with_borrower: row.relationship_with_borrower,
+          }
+        : null,
+
+      co_applicant: row.co_applicant_name
+        ? {
+            name: row.co_applicant_name,
+            dob: row.co_applicant_dob,
+            pan: row.co_applicant_pan,
+            mobile: row.co_applicant_mobile,
+            email: row.co_applicant_email,
+            address: {
+              address_line_1: row.co_applicant_address_line_1,
+              address_line_2: row.co_applicant_address_line_2,
+              city: row.co_applicant_village_city,
+              district: row.co_applicant_district,
+              state: row.co_applicant_state,
+              pincode: row.co_applicant_pincode,
+            },
           }
         : null,
 
@@ -1841,7 +2191,7 @@ router.get("/customer-details/:lan", authenticateUser, async (req, res) => {
       verification_links: {
         borrower_aadhaar_url: borrower.aadhaar_kyc_url,
         guarantor_aadhaar_url: guarantor?.aadhaar_kyc_url || null,
-        co_applicant_aadhaar_url: null,
+        co_applicant_aadhaar_url: coApplicant?.aadhaar_kyc_url || null,
       },
 
       esign_details: {
@@ -1890,6 +2240,329 @@ router.get("/customer-details/:lan", authenticateUser, async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch Zebrs customer details",
+    });
+  }
+});
+
+router.post("/init-aadhaar", authenticateUser, async (req, res) => {
+  const lan = String(req.body?.lan || "")
+    .trim()
+    .toUpperCase();
+
+  const applicantType = String(req.body?.applicantType || "")
+    .trim()
+    .toUpperCase();
+
+  if (!/^ZBCL\d+$/.test(lan)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid Zebrs LAN",
+    });
+  }
+
+  if (!["BORROWER", "GUARANTOR"].includes(applicantType)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid Zebrs applicant type",
+    });
+  }
+
+  const connection = await db.promise().getConnection();
+  const lockName = `zbr_aad_${lan}_${applicantType}`;
+
+  let lockAcquired = false;
+  let attemptReserved = false;
+  let kycId;
+  let reservedAttempt;
+
+  try {
+    // Prevent simultaneous requests for this applicant.
+    const [[lock]] = await connection.query(
+      "SELECT GET_LOCK(?, 5) AS acquired",
+      [lockName],
+    );
+
+    if (Number(lock.acquired) !== 1) {
+      return res.status(409).json({
+        success: false,
+        message: "Aadhaar initiation is already being processed",
+      });
+    }
+
+    lockAcquired = true;
+
+    // Fetch borrower or guarantor from Zebrs.
+    const [[loan]] = await connection.query(
+      `SELECT
+           customer_name,
+           first_name,
+           last_name,
+           mobile_number,
+           email,
+           guarantor_name,
+           guarantor_mobile,
+           guarantor_email
+         FROM loan_booking_zebrs
+         WHERE lan = ?
+         LIMIT 1`,
+      [lan],
+    );
+
+    if (!loan) {
+      return res.status(404).json({
+        success: false,
+        message: "Zebrs loan not found",
+      });
+    }
+
+    const applicant =
+      applicantType === "BORROWER"
+        ? {
+            name:
+              loan.customer_name ||
+              [loan.first_name, loan.last_name].filter(Boolean).join(" "),
+            mobile: loan.mobile_number,
+            email: loan.email || "",
+          }
+        : {
+            name: loan.guarantor_name,
+            mobile: loan.guarantor_mobile,
+            email: loan.guarantor_email || "",
+          };
+
+    if (!applicant.name || !applicant.mobile) {
+      return res.status(400).json({
+        success: false,
+        message: `${applicantType} name or mobile missing`,
+      });
+    }
+
+    // Read applicant-specific KYC and cooldown from DB.
+    const [[existing]] = await connection.query(
+      `SELECT
+           id,
+           aadhaar_status,
+           aadhaar_retry_count,
+           aadhaar_initiated_at,
+           TIMESTAMPDIFF(
+             SECOND,
+             aadhaar_initiated_at,
+             NOW()
+           ) AS elapsed_seconds
+         FROM kyc_verification_status
+         WHERE lan = ?
+           AND applicant_type = ?
+           AND party_no = 1
+         ORDER BY id DESC
+         LIMIT 1`,
+      [lan, applicantType],
+    );
+
+    if (
+      String(existing?.aadhaar_status || "")
+        .trim()
+        .toUpperCase() === "VERIFIED"
+    ) {
+      return res.status(409).json({
+        success: false,
+        message: "Aadhaar already verified",
+      });
+    }
+
+    // Maximum 2 total attempts.
+    const attempts = Number(existing?.aadhaar_retry_count || 0);
+
+    if (attempts >= 2) {
+      return res.status(429).json({
+        success: false,
+        message: "Maximum Aadhaar attempts reached",
+      });
+    }
+
+    // 24-hour cooldown after the previous attempt.
+    const elapsed = existing?.elapsed_seconds;
+
+    if (
+      existing?.aadhaar_initiated_at &&
+      (elapsed === null || Number(elapsed) < 10800)
+    ) {
+      return res.status(429).json({
+        success: false,
+        message: "Please wait 3 hours before retrying Aadhaar",
+        retry_seconds_remaining:
+          elapsed === null ? 10800 : Math.max(0, 10800 - Number(elapsed)),
+      });
+    }
+
+    // Reserve the attempt BEFORE contacting the provider.
+    // The named lock prevents simultaneous reservations.
+    if (existing) {
+      kycId = existing.id;
+      reservedAttempt = attempts + 1;
+
+      await connection.query(
+        `UPDATE kyc_verification_status
+           SET
+             applicant_name = ?,
+             mobile_number = ?,
+             aadhaar_status = 'INITIATED',
+             aadhaar_retry_count = ?,
+             aadhaar_initiated_at = NOW(),
+             aadhaar_transaction_id = NULL,
+             aadhaar_unique_id = NULL,
+             aadhaar_kyc_url = NULL
+           WHERE id = ?`,
+        [applicant.name, applicant.mobile, reservedAttempt, kycId],
+      );
+    } else {
+      reservedAttempt = 1;
+
+      const [insertResult] = await connection.query(
+        `INSERT INTO kyc_verification_status
+           (
+             lan,
+             applicant_type,
+             party_no,
+             applicant_name,
+             mobile_number,
+             aadhaar_status,
+             aadhaar_retry_count,
+             aadhaar_initiated_at
+           )
+           VALUES (?, ?, 1, ?, ?, 'INITIATED', 1, NOW())`,
+        [lan, applicantType, applicant.name, applicant.mobile],
+      );
+
+      kycId = insertResult.insertId;
+    }
+
+    attemptReserved = true;
+  } catch (error) {
+    console.error("Zebrs Aadhaar preparation error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to prepare Aadhaar initiation",
+    });
+  } finally {
+    if (lockAcquired) {
+      try {
+        await connection.query("SELECT RELEASE_LOCK(?)", [lockName]);
+      } catch (releaseError) {
+        console.error("Aadhaar lock release:", releaseError);
+      }
+    }
+
+    connection.release();
+  }
+
+  if (!attemptReserved) {
+    return res.status(500).json({
+      success: false,
+      message: "Unable to reserve Aadhaar attempt",
+    });
+  }
+
+  // Share the existing Aadhaar provider service.
+  try {
+    const [[loan]] = await db.promise().query(
+      `SELECT
+           customer_name,
+           first_name,
+           last_name,
+           mobile_number,
+           email,
+           guarantor_name,
+           guarantor_mobile,
+           guarantor_email
+         FROM loan_booking_zebrs
+         WHERE lan = ?
+         LIMIT 1`,
+      [lan],
+    );
+
+    if (!loan) {
+      throw new Error("Loan no longer available");
+    }
+
+    const name =
+      applicantType === "BORROWER"
+        ? loan.customer_name ||
+          [loan.first_name, loan.last_name].filter(Boolean).join(" ")
+        : loan.guarantor_name;
+
+    const mobile =
+      applicantType === "BORROWER" ? loan.mobile_number : loan.guarantor_mobile;
+
+    const email =
+      applicantType === "BORROWER"
+        ? loan.email || ""
+        : loan.guarantor_email || "";
+
+    const aadhaarInit = await initAadhaarKyc(lan, mobile, email, name);
+
+    if (
+      !aadhaarInit ||
+      aadhaarInit.success === false ||
+      !aadhaarInit.kycUrl ||
+      !aadhaarInit.unifiedTransactionId
+    ) {
+      throw new Error("Invalid Aadhaar provider response");
+    }
+
+    const [saved] = await db.promise().query(
+      `UPDATE kyc_verification_status
+         SET
+           aadhaar_transaction_id = ?,
+           aadhaar_kyc_url = ?,
+           aadhaar_unique_id = ?
+         WHERE id = ?
+           AND aadhaar_retry_count = ?
+           AND aadhaar_status = 'INITIATED'`,
+      [
+        aadhaarInit.unifiedTransactionId,
+        aadhaarInit.kycUrl,
+        aadhaarInit.uniqueId || null,
+        kycId,
+        reservedAttempt,
+      ],
+    );
+
+    if (!saved.affectedRows) {
+      throw new Error("KYC status changed while saving Aadhaar initiation");
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Zebrs Aadhaar initiated successfully",
+      lan,
+      applicantType,
+      kycUrl: aadhaarInit.kycUrl,
+      transactionId: aadhaarInit.unifiedTransactionId,
+      uniqueId: aadhaarInit.uniqueId || null,
+      aadhaar_retry_count: reservedAttempt,
+    });
+  } catch (error) {
+    console.error("Zebrs Aadhaar provider error:", error);
+
+    await db
+      .promise()
+      .query(
+        `UPDATE kyc_verification_status
+         SET aadhaar_status = 'FAILED'
+         WHERE id = ?
+           AND aadhaar_retry_count = ?
+           AND aadhaar_status = 'INITIATED'
+           AND aadhaar_transaction_id IS NULL`,
+        [kycId, reservedAttempt],
+      )
+      .catch((dbError) => {
+        console.error("Failed to save Aadhaar failure:", dbError);
+      });
+
+    return res.status(502).json({
+      success: false,
+      message: "Aadhaar initiation failed",
     });
   }
 });
@@ -2424,227 +3097,240 @@ router.post("/:lan/reject", authenticateUser, async (req, res) => {
 });
 
 router.get("/bre-rejected-loans", authenticateUser, async (req, res) => {
-  const {
-    page = "1",
-    pageSize = "50",
-    search = "",
-    sortBy = "updated_at",
-    sortDir = "desc",
-  } = req.query;
-
-  const pageNumber = Math.max(1, parseInt(page, 10) || 1);
-
-  const limit = Math.min(100, Math.max(1, parseInt(pageSize, 10) || 50));
-
-  const offset = (pageNumber - 1) * limit;
-
-  const allowedSort = [
-    "lan",
-    "partner_loan_id",
-    "customer_name",
-    "mobile_number",
-    "loan_amount",
-    "status",
-    "stage",
-    "created_at",
-    "updated_at",
-    "zebrs_bre_checked_at",
-  ];
-
-  const sortColumn = allowedSort.includes(sortBy) ? sortBy : "updated_at";
-
-  const direction = String(sortDir).toLowerCase() === "asc" ? "ASC" : "DESC";
-
   try {
-    const searchText = String(search || "").trim();
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const pageSize = Math.min(
+      100,
+      Math.max(1, parseInt(req.query.pageSize, 10) || 25)
+    );
+    const offset = (page - 1) * pageSize;
+    const search = String(req.query.search || "").trim();
 
-    const searchClause = searchText
-      ? `
-          AND (
-            lb.lan LIKE ?
-            OR lb.partner_loan_id LIKE ?
-            OR lb.customer_name LIKE ?
-            OR lb.mobile_number LIKE ?
-            OR lb.zebrs_bre_reason LIKE ?
-            OR lb.credit_rejection_remark LIKE ?
-            OR lb.operation_rejection_remark LIKE ?
+    const conditions = `
+      WHERE lb.lan LIKE 'ZBCL%'
+        AND UPPER(TRIM(COALESCE(lb.zebrs_bre_status, '')))
+            IN ('REJECTED', 'BRE REJECTED', 'BRE FAILED')
+        AND (
+          UPPER(TRIM(COALESCE(lb.status, '')))
+              IN ('BRE REJECTED', 'BRE FAILED')
+          OR (
+            UPPER(TRIM(COALESCE(lb.status, ''))) = 'REJECTED'
+            AND UPPER(TRIM(COALESCE(lb.stage, '')))
+                IN ('', 'LOGIN', 'BRE REJECTED', 'BRE FAILED')
           )
-        `
+        )
+        AND UPPER(TRIM(COALESCE(lb.stage, '')))
+            NOT IN (
+              'BRE REVIEW REJECTED',
+              'CREDIT REJECTED',
+              'CREDIT APPROVED',
+              'BRE APPROVED',
+              'BRE DEVIATION',
+              'OPERATION APPROVED',
+              'OPERATION REJECTED'
+            )
+    `;
+
+    const searchClause = search
+      ? ` AND (
+          lb.lan LIKE ?
+          OR lb.customer_name LIKE ?
+          OR lb.partner_loan_id LIKE ?
+          OR lb.mobile_number LIKE ?
+          OR lb.zebrs_bre_reason LIKE ?
+        )`
       : "";
 
-    const searchParams = searchText ? Array(7).fill(`%${searchText}%`) : [];
-
-    /*
-     * Rejected Zebrs cases:
-     *
-     * 1. BRE failed/rejected
-     * 2. Credit rejected
-     * 3. Operation rejected
-     *
-     * BRE flags do not make an already-approved
-     * or disbursed loan appear as a rejected case.
-     */
-    const whereClause = `
-        WHERE lb.lan LIKE ?
-          AND (
-            (
-              UPPER(TRIM(COALESCE(lb.status, '')))
-                IN ('BRE REJECTED', 'BRE FAILED')
-            )
-            OR
-            (
-              UPPER(TRIM(COALESCE(lb.stage, '')))
-                IN (
-                  'BRE REJECTED',
-                  'BRE FAILED',
-                  'CREDIT REJECTED',
-                  'OPERATION REJECTED'
-                )
-            )
-            OR
-            (
-              UPPER(TRIM(COALESCE(lb.status, ''))) =
-                'REJECTED'
-            )
-            OR
-            (
-              UPPER(TRIM(COALESCE(lb.zebrs_bre_status, '')))
-                IN ('REJECTED', 'BRE REJECTED', 'BRE FAILED')
-              AND UPPER(TRIM(COALESCE(lb.status, '')))
-                NOT IN (
-                  'APPROVED',
-                  'OPERATIONS INITIATED',
-                  'DISBURSED',
-                  'DISBURSE INITIATE'
-                )
-              AND UPPER(TRIM(COALESCE(lb.stage, '')))
-                NOT IN (
-                  'CREDIT APPROVED',
-                  'OPERATION APPROVED'
-                )
-            )
-          )
-          ${searchClause}
-      `;
-
-    const countSql = `
-        SELECT COUNT(*) AS total
-        FROM loan_booking_zebrs lb
-        ${whereClause}
-      `;
-
-    const dataSql = `
-        SELECT
-          lb.id,
-          lb.lan,
-          lb.partner_loan_id,
-          lb.customer_name,
-          lb.mobile_number,
-          lb.pan_card,
-          lb.email,
-
-          lb.loan_amount,
-          lb.interest_rate,
-          lb.loan_tenure,
-
-          lb.cibil_score,
-          lb.bureau_score,
-
-          lb.status,
-          lb.stage,
-          lb.bank_status,
-
-          lb.zebrs_bre_status,
-          lb.zebrs_bre_reason,
-          lb.zebrs_bre_checked_at,
-
-          lb.credit_rejection_remark,
-          lb.operation_rejection_remark,
-
-          CASE
-            WHEN UPPER(TRIM(COALESCE(lb.stage, '')))
-              = 'OPERATION REJECTED'
-              THEN 'Operation Rejected'
-
-            WHEN UPPER(TRIM(COALESCE(lb.stage, '')))
-              = 'CREDIT REJECTED'
-              THEN 'Credit Rejected'
-
-            WHEN UPPER(TRIM(COALESCE(lb.stage, '')))
-              IN ('BRE FAILED', 'BRE REJECTED')
-              THEN 'BRE Rejected'
-
-            WHEN UPPER(TRIM(COALESCE(lb.status, '')))
-              IN ('BRE FAILED', 'BRE REJECTED')
-              THEN 'BRE Rejected'
-
-            WHEN UPPER(TRIM(COALESCE(lb.zebrs_bre_status, '')))
-              IN ('REJECTED', 'BRE REJECTED', 'BRE FAILED')
-              THEN 'BRE Rejected'
-
-            ELSE 'Rejected'
-          END AS rejection_type,
-
-          CASE
-            WHEN UPPER(TRIM(COALESCE(lb.stage, '')))
-              = 'OPERATION REJECTED'
-              THEN COALESCE(
-                NULLIF(TRIM(lb.operation_rejection_remark), ''),
-                NULLIF(TRIM(lb.zebrs_bre_reason), '')
-              )
-
-            WHEN UPPER(TRIM(COALESCE(lb.stage, '')))
-              = 'CREDIT REJECTED'
-              THEN COALESCE(
-                NULLIF(TRIM(lb.credit_rejection_remark), ''),
-                NULLIF(TRIM(lb.zebrs_bre_reason), '')
-              )
-
-            ELSE COALESCE(
-              NULLIF(TRIM(lb.zebrs_bre_reason), ''),
-              NULLIF(TRIM(lb.credit_rejection_remark), ''),
-              NULLIF(TRIM(lb.operation_rejection_remark), '')
-            )
-          END AS rejection_remark,
-
-          lb.created_at,
-          lb.updated_at
-
-        FROM loan_booking_zebrs lb
-
-        ${whereClause}
-
-        ORDER BY lb.\`${sortColumn}\` ${direction},
-                 lb.id DESC
-
-        LIMIT ? OFFSET ?
-      `;
-
-    const params = ["ZBCL%", ...searchParams];
+    const params = search ? Array(5).fill(`%${search}%`) : [];
 
     const [[countRows], [rows]] = await Promise.all([
-      db.promise().query(countSql, params),
-
-      db.promise().query(dataSql, [...params, limit, offset]),
+      db.promise().query(
+        `SELECT COUNT(*) AS total
+         FROM loan_booking_zebrs lb
+         ${conditions}
+         ${searchClause}`,
+        params
+      ),
+      db.promise().query(
+        `SELECT
+           lb.id,
+           lb.lan,
+           lb.partner_loan_id,
+           lb.customer_name,
+           lb.mobile_number,
+           lb.loan_amount,
+           lb.status,
+           lb.stage,
+           lb.zebrs_bre_status,
+           lb.zebrs_bre_reason,
+           lb.credit_rejection_remark,
+           lb.created_at,
+           lb.updated_at
+         FROM loan_booking_zebrs lb
+         ${conditions}
+         ${searchClause}
+         ORDER BY
+           COALESCE(lb.updated_at, lb.created_at) DESC,
+           lb.id DESC
+         LIMIT ? OFFSET ?`,
+        [...params, pageSize, offset]
+      ),
     ]);
 
     return res.status(200).json({
       success: true,
       rows,
       pagination: {
-        page: pageNumber,
-        pageSize: limit,
+        page,
+        pageSize,
         total: Number(countRows[0]?.total || 0),
       },
     });
   } catch (error) {
-    console.error("Zebrs BRE Rejected Loans Error:", error);
+    console.error("Zebrs BRE rejected loans error:", error);
 
     return res.status(500).json({
       success: false,
-      message: "Failed to fetch Zebrs rejected loans",
+      message: "Failed to fetch Zebrs BRE rejected loans",
     });
   }
 });
+
+
+router.patch("/bre-review/:lan", authenticateUser, async (req, res) => {
+  const lan = String(req.params.lan || "")
+    .trim()
+    .toUpperCase();
+
+  const action = String(req.body?.action || "")
+    .trim()
+    .toLowerCase();
+
+  if (!/^ZBCL\d+$/.test(lan)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid Zebrs LAN",
+    });
+  }
+
+  if (!["approve", "reject"].includes(action)) {
+    return res.status(400).json({
+      success: false,
+      message: "Action must be approve or reject",
+    });
+  }
+
+  const approved = action === "approve";
+
+  const newStatus = approved
+    ? "Operations Initiated"
+    : "Rejected";
+
+  const newStage = approved
+    ? "Credit Approved"
+    : "BRE Review Rejected";
+
+  try {
+    // Only original system BRE-rejected loans
+    // that are awaiting manual review can be updated.
+    const [result] = await db.promise().query(
+      `
+      UPDATE loan_booking_zebrs
+      SET
+        status = ?,
+        stage = ?,
+        updated_at = NOW()
+      WHERE lan = ?
+        AND UPPER(TRIM(COALESCE(zebrs_bre_status, '')))
+            IN ('REJECTED', 'BRE REJECTED', 'BRE FAILED')
+        AND (
+          UPPER(TRIM(COALESCE(status, '')))
+              IN ('BRE REJECTED', 'BRE FAILED')
+
+          OR (
+            UPPER(TRIM(COALESCE(status, ''))) = 'REJECTED'
+            AND UPPER(TRIM(COALESCE(stage, '')))
+                IN ('', 'LOGIN', 'BRE REJECTED', 'BRE FAILED')
+          )
+        )
+      `,
+      [newStatus, newStage, lan]
+    );
+
+    if (result.affectedRows === 0) {
+      const [rows] = await db.promise().query(
+        `
+        SELECT
+          lan,
+          status,
+          stage,
+          zebrs_bre_status
+        FROM loan_booking_zebrs
+        WHERE lan = ?
+        LIMIT 1
+        `,
+        [lan]
+      );
+
+      if (!rows.length) {
+        return res.status(404).json({
+          success: false,
+          message: "Zebrs loan not found",
+        });
+      }
+
+      return res.status(409).json({
+        success: false,
+        message:
+          "Loan is already reviewed or not eligible for BRE review",
+        current_status: rows[0].status,
+        current_stage: rows[0].stage,
+      });
+    }
+
+    // Read back actual saved database values.
+    const [[updatedLoan]] = await db.promise().query(
+      `
+      SELECT
+        lan,
+        status,
+        stage,
+        zebrs_bre_status,
+        zebrs_bre_reason
+      FROM loan_booking_zebrs
+      WHERE lan = ?
+      LIMIT 1
+      `,
+      [lan]
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: approved
+        ? "BRE rejected loan moved directly to Operations Initiated"
+        : "BRE rejected loan finalized as Rejected",
+
+      lan: updatedLoan.lan,
+      status: updatedLoan.status,
+      stage: updatedLoan.stage,
+
+      original_bre_status: updatedLoan.zebrs_bre_status,
+      original_bre_reason: updatedLoan.zebrs_bre_reason,
+
+      next_screen: approved
+        ? "Zebrs Operation Approval Cases"
+        : "Final Rejected Cases",
+    });
+
+  } catch (error) {
+    console.error("Zebrs BRE Review Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update Zebrs BRE review",
+    });
+  }
+});
+
 
 module.exports = router;

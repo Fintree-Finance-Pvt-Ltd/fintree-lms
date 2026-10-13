@@ -208,7 +208,30 @@ const initDoqfyEsign = async (lan, type) => {
 
     console.log("✅ LOAN FETCHED");
 
-    const partyUsers = buildDoqfyPartyUsers(loan, esignParties, type);
+    // const partyUsers = buildDoqfyPartyUsers(loan, esignParties, type);
+
+    const borrowerOnlyUat =
+  process.env.NODE_ENV !== "production" &&
+  process.env.ZEBRS_UAT_BORROWER_ONLY_ESIGN === "true" &&
+  String(lan).startsWith("ZBCL");
+
+const selectedParties = borrowerOnlyUat
+  ? esignParties.filter(
+      (party) => String(party.role).toUpperCase() === "BORROWER"
+    )
+  : esignParties;
+
+if (borrowerOnlyUat && selectedParties.length !== 1) {
+  throw new Error(
+    "Zebrs UAT borrower-only eSign requires exactly one BORROWER signer"
+  );
+}
+
+const partyUsers = buildDoqfyPartyUsers(
+  loan,
+  selectedParties,
+  type
+);
 
     // ClaimCureBuddy-only multiple co-applicant handling
     if (

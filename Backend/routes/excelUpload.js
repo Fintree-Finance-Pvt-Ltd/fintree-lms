@@ -2119,6 +2119,7 @@ router.post("/update-umrn", (req, res) => {
     loan_booking_bundela: true,
     loan_booking_srbh: true,
     loan_booking_saswat: true,
+    loan_booking_zebrs: true,
   };
 
   if (!allowedTables[table]) {

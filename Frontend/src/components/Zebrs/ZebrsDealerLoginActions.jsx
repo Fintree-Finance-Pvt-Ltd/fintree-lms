@@ -57,12 +57,8 @@ const ZebrsDealerLoginActions = () => {
       });
 
       setRows((prev) =>
-        prev.map((row) =>
-          row.lan === lan
-            ? { ...row, status: status.toUpperCase() }
-            : row
-        )
-      );
+  prev.filter((row) => row.lan !== lan)
+);
     } catch (error) {
       console.error("Zebrs Status Update Error:", error);
       alert(

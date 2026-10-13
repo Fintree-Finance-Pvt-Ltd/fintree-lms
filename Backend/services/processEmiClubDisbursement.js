@@ -1,5 +1,7 @@
 const db = require("../config/db");
-const { generateRepaymentSchedule } = require("../utils/repaymentScheduleGenerator");
+const {
+  generateRepaymentSchedule,
+} = require("../utils/repaymentScheduleGenerator");
 const {
   generateRapidMoneyRepaymentSchedule,
 } = require("../utils/generateRapidMoneyRepaymentSchedule");
@@ -14,20 +16,24 @@ const {
 } = require("./welcomeLetterService");
 const { welcomeLetterQueue } = require("../workers/welcomeLetterQueue");
 
-async function processEmiClubDisbursement({ lan, disbursementUTR, disbursementDate }) {
-   console.log("[EMICLUB][START] Processing disbursement", {
+async function processEmiClubDisbursement({
+  lan,
+  disbursementUTR,
+  disbursementDate,
+}) {
+  console.log("[EMICLUB][START] Processing disbursement", {
     lan,
     disbursementUTR,
     disbursementDate,
   });
   // ✅ Only EMI CLUB
-  if (!lan || !lan.startsWith("FINE")) return { skipped: true, reason: "NOT_EMICLUB" };
-   console.log("[EMICLUB][SKIP] Not an EMI CLUB loan", { lan });
+  if (!lan || !lan.startsWith("FINE"))
+    return { skipped: true, reason: "NOT_EMICLUB" };
+  console.log("[EMICLUB][SKIP] Not an EMI CLUB loan", { lan });
 
   // ✅ Basic validation
   if (!disbursementUTR || !disbursementDate) {
-
-     console.log("[EMICLUB][SKIP] Missing UTR or Disbursement Date", {
+    console.log("[EMICLUB][SKIP] Missing UTR or Disbursement Date", {
       disbursementUTR,
       disbursementDate,
     });
@@ -37,8 +43,7 @@ async function processEmiClubDisbursement({ lan, disbursementUTR, disbursementDa
 
   let conn;
   try {
-
-       console.log("[EMICLUB][DB] Getting DB connection");
+    console.log("[EMICLUB][DB] Getting DB connection");
 
     conn = await db.promise().getConnection();
     await conn.beginTransaction();
@@ -53,7 +58,7 @@ async function processEmiClubDisbursement({ lan, disbursementUTR, disbursementDa
       WHERE lan = ?
       FOR UPDATE
       `,
-      [lan]
+      [lan],
     );
 
     if (!loan) throw new Error(`EMI CLUB loan not found: ${lan}`);
@@ -69,7 +74,7 @@ async function processEmiClubDisbursement({ lan, disbursementUTR, disbursementDa
     ================================================= */
     const [utrExists] = await conn.query(
       `SELECT 1 FROM ev_disbursement_utr WHERE Disbursement_UTR = ? LIMIT 1`,
-      [disbursementUTR]
+      [disbursementUTR],
     );
 
     if (utrExists.length > 0) {
@@ -81,7 +86,7 @@ async function processEmiClubDisbursement({ lan, disbursementUTR, disbursementDa
        3) Generate Repayment Schedule (RPS)
        IMPORTANT: pass conn (transaction connection)
     ================================================= */
- console.log("[EMICLUB][STEP 3] Generating repayment schedule", {
+    console.log("[EMICLUB][STEP 3] Generating repayment schedule", {
       lan,
       amount: loan.loan_amount,
       interest_rate: loan.interest_rate,
@@ -101,24 +106,24 @@ async function processEmiClubDisbursement({ lan, disbursementUTR, disbursementDa
       null,
       null,
       loan.product,
-      loan.lender
+      loan.lender,
     );
 
     /* =================================================
        4) Insert into ev_disbursement_utr
     ================================================= */
 
-      console.log("[EMICLUB][STEP 4] Inserting disbursement UTR");
+    console.log("[EMICLUB][STEP 4] Inserting disbursement UTR");
     await conn.query(
       `
       INSERT INTO ev_disbursement_utr
         (Disbursement_UTR, Disbursement_Date, LAN)
       VALUES (?, ?, ?)
       `,
-      [disbursementUTR, disbursementDate, lan]
+      [disbursementUTR, disbursementDate, lan],
     );
 
-  console.log("[EMICLUB][STEP 4] Disbursement UTR inserted");
+    console.log("[EMICLUB][STEP 4] Disbursement UTR inserted");
 
     /* =================================================
        5) Update EMI CLUB loan status to Disbursed
@@ -127,17 +132,16 @@ async function processEmiClubDisbursement({ lan, disbursementUTR, disbursementDa
     console.log("[EMICLUB][STEP 5] Updating loan status to Disbursed", { lan });
     await conn.query(
       `UPDATE loan_booking_emiclub SET status = 'Disbursed' WHERE lan = ?`,
-      [lan]
+      [lan],
     );
 
-
-        console.log("[EMICLUB][DB] Committing transaction");
+    console.log("[EMICLUB][DB] Committing transaction");
     await conn.commit();
 
     /* =================================================
        6) Webhook (do AFTER commit)
     ================================================= */
-      console.log("[EMICLUB][STEP 6] Sending disbursement webhook", {
+    console.log("[EMICLUB][STEP 6] Sending disbursement webhook", {
       lan,
       utr: disbursementUTR,
     });
@@ -151,7 +155,9 @@ async function processEmiClubDisbursement({ lan, disbursementUTR, disbursementDa
       reject_reason: null,
     });
 
- console.log("[EMICLUB][SUCCESS] Disbursement completed successfully", { lan });
+    console.log("[EMICLUB][SUCCESS] Disbursement completed successfully", {
+      lan,
+    });
 
     return { success: true };
   } catch (err) {
@@ -162,15 +168,18 @@ async function processEmiClubDisbursement({ lan, disbursementUTR, disbursementDa
   }
 }
 
-
-async function processRapidMoneyDisbursement({ lan, disbursementUTR, disbursementDate }) {
+async function processRapidMoneyDisbursement({
+  lan,
+  disbursementUTR,
+  disbursementDate,
+}) {
   // ✅ Only EMI CLUB
-  if (!lan || !lan.startsWith("RML")) return { skipped: true, reason: "NOT_RapidMoney" };
+  if (!lan || !lan.startsWith("RML"))
+    return { skipped: true, reason: "NOT_RapidMoney" };
 
   // ✅ Basic validation
   if (!disbursementUTR || !disbursementDate) {
-
-     console.log("[Rapid money][SKIP] Missing UTR or Disbursement Date", {
+    console.log("[Rapid money][SKIP] Missing UTR or Disbursement Date", {
       lan,
       disbursementUTR,
       disbursementDate,
@@ -181,7 +190,6 @@ async function processRapidMoneyDisbursement({ lan, disbursementUTR, disbursemen
 
   let conn;
   try {
-
     conn = await db.promise().getConnection();
     await conn.beginTransaction();
 
@@ -195,7 +203,7 @@ async function processRapidMoneyDisbursement({ lan, disbursementUTR, disbursemen
       WHERE lan = ?
       FOR UPDATE
       `,
-      [lan]
+      [lan],
     );
 
     if (!loan) throw new Error(`Rapid Money loan not found: ${lan}`);
@@ -211,7 +219,7 @@ async function processRapidMoneyDisbursement({ lan, disbursementUTR, disbursemen
     ================================================= */
     const [utrExists] = await conn.query(
       `SELECT 1 FROM ev_disbursement_utr WHERE Disbursement_UTR = ? LIMIT 1`,
-      [disbursementUTR]
+      [disbursementUTR],
     );
 
     if (utrExists.length > 0) {
@@ -220,23 +228,23 @@ async function processRapidMoneyDisbursement({ lan, disbursementUTR, disbursemen
     }
 
     const [existingRps] = await conn.query(
-  `
+      `
   SELECT id
   FROM manual_rps_switch_my_loan
   WHERE lan = ?
   LIMIT 1
   `,
-  [lan]
-);
+      [lan],
+    );
 
-if (existingRps.length > 0) {
-  await conn.rollback();
+    if (existingRps.length > 0) {
+      await conn.rollback();
 
-  return {
-    skipped: true,
-    reason: "RPS_ALREADY_EXISTS",
-  };
-}
+      return {
+        skipped: true,
+        reason: "RPS_ALREADY_EXISTS",
+      };
+    }
 
     /* =================================================
        3) Generate Repayment Schedule (RPS)
@@ -249,7 +257,7 @@ if (existingRps.length > 0) {
       loan.interest_rate,
       loan.tenure,
       disbursementDate,
-      loan.repayment_date
+      loan.repayment_date,
     );
 
     /* =================================================
@@ -262,7 +270,7 @@ if (existingRps.length > 0) {
         (Disbursement_UTR, Disbursement_Date, LAN)
       VALUES (?, ?, ?)
       `,
-      [disbursementUTR, disbursementDate, lan]
+      [disbursementUTR, disbursementDate, lan],
     );
 
     /* =================================================
@@ -271,7 +279,7 @@ if (existingRps.length > 0) {
 
     await conn.query(
       `UPDATE loan_booking_switch_my_loan SET status = 'Disbursed' WHERE lan = ?`,
-      [lan]
+      [lan],
     );
 
     await conn.commit();
@@ -280,13 +288,20 @@ if (existingRps.length > 0) {
        6) Welcome letter + webhook (do AFTER commit)
     ================================================= */
 
- console.log("[Rapid money][SUCCESS] Disbursement completed successfully", { lan, utr: disbursementUTR });
+    console.log("[Rapid money][SUCCESS] Disbursement completed successfully", {
+      lan,
+      utr: disbursementUTR,
+    });
 
     try {
-      const welcomeLetterResult = await welcomeLetterQueue.add("send-welcome-letter", {
-        lan,
-        utrNumber: disbursementUTR,
-      }, { jobId: `welcome-${lan}-${Date.now()}` });
+      const welcomeLetterResult = await welcomeLetterQueue.add(
+        "send-welcome-letter",
+        {
+          lan,
+          utrNumber: disbursementUTR,
+        },
+        { jobId: `welcome-${lan}-${Date.now()}` },
+      );
 
       console.log("[Rapid money][WELCOME_LETTER] Sent", {
         lan,
@@ -302,7 +317,8 @@ if (existingRps.length > 0) {
         lan,
         utr: disbursementUTR,
         errorCode: welcomeLetterError?.code || "WELCOME_LETTER_FAILED",
-        errorMessage: welcomeLetterError?.message || "Unable to send welcome letter",
+        errorMessage:
+          welcomeLetterError?.message || "Unable to send welcome letter",
       });
     }
 
@@ -335,13 +351,10 @@ async function processQuickMoneyDisbursement({
   }
 
   if (!disbursementUTR || !disbursementDate) {
-    console.log(
-      "[Quick Money][SKIP] Missing UTR or Disbursement Date",
-      {
-        disbursementUTR,
-        disbursementDate,
-      }
-    );
+    console.log("[Quick Money][SKIP] Missing UTR or Disbursement Date", {
+      disbursementUTR,
+      disbursementDate,
+    });
 
     return {
       skipped: true,
@@ -352,9 +365,7 @@ async function processQuickMoneyDisbursement({
   let conn;
 
   try {
-    console.log(
-      "[Quick Money][DB] Getting DB connection"
-    );
+    console.log("[Quick Money][DB] Getting DB connection");
 
     conn = await db.promise().getConnection();
 
@@ -378,20 +389,15 @@ async function processQuickMoneyDisbursement({
       WHERE lan = ?
       FOR UPDATE
       `,
-      [lan]
+      [lan],
     );
 
     if (!loan) {
-      throw new Error(
-        `Quick Money loan not found: ${lan}`
-      );
+      throw new Error(`Quick Money loan not found: ${lan}`);
     }
 
     // Already disbursed
-    if (
-      String(loan.status).toLowerCase() ===
-      "disbursed"
-    ) {
+    if (String(loan.status).toLowerCase() === "disbursed") {
       await conn.rollback();
 
       return {
@@ -411,7 +417,7 @@ async function processQuickMoneyDisbursement({
       WHERE Disbursement_UTR = ?
       LIMIT 1
       `,
-      [disbursementUTR]
+      [disbursementUTR],
     );
 
     if (utrExists.length > 0) {
@@ -434,7 +440,7 @@ async function processQuickMoneyDisbursement({
       WHERE lan = ?
       LIMIT 1
       `,
-      [lan]
+      [lan],
     );
 
     if (existingRps.length > 0) {
@@ -450,18 +456,15 @@ async function processQuickMoneyDisbursement({
        4) Generate repayment schedule
     ================================================= */
 
-    console.log(
-      "[Quick Money][STEP 4] Generating repayment schedule",
-      {
-        lan,
-        application_id: loan.application_id,
-        repayment_date: loan.repayment_date,
-        amount: loan.loan_amount,
-        interest_rate: loan.interest_rate,
-        tenure: loan.tenure,
-        disbursementDate,
-      }
-    );
+    console.log("[Quick Money][STEP 4] Generating repayment schedule", {
+      lan,
+      application_id: loan.application_id,
+      repayment_date: loan.repayment_date,
+      amount: loan.loan_amount,
+      interest_rate: loan.interest_rate,
+      tenure: loan.tenure,
+      disbursementDate,
+    });
 
     await generateQuickMoneyRepaymentSchedule(
       conn,
@@ -470,16 +473,14 @@ async function processQuickMoneyDisbursement({
       loan.interest_rate,
       loan.tenure,
       disbursementDate,
-      loan.repayment_date
+      loan.repayment_date,
     );
 
     /* =================================================
        5) Insert disbursement UTR
     ================================================= */
 
-    console.log(
-      "[Quick Money][STEP 5] Inserting disbursement UTR"
-    );
+    console.log("[Quick Money][STEP 5] Inserting disbursement UTR");
 
     await conn.query(
       `
@@ -491,25 +492,18 @@ async function processQuickMoneyDisbursement({
       )
       VALUES (?, ?, ?)
       `,
-      [
-        disbursementUTR,
-        disbursementDate,
-        lan,
-      ]
+      [disbursementUTR, disbursementDate, lan],
     );
 
-    console.log(
-      "[Quick Money][STEP 5] Disbursement UTR inserted"
-    );
+    console.log("[Quick Money][STEP 5] Disbursement UTR inserted");
 
     /* =================================================
        6) Update loan status
     ================================================= */
 
-    console.log(
-      "[Quick Money][STEP 6] Updating loan status to Disbursed",
-      { lan }
-    );
+    console.log("[Quick Money][STEP 6] Updating loan status to Disbursed", {
+      lan,
+    });
 
     await conn.query(
       `
@@ -517,29 +511,30 @@ async function processQuickMoneyDisbursement({
       SET status = 'Disbursed'
       WHERE lan = ?
       `,
-      [lan]
+      [lan],
     );
 
     /* =================================================
        7) Commit
     ================================================= */
 
-    console.log(
-      "[Quick Money][DB] Committing transaction"
-    );
+    console.log("[Quick Money][DB] Committing transaction");
 
     await conn.commit();
 
-    console.log(
-      "[Quick Money][SUCCESS] Disbursement completed successfully",
-      { lan }
-    );
+    console.log("[Quick Money][SUCCESS] Disbursement completed successfully", {
+      lan,
+    });
 
     try {
-      const welcomeLetterResult = await welcomeLetterQueue.add("send-welcome-letter", {
-        lan,
-        utrNumber: disbursementUTR,
-      }, { jobId: `welcome-${lan}-${Date.now()}` });
+      const welcomeLetterResult = await welcomeLetterQueue.add(
+        "send-welcome-letter",
+        {
+          lan,
+          utrNumber: disbursementUTR,
+        },
+        { jobId: `welcome-${lan}-${Date.now()}` },
+      );
 
       console.log("[Quick Money][WELCOME_LETTER] Sent", {
         lan,
@@ -555,7 +550,8 @@ async function processQuickMoneyDisbursement({
         lan,
         utr: disbursementUTR,
         errorCode: welcomeLetterError?.code || "WELCOME_LETTER_FAILED",
-        errorMessage: welcomeLetterError?.message || "Unable to send welcome letter",
+        errorMessage:
+          welcomeLetterError?.message || "Unable to send welcome letter",
       });
     }
 
@@ -565,35 +561,39 @@ async function processQuickMoneyDisbursement({
       disbursementUTR,
       disbursementDate,
     };
-
   } catch (err) {
-
     if (conn) {
       await conn.rollback();
     }
 
-    console.error(
-      "[Quick Money][ERROR]",
-      {
-        lan,
-        error: err.message,
-      }
-    );
+    console.error("[Quick Money][ERROR]", {
+      lan,
+      error: err.message,
+    });
 
     throw err;
-
   } finally {
-
     if (conn) {
       conn.release();
     }
   }
 }
 
-async function processLoanDigitDisbursement({ lan, disbursementUTR, disbursementDate }) {
-   console.log("[Loan Digit][START] Processing disbursement", { lan, disbursementUTR, disbursementDate });
+async function processLoanDigitDisbursement({
+  lan,
+  disbursementUTR,
+  disbursementDate,
+}) {
+  console.log("[Loan Digit][START] Processing disbursement", {
+    lan,
+    disbursementUTR,
+    disbursementDate,
+  });
 
-  if (!lan || (!lan.startsWith("LDF") && !lan.startsWith("LDG") && !lan.startsWith("LDD"))) {
+  if (
+    !lan ||
+    (!lan.startsWith("LDF") && !lan.startsWith("LDG") && !lan.startsWith("LDD"))
+  ) {
     return { skipped: true, reason: "NOT_LOAN_DIGIT" };
   }
 
@@ -613,7 +613,7 @@ async function processLoanDigitDisbursement({ lan, disbursementUTR, disbursement
       WHERE lan = ?
       FOR UPDATE
       `,
-      [lan]
+      [lan],
     );
 
     if (!loan) throw new Error(`Loan Digit loan not found: ${lan}`);
@@ -625,7 +625,7 @@ async function processLoanDigitDisbursement({ lan, disbursementUTR, disbursement
 
     const [utrExists] = await conn.query(
       `SELECT 1 FROM ev_disbursement_utr WHERE Disbursement_UTR = ? LIMIT 1`,
-      [disbursementUTR]
+      [disbursementUTR],
     );
 
     if (utrExists.length > 0) {
@@ -646,19 +646,19 @@ async function processLoanDigitDisbursement({ lan, disbursementUTR, disbursement
       null, // advance emis
       loan.pre_emi, // pre_emi
       loan.product,
-      loan.lender || "Loan Digit"
+      loan.lender || "Loan Digit",
     );
 
     // Insert UTR
     await conn.query(
       `INSERT INTO ev_disbursement_utr (Disbursement_UTR, Disbursement_Date, LAN) VALUES (?, ?, ?)`,
-      [disbursementUTR, disbursementDate, lan]
+      [disbursementUTR, disbursementDate, lan],
     );
 
     // Update status
     await conn.query(
       `UPDATE loan_booking_loan_digit SET status = 'DISBURSED' WHERE lan = ?`,
-      [lan]
+      [lan],
     );
 
     await conn.commit();
@@ -668,14 +668,19 @@ async function processLoanDigitDisbursement({ lan, disbursementUTR, disbursement
         await sendLoanWebhook({
           external_ref_no: loan.partner_loan_id,
           utr: disbursementUTR,
-          disbursement_date: new Date(disbursementDate).toISOString().split("T")[0],
+          disbursement_date: new Date(disbursementDate)
+            .toISOString()
+            .split("T")[0],
           reference_number: lan,
           status: "DISBURSED",
           reject_reason: null,
         });
       }
     } catch (webhookErr) {
-      console.error(`⚠️ LoanDigit webhook failed for ${lan}:`, webhookErr.message);
+      console.error(
+        `⚠️ LoanDigit webhook failed for ${lan}:`,
+        webhookErr.message,
+      );
     }
 
     return { success: true };
@@ -687,8 +692,16 @@ async function processLoanDigitDisbursement({ lan, disbursementUTR, disbursement
   }
 }
 
-async function processFinsoDisbursement({ lan, disbursementUTR, disbursementDate }) {
-   console.log("[Finso][START] Processing disbursement", { lan, disbursementUTR, disbursementDate });
+async function processFinsoDisbursement({
+  lan,
+  disbursementUTR,
+  disbursementDate,
+}) {
+  console.log("[Finso][START] Processing disbursement", {
+    lan,
+    disbursementUTR,
+    disbursementDate,
+  });
 
   if (!lan || !lan.startsWith("FINS")) {
     return { skipped: true, reason: "NOT_FINSO" };
@@ -710,7 +723,7 @@ async function processFinsoDisbursement({ lan, disbursementUTR, disbursementDate
       WHERE lan = ?
       FOR UPDATE
       `,
-      [lan]
+      [lan],
     );
 
     if (!loan) throw new Error(`Finso loan not found: ${lan}`);
@@ -722,7 +735,7 @@ async function processFinsoDisbursement({ lan, disbursementUTR, disbursementDate
 
     const [utrExists] = await conn.query(
       `SELECT 1 FROM ev_disbursement_utr WHERE Disbursement_UTR = ? LIMIT 1`,
-      [disbursementUTR]
+      [disbursementUTR],
     );
 
     if (utrExists.length > 0) {
@@ -743,19 +756,19 @@ async function processFinsoDisbursement({ lan, disbursementUTR, disbursementDate
       null, // advance emis
       loan.pre_emi, // pre_emi
       loan.product,
-      loan.lender || "Finso"
+      loan.lender || "Finso",
     );
 
     // Insert UTR
     await conn.query(
       `INSERT INTO ev_disbursement_utr (Disbursement_UTR, Disbursement_Date, LAN) VALUES (?, ?, ?)`,
-      [disbursementUTR, disbursementDate, lan]
+      [disbursementUTR, disbursementDate, lan],
     );
 
     // Update status
     await conn.query(
       `UPDATE loan_booking_finso SET status = 'DISBURSED' WHERE lan = ?`,
-      [lan]
+      [lan],
     );
 
     await conn.commit();
@@ -765,7 +778,9 @@ async function processFinsoDisbursement({ lan, disbursementUTR, disbursementDate
         await sendLoanWebhook({
           external_ref_no: loan.partner_loan_id,
           utr: disbursementUTR,
-          disbursement_date: new Date(disbursementDate).toISOString().split("T")[0],
+          disbursement_date: new Date(disbursementDate)
+            .toISOString()
+            .split("T")[0],
           reference_number: lan,
           status: "DISBURSED",
           reject_reason: null,
@@ -1101,9 +1116,7 @@ async function processCarePayDisbursement({
     const effectiveDisbursementDate = new Date(disbursementDate);
 
     if (Number.isNaN(effectiveDisbursementDate.getTime())) {
-      throw new Error(
-        `Invalid CarePay disbursement date: ${disbursementDate}`,
-      );
+      throw new Error(`Invalid CarePay disbursement date: ${disbursementDate}`);
     }
 
     /*
@@ -1113,37 +1126,32 @@ async function processCarePayDisbursement({
      * Ensure updateDisbursedLimit() is idempotent by LAN.
      */
     if (String(loan.status).toLowerCase() === "disbursed") {
-      const { month, year } = getMonthYear(
-        effectiveDisbursementDate,
-      );
+      const { month, year } = getMonthYear(effectiveDisbursementDate);
 
       const partnerName = "CAREPAY";
 
       let limitResult;
 
       try {
-        const partner =
-          await partnerLimitService.getOrCreatePartner(
-            conn,
-            partnerName,
-          );
+        const partner = await partnerLimitService.getOrCreatePartner(
+          conn,
+          partnerName,
+        );
 
-        const limit =
-          await partnerLimitService.getPartnerMonthlyLimit(
-            conn,
-            partner.partner_id,
-            month,
-            year,
-          );
+        const limit = await partnerLimitService.getPartnerMonthlyLimit(
+          conn,
+          partner.partner_id,
+          month,
+          year,
+        );
 
         try {
-          limitResult =
-            await partnerLimitService.updateDisbursedLimit(
-              conn,
-              limit.id,
-              loanAmount,
-              lan,
-            );
+          limitResult = await partnerLimitService.updateDisbursedLimit(
+            conn,
+            limit.id,
+            loanAmount,
+            lan,
+          );
         } catch (err) {
           if (err.message === "DISBURSEMENT_LIMIT_EXCEEDED") {
             err.meta = {
@@ -1259,37 +1267,32 @@ async function processCarePayDisbursement({
     /*
      * Update partner monthly disbursement limit.
      */
-    const { month, year } = getMonthYear(
-      effectiveDisbursementDate,
-    );
+    const { month, year } = getMonthYear(effectiveDisbursementDate);
 
     const partnerName = "CAREPAY";
 
     let limitResult;
 
     try {
-      const partner =
-        await partnerLimitService.getOrCreatePartner(
-          conn,
-          partnerName,
-        );
+      const partner = await partnerLimitService.getOrCreatePartner(
+        conn,
+        partnerName,
+      );
 
-      const limit =
-        await partnerLimitService.getPartnerMonthlyLimit(
-          conn,
-          partner.partner_id,
-          month,
-          year,
-        );
+      const limit = await partnerLimitService.getPartnerMonthlyLimit(
+        conn,
+        partner.partner_id,
+        month,
+        year,
+      );
 
       try {
-        limitResult =
-          await partnerLimitService.updateDisbursedLimit(
-            conn,
-            limit.id,
-            loanAmount,
-            lan,
-          );
+        limitResult = await partnerLimitService.updateDisbursedLimit(
+          conn,
+          limit.id,
+          loanAmount,
+          lan,
+        );
       } catch (err) {
         if (err.message === "DISBURSEMENT_LIMIT_EXCEEDED") {
           err.meta = {
@@ -1304,15 +1307,12 @@ async function processCarePayDisbursement({
         throw err;
       }
 
-      console.log(
-        "[CarePay][LIMIT] Disbursement limit processed",
-        {
-          lan,
-          loanAmount,
-          netDisbursement: finalDisbursedAmount,
-          limitResult,
-        },
-      );
+      console.log("[CarePay][LIMIT] Disbursement limit processed", {
+        lan,
+        loanAmount,
+        netDisbursement: finalDisbursedAmount,
+        limitResult,
+      });
     } catch (err) {
       if (err.message === "DISBURSEMENT_LIMIT_EXCEEDED") {
         throw err;
@@ -1338,13 +1338,9 @@ async function processCarePayDisbursement({
      * Send webhook after successful commit.
      */
     const carePayWebhookPayload = {
-      external_ref_no: String(
-        loan.partner_loan_id || "",
-      ).trim(),
+      external_ref_no: String(loan.partner_loan_id || "").trim(),
       utr: String(disbursementUTR).trim(),
-      disbursement_date: effectiveDisbursementDate
-        .toISOString()
-        .split("T")[0],
+      disbursement_date: effectiveDisbursementDate.toISOString().split("T")[0],
       reference_number: String(lan).trim(),
       status: "DISBURSED",
       reject_reason: null,
@@ -1353,33 +1349,24 @@ async function processCarePayDisbursement({
       finalDisbursedAmount,
     };
 
-    const webhookResult = await sendLoanWebhook(
-      carePayWebhookPayload,
-    );
+    const webhookResult = await sendLoanWebhook(carePayWebhookPayload);
 
     if (webhookResult?.success) {
-      console.log(
-        "[CarePay][WEBHOOK] Webhook sent successfully",
-        {
-          lan,
-          payload: carePayWebhookPayload,
-          status: webhookResult.status,
-          responseData: webhookResult.data,
-        },
-      );
+      console.log("[CarePay][WEBHOOK] Webhook sent successfully", {
+        lan,
+        payload: carePayWebhookPayload,
+        status: webhookResult.status,
+        responseData: webhookResult.data,
+      });
     } else {
-      console.error(
-        "[CarePay][WEBHOOK] Webhook was not sent",
-        {
-          lan,
-          payload: carePayWebhookPayload,
-          webhookResult:
-            webhookResult || {
-              success: false,
-              reason: "EMPTY_WEBHOOK_RESULT",
-            },
+      console.error("[CarePay][WEBHOOK] Webhook was not sent", {
+        lan,
+        payload: carePayWebhookPayload,
+        webhookResult: webhookResult || {
+          success: false,
+          reason: "EMPTY_WEBHOOK_RESULT",
         },
-      );
+      });
     }
 
     return {
@@ -1392,24 +1379,18 @@ async function processCarePayDisbursement({
       try {
         await conn.rollback();
       } catch (rollbackError) {
-        console.error(
-          "[CarePay][ROLLBACK] Failed to rollback transaction",
-          {
-            lan,
-            message: rollbackError.message,
-          },
-        );
+        console.error("[CarePay][ROLLBACK] Failed to rollback transaction", {
+          lan,
+          message: rollbackError.message,
+        });
       }
     }
 
-    console.error(
-      "[CarePay][ERROR] Disbursement processing failed",
-      {
-        lan,
-        message: err.message,
-        meta: err.meta || null,
-      },
-    );
+    console.error("[CarePay][ERROR] Disbursement processing failed", {
+      lan,
+      message: err.message,
+      meta: err.meta || null,
+    });
 
     throw err;
   } finally {
@@ -1490,10 +1471,7 @@ async function generateYaMoneyRepaymentSchedule({
     throw new Error(`Invalid Ya Money interest rate: ${interestRate}`);
   }
 
-  if (
-    !Number.isInteger(repaymentTenure) ||
-    repaymentTenure <= 0
-  ) {
+  if (!Number.isInteger(repaymentTenure) || repaymentTenure <= 0) {
     throw new Error(`Invalid Ya Money tenure: ${tenure}`);
   }
 
@@ -1563,6 +1541,8 @@ async function generateYaMoneyRepaymentSchedule({
       openingPrincipal,
       closingPrincipal,
       "Pending",
+      actualEmi, // remaining_amount: outstanding installment amount
+      0,
     ]);
 
     openingPrincipal = closingPrincipal;
@@ -1588,7 +1568,9 @@ async function generateYaMoneyRepaymentSchedule({
         remaining_emi,
         opening,
         closing,
-        status
+        status,
+        remaining_amount,
+      extra_paid
       )
     VALUES ?
     `,
@@ -1679,7 +1661,9 @@ async function processYaMoneyDisbursement({
   disbursementUTR,
   disbursementDate,
 }) {
-  const normalizedLan = String(lan || "").trim().toUpperCase();
+  const normalizedLan = String(lan || "")
+    .trim()
+    .toUpperCase();
 
   console.log("[YaMoney][START] Processing disbursement", {
     lan: normalizedLan,
@@ -1850,16 +1834,13 @@ async function processYaMoneyDisbursement({
       disbursementDate: effectiveDisbursementDate,
     });
 
-    console.log(
-      "[YaMoney][LIMIT] Disbursement limit processed",
-      {
-        lan: normalizedLan,
-        loanAmount,
-        netDisbursement: finalDisbursedAmount,
-        rpsResult,
-        limitResult,
-      },
-    );
+    console.log("[YaMoney][LIMIT] Disbursement limit processed", {
+      lan: normalizedLan,
+      loanAmount,
+      netDisbursement: finalDisbursedAmount,
+      rpsResult,
+      limitResult,
+    });
 
     /*
      * Commit all database changes before sending webhook.
@@ -1871,44 +1852,31 @@ async function processYaMoneyDisbursement({
      * Send webhook after successful commit.
      */
     const yaMoneyWebhookPayload = {
-      external_ref_no: String(
-        loan.partner_loan_id || "",
-      ).trim(),
+      external_ref_no: String(loan.partner_loan_id || "").trim(),
       utr: String(disbursementUTR).trim(),
-      disbursement_date: effectiveDisbursementDate
-        .toISOString()
-        .split("T")[0],
+      disbursement_date: effectiveDisbursementDate.toISOString().split("T")[0],
       reference_number: normalizedLan,
       status: "DISBURSED",
       reject_reason: null,
     };
 
-    const webhookResult = await sendLoanWebhook(
-      yaMoneyWebhookPayload,
-    );
+    const webhookResult = await sendLoanWebhook(yaMoneyWebhookPayload);
 
     if (webhookResult) {
-      console.log(
-        "[YaMoney][WEBHOOK] Webhook sent successfully",
-        {
-          lan: normalizedLan,
-          payload: yaMoneyWebhookPayload,
-          webhookResult,
-        },
-      );
+      console.log("[YaMoney][WEBHOOK] Webhook sent successfully", {
+        lan: normalizedLan,
+        payload: yaMoneyWebhookPayload,
+        webhookResult,
+      });
     } else {
-      console.error(
-        "[YaMoney][WEBHOOK] Webhook was not sent",
-        {
-          lan: normalizedLan,
-          payload: yaMoneyWebhookPayload,
-          webhookResult:
-            webhookResult || {
-              success: false,
-              reason: "EMPTY_WEBHOOK_RESULT",
-            },
+      console.error("[YaMoney][WEBHOOK] Webhook was not sent", {
+        lan: normalizedLan,
+        payload: yaMoneyWebhookPayload,
+        webhookResult: webhookResult || {
+          success: false,
+          reason: "EMPTY_WEBHOOK_RESULT",
         },
-      );
+      });
     }
 
     return {
@@ -1922,24 +1890,18 @@ async function processYaMoneyDisbursement({
       try {
         await conn.rollback();
       } catch (rollbackError) {
-        console.error(
-          "[YaMoney][ROLLBACK] Failed to rollback transaction",
-          {
-            lan: normalizedLan,
-            message: rollbackError.message,
-          },
-        );
+        console.error("[YaMoney][ROLLBACK] Failed to rollback transaction", {
+          lan: normalizedLan,
+          message: rollbackError.message,
+        });
       }
     }
 
-    console.error(
-      "[YaMoney][ERROR] Disbursement processing failed",
-      {
-        lan: normalizedLan,
-        message: err.message,
-        meta: err.meta || null,
-      },
-    );
+    console.error("[YaMoney][ERROR] Disbursement processing failed", {
+      lan: normalizedLan,
+      message: err.message,
+      meta: err.meta || null,
+    });
 
     throw err;
   } finally {
