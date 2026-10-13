@@ -102,6 +102,10 @@ const LAN_TABLE_MAP = {
   CBF: {
     table: "loan_booking_claim_buddy",
     statusCol: "status",
+    editableStatuses: new Set([
+    "login"
+  ]),
+
   },
   DLR: { table: "dealer_onboarding", statusCol: "status" },
   ZYPF: { table: "loan_booking_zypay_customer", statusCol: "status" },
