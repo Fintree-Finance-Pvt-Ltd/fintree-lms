@@ -545,6 +545,16 @@ const {
   // sendWelcomeLetterAfterUtrUpload,
 } = require("../services/welcomeLetterService");
 const { welcomeLetterQueue } = require("../workers/welcomeLetterQueue");
+const {
+  processRapidMoneyDisbursement,
+  processQuickMoneyDisbursement,
+} = require("../services/processEmiClubDisbursement");
+const {
+  sendDisbursementWebhook,
+} = require("./switchMyLoan/switchMyLoanWebhook");
+const {
+  sendQuickMoneyDisbursementWebhook,
+} = require("./QuickMoney/quickMoneyWebhook");
 
 function excelDateToJSDate(serial) {
   const utc_days = Math.floor(serial - 25569);
@@ -575,6 +585,8 @@ function getPartnerNameByLan(lan, lender, product) {
   if (lan.startsWith("HEYBF1")) return "HeyEV Battery";
   if (lan.startsWith("FINE")) return "EMIClub";
   if (lan.startsWith("FINS")) return "Finso";
+  if (lan.startsWith("RML")) return "RAPID-MONEY";
+  if (lan.startsWith("QML")) return "Quick Money";
   if (lan.startsWith("LDF") || lan.startsWith("LDG") || lan.startsWith("LDD"))
     return "Loan Digit";
   if (lan.startsWith("CLYO")) return "CLAYOO";
@@ -740,6 +752,149 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
         }
         continue;
       }
+
+      // Rapid Money (RML)
+      if (lan.startsWith("RML")) {
+        try {
+          // 1. Call partner webhook first
+          try {
+            const webhookResult = await sendDisbursementWebhook({
+              lan,
+              transactionId: String(disbursementUTR).trim(),
+              disbursementDate,
+            });
+
+            console.log("Rapid Money partner webhook result:", {
+              lan,
+              utr: disbursementUTR,
+              success: webhookResult?.success,
+              alreadySent: webhookResult?.alreadySent,
+              logId: webhookResult?.logId,
+              message: webhookResult?.message,
+            });
+
+            if (webhookResult && !webhookResult.success) {
+              rowErrors.push({
+                lan,
+                utr: disbursementUTR,
+                stage: "webhook",
+                reason: webhookResult.message || "Partner webhook failed",
+              });
+            }
+          } catch (webhookErr) {
+            console.error("Rapid Money partner webhook error:", webhookErr);
+            rowErrors.push({
+              lan,
+              utr: disbursementUTR,
+              stage: "webhook",
+              reason: webhookErr.message,
+            });
+          }
+
+          // 2. Process Repayment Schedule (RPS) + UTR + Status update
+          const result = await processRapidMoneyDisbursement({
+            lan,
+            disbursementUTR: String(disbursementUTR).trim(),
+            disbursementDate,
+          });
+
+          if (result && result.success) {
+            processedCount++;
+            insertedLANs.add(lan);
+          } else {
+            if (result?.reason === "DUPLICATE_UTR") {
+              duplicateUTRs.push(disbursementUTR);
+            }
+            rowErrors.push({
+              lan,
+              utr: disbursementUTR,
+              stage: "rapidmoney-disbursement",
+              reason: result?.reason || "Disbursement skipped",
+            });
+          }
+        } catch (error) {
+          console.error("Rapid Money disbursement processing error:", error);
+          rowErrors.push({
+            lan,
+            utr: disbursementUTR,
+            stage: "rapidmoney-disbursement",
+            reason: error.message,
+          });
+        }
+        continue;
+      }
+
+      // Quick Money (QML)
+      if (lan.startsWith("QML")) {
+        try {
+          // 1. Call partner webhook first
+          try {
+            const webhookResult = await sendQuickMoneyDisbursementWebhook({
+              lan,
+              transactionId: String(disbursementUTR).trim(),
+              disbursementDate,
+            });
+
+            console.log("Quick Money partner webhook result:", {
+              lan,
+              utr: disbursementUTR,
+              success: webhookResult?.success,
+              alreadySent: webhookResult?.alreadySent,
+              logId: webhookResult?.logId,
+              message: webhookResult?.message,
+            });
+
+            if (webhookResult && !webhookResult.success) {
+              rowErrors.push({
+                lan,
+                utr: disbursementUTR,
+                stage: "webhook",
+                reason: webhookResult.message || "Partner webhook failed",
+              });
+            }
+          } catch (webhookErr) {
+            console.error("Quick Money partner webhook error:", webhookErr);
+            rowErrors.push({
+              lan,
+              utr: disbursementUTR,
+              stage: "webhook",
+              reason: webhookErr.message,
+            });
+          }
+
+          // 2. Process Repayment Schedule (RPS) + UTR + Status update
+          const result = await processQuickMoneyDisbursement({
+            lan,
+            disbursementUTR: String(disbursementUTR).trim(),
+            disbursementDate,
+          });
+
+          if (result && result.success) {
+            processedCount++;
+            insertedLANs.add(lan);
+          } else {
+            if (result?.reason === "DUPLICATE_UTR") {
+              duplicateUTRs.push(disbursementUTR);
+            }
+            rowErrors.push({
+              lan,
+              utr: disbursementUTR,
+              stage: "quickmoney-disbursement",
+              reason: result?.reason || "Disbursement skipped",
+            });
+          }
+        } catch (error) {
+          console.error("Quick Money disbursement processing error:", error);
+          rowErrors.push({
+            lan,
+            utr: disbursementUTR,
+            stage: "quickmoney-disbursement",
+            reason: error.message,
+          });
+        }
+        continue;
+      }
+
       // Fetch loan details
       let loanRes = [];
       try {

@@ -832,6 +832,10 @@ router.post("/trigger", authenticateUser, async (req, res) => {
                 ["quick money", "quickmoney", "qml"].includes(lenderClean)
               ) {
                 targetTable = "loan_booking_quick_money";
+              } else if (
+                ["loan digit", "loandigit", "ldf"].includes(lenderClean)
+              ) {
+                targetTable = "loan_booking_loan_digit";
               }
 
               const exportedLans = [
