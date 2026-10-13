@@ -1014,6 +1014,20 @@ async function handleCirclePeHouserFinalSubmit(req, res) {
         ? parseNumber(body.loan_amount, "loan_amount")
         : parseNumber(currentLoan.loan_amount, "loan_amount");
 
+    if (finalLoanAmount <= 0) {
+      throw apiError(400, "loan_amount must be greater than zero");
+    }
+
+    // Loan amount cannot exceed the amount requested in /circle-pe/external
+    const requestedAmount = parseNumber(currentLoan.loan_amount, "loan_amount");
+
+    if (finalLoanAmount > requestedAmount) {
+      throw apiError(
+        400,
+        `loan_amount (${finalLoanAmount}) cannot be greater than requested amount (${requestedAmount})`,
+      );
+    }
+
     const finalInterestRate = parseNumber(interestPercent, "interest_rate");
 
     const finalTenure = parseInteger(loanTenureMonths, "loan_tenure");
