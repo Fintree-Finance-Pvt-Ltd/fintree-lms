@@ -125,9 +125,11 @@ if (process.env.RUN_CRONS === 'true') {
   require("./workers/nocQueue"); // Load the NOC Worker
 }
 // Daily WhatsApp Disbursement Case Count Report Scheduler
-if (process.env.RUN_CRONS === 'true' || process.env.WHATSAPP_AUTO_ENABLED === 'true') {
+// ✅ CORRECT: Runs only once in the dedicated cron process
+if (process.env.RUN_CRONS === 'true') {
   require("./jobs/whatsappDailyReportScheduler");
 }
+
 
 
 const fs = require("fs");
