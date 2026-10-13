@@ -85,6 +85,7 @@ const {
 const {
   sendQuickMoneyDisbursementWebhook, sendQuickMoneyRejectionWebhook
 } = require("./routes/QuickMoney/quickMoneyWebhook")
+const {autoApproveClaimBuddyIfAllVerified} = require("./routes/ClaimBuddy/claimBuddyBreEngine");
 
 const {
   // sendWelcomeLetterAfterUtrUpload,
