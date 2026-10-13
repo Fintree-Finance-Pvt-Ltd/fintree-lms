@@ -14,6 +14,9 @@ const runQuickMoneyBRE =
   const { verifyBank } = require("../../services/enachService");
   const { approveAndInitiatePayout } = require("../../services/payout.service");
   const {
+    sendQuickMoneyRejectionWebhook,
+  } = require("./quickMoneyWebhook");
+  const {
   extractPartnerName,
   getMonthYear,
   validatePartnerName,
@@ -791,6 +794,11 @@ function extraBankSurnameMatch(
   const bankWithoutLast =
     bankParts.slice(0, -1);
 
+  const hasSubstantialToken = bankWithoutLast.some((part) => part.length >= 2);
+  if (!hasSubstantialToken) {
+    return false;
+  }
+
   return bankNameSequenceMatches(
     customerParts,
     bankWithoutLast,
@@ -979,15 +987,32 @@ async function verifyQuickMoneyBankAndStoreResult({
   partnerLoanId,
   applicationId,
   lan,
+  customerName,
   accountName,
   accountNumber,
   ifsc,
 }) {
   try {
+    let targetCustomerName = customerName;
+    let targetApplicationId = applicationId;
+    if (!targetCustomerName || !targetApplicationId) {
+      const [rows] = await db.promise().query(
+        `SELECT customer_name, application_id FROM loan_booking_quick_money WHERE partner_loan_id = ? LIMIT 1`,
+        [partnerLoanId],
+      );
+      const loanRow = rows?.[0];
+      if (loanRow) {
+        targetCustomerName = targetCustomerName || loanRow.customer_name;
+        targetApplicationId = targetApplicationId || loanRow.application_id;
+      }
+    }
+
     console.log("Starting QuickMoney bank verification:", {
       partnerLoanId,
-      applicationId,
+      applicationId: targetApplicationId,
       lan,
+      customerName: targetCustomerName,
+      accountName,
     });
 
     const result = await verifyBank({
@@ -1007,7 +1032,7 @@ async function verifyQuickMoneyBankAndStoreResult({
         "",
     ).toUpperCase();
 
-    const isVerified =
+    const isPennyDropSuccess =
       result?.success === true ||
       result?.verified === true ||
       result?.data?.success === true ||
@@ -1016,77 +1041,152 @@ async function verifyQuickMoneyBankAndStoreResult({
         responseStatus,
       );
 
-    const failureMessage = isVerified
-      ? null
-      : String(
-          result?.message ||
-            result?.data?.message ||
-            result?.error ||
-            "BANK_VERIFICATION_FAILED",
-        ).slice(0, 500);
+    if (!isPennyDropSuccess) {
+      const failureMessage = String(
+        result?.message ||
+          result?.data?.message ||
+          result?.error ||
+          "BANK_VERIFICATION_FAILED",
+      ).slice(0, 500);
 
-    const [updateResult] = await db.promise().query(
+      await db.promise().query(
+        `
+        UPDATE loan_booking_quick_money
+        SET
+          bank_verification_status = 'FAILED',
+          bank_is_verified = 0,
+          bank_verification_response = ?,
+          bank_verification_error = ?,
+          bank_verified_at = NULL,
+          status = 'REJECTED',
+          qm_bre_status = 'REJECTED',
+          qm_bre_reason = ?,
+          updated_at = NOW()
+        WHERE partner_loan_id = ?
+          AND bank_verification_status = 'PENDING'
+        `,
+        [
+          JSON.stringify(result || {}),
+          failureMessage,
+          failureMessage,
+          partnerLoanId,
+        ],
+      );
+
+      if (targetApplicationId) {
+        try {
+          await sendQuickMoneyRejectionWebhook({ applicationId: targetApplicationId });
+        } catch (webhookErr) {
+          console.error("QuickMoney rejection webhook error after bank verification failure:", webhookErr.message);
+        }
+      }
+      return;
+    }
+
+    // Penny drop succeeded — evaluate beneficiary name returned by the bank
+    const beneficiaryName = String(
+      result?.beneficiary_name_with_bank ||
+        result?.data?.beneficiary_name_with_bank ||
+        "",
+    ).trim();
+
+    const fuzzyScore = Number(
+      result?.fuzzy_match_score ?? result?.data?.fuzzy_match_score ?? 0,
+    );
+    const fuzzyResult =
+      result?.fuzzy_match_result === true ||
+      result?.data?.fuzzy_match_result === true ||
+      String(result?.fuzzy_match_result || "").toLowerCase() === "true";
+
+    const nameMatchesCustomer = Boolean(
+      targetCustomerName &&
+      beneficiaryName &&
+      bankNamesMatch(targetCustomerName, beneficiaryName),
+    );
+
+    const nameMatchesAccount = Boolean(
+      accountName &&
+      beneficiaryName &&
+      bankNamesMatch(accountName, beneficiaryName),
+    );
+
+    const digioFuzzyPassed = Boolean(fuzzyResult && fuzzyScore >= 70);
+
+    const isNameMatched =
+      !beneficiaryName ||
+      nameMatchesCustomer ||
+      nameMatchesAccount ||
+      digioFuzzyPassed;
+
+    if (!isNameMatched) {
+      const mismatchReason = `BANK_ACCOUNT_NAME_MISMATCH: Beneficiary name "${beneficiaryName}" does not match customer name "${targetCustomerName || accountName}"`;
+
+      await db.promise().query(
+        `
+        UPDATE loan_booking_quick_money
+        SET
+          bank_verification_status = 'NAME_MISMATCH',
+          bank_is_verified = 0,
+          bank_verification_response = ?,
+          bank_verification_error = 'BANK_ACCOUNT_NAME_MISMATCH',
+          bank_verified_at = NULL,
+          status = 'REJECTED',
+          qm_bre_status = 'REJECTED',
+          qm_bre_reason = 'BANK_ACCOUNT_NAME_MISMATCH',
+          updated_at = NOW()
+        WHERE partner_loan_id = ?
+          AND bank_verification_status = 'PENDING'
+        `,
+        [
+          JSON.stringify({
+            ...(result || {}),
+            rejection_reason: mismatchReason,
+          }),
+          partnerLoanId,
+        ],
+      );
+
+      console.warn("QuickMoney loan rejected due to beneficiary name mismatch:", {
+        partnerLoanId,
+        applicationId: targetApplicationId,
+        customerName: targetCustomerName,
+        beneficiaryName,
+        fuzzyScore,
+        fuzzyResult,
+      });
+
+      if (targetApplicationId) {
+        try {
+          await sendQuickMoneyRejectionWebhook({ applicationId: targetApplicationId });
+        } catch (webhookErr) {
+          console.error("QuickMoney rejection webhook error after beneficiary name mismatch:", webhookErr.message);
+        }
+      }
+      return;
+    }
+
+    // Both penny-drop AND name match succeeded:
+    await db.promise().query(
       `
       UPDATE loan_booking_quick_money
       SET
-        bank_verification_status = ?,
-        bank_is_verified = ?,
+        bank_verification_status = 'VERIFIED',
+        bank_is_verified = 1,
         bank_verification_response = ?,
-        bank_verification_error = ?,
-        bank_verified_at = ?,
+        bank_verification_error = NULL,
+        bank_verified_at = NOW(),
         updated_at = NOW()
       WHERE partner_loan_id = ?
-        AND bank_ac_number = ?
-        AND bank_ifsc_code = ?
-        AND bank_ac_name = ?
         AND bank_verification_status = 'PENDING'
       `,
-      [
-        isVerified ? "VERIFIED" : "FAILED",
-        isVerified ? 1 : 0,
-        JSON.stringify(result || {}),
-        failureMessage,
-        isVerified ? new Date() : null,
-        partnerLoanId,
-        accountNumber,
-        ifsc,
-        accountName,
-      ],
+      [JSON.stringify(result || {}), partnerLoanId],
     );
 
-    if (!updateResult.affectedRows) {
-      console.warn(
-        "QuickMoney bank verification result not saved because stored details did not match:",
-        {
-          partnerLoanId,
-          accountName,
-          accountNumber,
-          ifsc,
-        },
-      );
-
-      return;
-    }
-
-    if (!isVerified) {
-      console.log(
-        "QuickMoney bank verification failed; will be evaluated at approval:",
-        {
-          partnerLoanId,
-          applicationId,
-          lan,
-          failureMessage,
-        },
-      );
-
-      return;
-    }
-
     console.log(
-      "QuickMoney bank verification completed:",
+      "QuickMoney bank verification completed successfully:",
       {
         partnerLoanId,
-        applicationId,
+        applicationId: targetApplicationId,
         lan,
         status: "VERIFIED",
       },
@@ -1502,240 +1602,6 @@ const lan = generated.lan;
   }
 });
 
-async function verifyQuickMoneyBankAndStoreResult({
-  partnerLoanId,
-  applicationId,
-  lan,
-  accountName,
-  accountNumber,
-  ifsc,
-}) {
-  try {
-    console.log("Starting QuickMoney bank verification:", {
-      partnerLoanId,
-      applicationId,
-      lan,
-    });
-
-    const result = await verifyBank({
-      lan,
-      account_no: accountNumber,
-      ifsc,
-      name: accountName,
-      bank_name: null,
-      account_type: "savings",
-    });
-
-    const responseStatus = String(
-      result?.status ||
-        result?.data?.status ||
-        result?.verification_status ||
-        result?.data?.verification_status ||
-        "",
-    ).toUpperCase();
-
-    const isVerified =
-      result?.success === true ||
-      result?.verified === true ||
-      result?.data?.success === true ||
-      result?.data?.verified === true ||
-      ["SUCCESS", "VERIFIED", "VALID"].includes(
-        responseStatus,
-      );
-
-    const failureMessage = isVerified
-      ? null
-      : String(
-          result?.message ||
-            result?.data?.message ||
-            result?.error ||
-            "BANK_VERIFICATION_FAILED",
-        ).slice(0, 500);
-
-    // =====================================================
-    // SAVE BANK VERIFICATION RESULT
-    // =====================================================
-
-    const [updateResult] = await db.promise().query(
-      `
-      UPDATE loan_booking_quick_money
-      SET
-        bank_verification_status = ?,
-        bank_is_verified = ?,
-        bank_verification_response = ?,
-        bank_verification_error = ?,
-        bank_verified_at = ?,
-        updated_at = NOW()
-      WHERE partner_loan_id = ?
-        AND bank_ac_number = ?
-        AND bank_ifsc_code = ?
-        AND bank_ac_name = ?
-        AND bank_verification_status = 'PENDING'
-      `,
-      [
-        isVerified ? "VERIFIED" : "FAILED",
-        isVerified ? 1 : 0,
-        JSON.stringify(result || {}),
-        failureMessage,
-        isVerified ? new Date() : null,
-        partnerLoanId,
-        accountNumber,
-        ifsc,
-        accountName,
-      ],
-    );
-
-    // =====================================================
-    // STORED DETAILS CHANGED
-    // =====================================================
-
-    if (!updateResult.affectedRows) {
-      console.warn(
-        "QuickMoney bank verification result not saved because stored details did not match:",
-        {
-          partnerLoanId,
-          accountName,
-          accountNumber,
-          ifsc,
-        },
-      );
-
-      return;
-    }
-
-    // =====================================================
-    // VERIFICATION FAILED
-    // =====================================================
-
-    if (!isVerified) {
-      console.log(
-        "QuickMoney bank verification failed; will be evaluated at approval:",
-        {
-          partnerLoanId,
-          applicationId,
-          lan,
-          failureMessage,
-        },
-      );
-
-      return;
-    }
-
-    // =====================================================
-    // SUCCESS
-    // =====================================================
-
-    console.log(
-      "QuickMoney bank verification completed:",
-      {
-        partnerLoanId,
-        applicationId,
-        lan,
-        status: "VERIFIED",
-      },
-    );
-  } catch (error) {
-    console.error(
-      "QuickMoney bank verification failed:",
-      {
-        partnerLoanId,
-        applicationId,
-        lan,
-        statusCode:
-          error.response?.status || null,
-        message:
-          error.message,
-      },
-    );
-
-    try {
-      const failureResponse =
-        error.response?.data || {
-          message:
-            error.message ||
-            "BANK_VERIFICATION_FAILED",
-
-          statusCode:
-            error.response?.status || null,
-        };
-
-      const failureMessage = String(
-        error.response?.data?.message ||
-          error.message ||
-          "BANK_VERIFICATION_FAILED",
-      ).slice(0, 500);
-
-      // ===================================================
-      // SAVE FAILURE
-      // ===================================================
-
-      const [failureUpdate] =
-        await db.promise().query(
-          `
-          UPDATE loan_booking_quick_money
-          SET
-            bank_verification_status = 'FAILED',
-            bank_is_verified = 0,
-            bank_verification_response = ?,
-            bank_verification_error = ?,
-            bank_verified_at = NULL,
-            updated_at = NOW()
-          WHERE partner_loan_id = ?
-            AND bank_ac_number = ?
-            AND bank_ifsc_code = ?
-            AND bank_ac_name = ?
-            AND bank_verification_status = 'PENDING'
-          `,
-          [
-            JSON.stringify(
-              failureResponse,
-            ),
-            failureMessage,
-            partnerLoanId,
-            accountNumber,
-            ifsc,
-            accountName,
-          ],
-        );
-
-      if (
-        !failureUpdate.affectedRows
-      ) {
-        console.warn(
-          "QuickMoney bank verification exception was not saved because stored details did not match:",
-          {
-            partnerLoanId,
-            accountName,
-            accountNumber,
-            ifsc,
-          },
-        );
-
-        return;
-      }
-
-      console.log(
-        "QuickMoney bank verification failure saved:",
-        {
-          partnerLoanId,
-          applicationId,
-          lan,
-          failureMessage,
-        },
-      );
-    } catch (dbError) {
-      console.error(
-        "Could not save QuickMoney bank verification failure:",
-        {
-          partnerLoanId,
-          message:
-            dbError.message,
-        },
-      );
-    }
-  }
-}
-
 router.put("/v1/update-details", verifyApiKey, async (req, res) => {
   let connection;
   let transactionStarted = false;
@@ -2127,7 +1993,9 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
       Object.prototype.hasOwnProperty.call(
         data,
         "bank_account",
-      );
+      ) &&
+      data.bank_account !== null &&
+      data.bank_account !== undefined;
 
     const hasCustomerNameUpdate =
       Object.prototype.hasOwnProperty.call(
@@ -2135,10 +2003,7 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
         "full_name",
       );
 
-    if (
-      hasBankAccountUpdate ||
-      hasCustomerNameUpdate
-    ) {
+    if (hasBankAccountUpdate) {
       let bank = {};
 
       // ====================================================
@@ -2371,12 +2236,11 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
       // SHOULD VERIFY BANK
       // ====================================================
 
-      const shouldEvaluateBank =
-        hasCompleteBankDetails &&
-        (
-          coreBankFieldProvided ||
-          hasCustomerNameUpdate
-        );
+      const shouldEvaluateBank = Boolean(
+        hasBankAccountUpdate &&
+        coreBankFieldProvided &&
+        hasCompleteBankDetails,
+      );
 
       if (shouldEvaluateBank) {
         // ==================================================
@@ -2670,6 +2534,7 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
                   data.partner_loan_id,
                 applicationId,
                 lan,
+                customerName,
                 accountName,
                 accountNumber,
                 ifsc,
@@ -2816,6 +2681,27 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
          * Main transaction has already committed,
          * therefore do not throw here.
          */
+      }
+    }
+
+    // ======================================================
+    // REJECTION WEBHOOK (bank name mismatch)
+    // ======================================================
+
+    if (bankNameMismatchDetected) {
+      try {
+        await sendQuickMoneyRejectionWebhook({
+          applicationId,
+        });
+      } catch (rejectionWebhookError) {
+        console.error(
+          "Failed to send QuickMoney rejection webhook after bank name mismatch:",
+          {
+            applicationId,
+            lan,
+            message: rejectionWebhookError.message,
+          },
+        );
       }
     }
 

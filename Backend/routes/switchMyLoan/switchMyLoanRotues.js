@@ -137,16 +137,25 @@ async function verifySmlBankAndStoreResult({
   partnerLoanId,
   applicationId,
   lan,
+  customerName,
   accountName,
   accountNumber,
   ifsc,
 }) {
   try {
-    // console.log("Starting SML bank verification:", {
-      // partnerLoanId,
-      // applicationId,
-      // lan,
-    // });
+    let targetCustomerName = customerName;
+    let targetApplicationId = applicationId;
+    if (!targetCustomerName || !targetApplicationId) {
+      const [rows] = await db.promise().query(
+        `SELECT customer_name, application_id FROM loan_booking_switch_my_loan WHERE partner_loan_id = ? LIMIT 1`,
+        [partnerLoanId],
+      );
+      const loanRow = rows?.[0];
+      if (loanRow) {
+        targetCustomerName = targetCustomerName || loanRow.customer_name;
+        targetApplicationId = targetApplicationId || loanRow.application_id;
+      }
+    }
 
     const result = await verifyBank({
       lan,
@@ -165,7 +174,7 @@ async function verifySmlBankAndStoreResult({
         "",
     ).toUpperCase();
 
-    const isVerified =
+    const isPennyDropSuccess =
       result?.success === true ||
       result?.verified === true ||
       result?.data?.success === true ||
@@ -174,71 +183,137 @@ async function verifySmlBankAndStoreResult({
         responseStatus,
       );
 
-    const failureMessage = isVerified
-      ? null
-      : String(
-          result?.message ||
-            result?.data?.message ||
-            result?.error ||
-            "BANK_VERIFICATION_FAILED",
-        ).slice(0, 500);
+    if (!isPennyDropSuccess) {
+      const failureMessage = String(
+        result?.message ||
+          result?.data?.message ||
+          result?.error ||
+          "BANK_VERIFICATION_FAILED",
+      ).slice(0, 500);
 
-    const [updateResult] = await db.promise().query(
-      `UPDATE loan_booking_switch_my_loan
-       SET bank_verification_status = ?,
-           bank_is_verified = ?,
-           bank_verification_response = ?,
-           bank_verification_error = ?,
-           bank_verified_at = ?,
-           updated_at = NOW()
-       WHERE partner_loan_id = ?
-         AND bank_ac_number = ?
-         AND bank_ifsc_code = ?
-         AND bank_ac_name = ?
-         AND bank_verification_status = 'PENDING'`,
-      [
-        isVerified ? "VERIFIED" : "FAILED",
-        isVerified ? 1 : 0,
-        JSON.stringify(result || {}),
-        failureMessage,
-        isVerified ? new Date() : null,
-        partnerLoanId,
-        accountNumber,
-        ifsc,
-        accountName,
-      ],
-    );
+      await db.promise().query(
+        `UPDATE loan_booking_switch_my_loan
+         SET bank_verification_status = 'FAILED',
+             bank_is_verified = 0,
+             bank_verification_response = ?,
+             bank_verification_error = ?,
+             bank_verified_at = NULL,
+             status = 'REJECTED',
+             sml_bre_status = 'REJECTED',
+             sml_bre_reason = ?,
+             updated_at = NOW()
+         WHERE partner_loan_id = ?
+           AND bank_verification_status = 'PENDING'`,
+        [
+          JSON.stringify(result || {}),
+          failureMessage,
+          failureMessage,
+          partnerLoanId,
+        ],
+      );
 
-    if (!updateResult.affectedRows) {
-      // console.warn(
-        // "Bank verification result not saved because stored details did not match:",
-        // {
-          // partnerLoanId,
-          // accountName,
-          // accountNumber,
-          // ifsc,
-        // },
-      // );
-
+      if (targetApplicationId) {
+        try {
+          await sendRejectionWebhook({ applicationId: targetApplicationId });
+        } catch (webhookErr) {
+          console.error("SML rejection webhook error after bank verification failure:", webhookErr.message);
+        }
+      }
       return;
     }
 
-if (!isVerified) {
-  // console.log("Bank verification failed; will be evaluated at approval:", {
-    // partnerLoanId,
-    // applicationId,
-    // lan,
-    // failureMessage,
-  // });
-  return;
-}
+    // Penny drop succeeded — evaluate beneficiary name from bank response
+    const beneficiaryName = String(
+      result?.beneficiary_name_with_bank ||
+        result?.data?.beneficiary_name_with_bank ||
+        "",
+    ).trim();
 
-    // console.log("SML bank verification completed:", {
-      // partnerLoanId,
-      // applicationId,
-      // lan,
-      // status: "VERIFIED",
-    // });
+    const fuzzyScore = Number(
+      result?.fuzzy_match_score ?? result?.data?.fuzzy_match_score ?? 0,
+    );
+    const fuzzyResult =
+      result?.fuzzy_match_result === true ||
+      result?.data?.fuzzy_match_result === true ||
+      String(result?.fuzzy_match_result || "").toLowerCase() === "true";
+
+    const nameMatchesCustomer = Boolean(
+      targetCustomerName &&
+      beneficiaryName &&
+      bankNamesMatch(targetCustomerName, beneficiaryName),
+    );
+
+    const nameMatchesAccount = Boolean(
+      accountName &&
+      beneficiaryName &&
+      bankNamesMatch(accountName, beneficiaryName),
+    );
+
+    const digioFuzzyPassed = Boolean(fuzzyResult && fuzzyScore >= 70);
+
+    const isNameMatched =
+      !beneficiaryName ||
+      nameMatchesCustomer ||
+      nameMatchesAccount ||
+      digioFuzzyPassed;
+
+    if (!isNameMatched) {
+      const mismatchReason = `BANK_ACCOUNT_NAME_MISMATCH: Beneficiary name "${beneficiaryName}" does not match customer name "${targetCustomerName || accountName}"`;
+
+      await db.promise().query(
+        `UPDATE loan_booking_switch_my_loan
+         SET bank_verification_status = 'NAME_MISMATCH',
+             bank_is_verified = 0,
+             bank_verification_response = ?,
+             bank_verification_error = 'BANK_ACCOUNT_NAME_MISMATCH',
+             bank_verified_at = NULL,
+             status = 'REJECTED',
+             sml_bre_status = 'REJECTED',
+             sml_bre_reason = 'BANK_ACCOUNT_NAME_MISMATCH',
+             updated_at = NOW()
+         WHERE partner_loan_id = ?
+           AND bank_verification_status = 'PENDING'`,
+        [
+          JSON.stringify({
+            ...(result || {}),
+            rejection_reason: mismatchReason,
+          }),
+          partnerLoanId,
+        ],
+      );
+
+      console.warn("SML loan rejected due to beneficiary name mismatch:", {
+        partnerLoanId,
+        applicationId: targetApplicationId,
+        customerName: targetCustomerName,
+        beneficiaryName,
+        fuzzyScore,
+        fuzzyResult,
+      });
+
+      if (targetApplicationId) {
+        try {
+          await sendRejectionWebhook({ applicationId: targetApplicationId });
+        } catch (webhookErr) {
+          console.error("SML rejection webhook error after beneficiary name mismatch:", webhookErr.message);
+        }
+      }
+      return;
+    }
+
+    // Both penny-drop AND name match succeeded:
+    await db.promise().query(
+      `UPDATE loan_booking_switch_my_loan
+       SET bank_verification_status = 'VERIFIED',
+           bank_is_verified = 1,
+           bank_verification_response = ?,
+           bank_verification_error = NULL,
+           bank_verified_at = NOW(),
+           updated_at = NOW()
+       WHERE partner_loan_id = ?
+         AND bank_verification_status = 'PENDING'`,
+      [JSON.stringify(result || {}), partnerLoanId],
+    );
   } catch (error) {
     console.error("SML bank verification failed:", {
       partnerLoanId,
@@ -628,6 +703,11 @@ function extraBankSurnameMatch(
    */
   const bankWithoutLast =
     bankParts.slice(0, -1);
+
+  const hasSubstantialToken = bankWithoutLast.some((part) => part.length >= 2);
+  if (!hasSubstantialToken) {
+    return false;
+  }
 
   return bankNameSequenceMatches(
     customerParts,
@@ -3176,6 +3256,11 @@ function extraBankSurnameMatch(
   const bankWithoutLast =
     bankParts.slice(0, -1);
 
+  const hasSubstantialToken = bankWithoutLast.some((part) => part.length >= 2);
+  if (!hasSubstantialToken) {
+    return false;
+  }
+
   return bankNameSequenceMatches(
     customerParts,
     bankWithoutLast,
@@ -3916,8 +4001,9 @@ router.put(
           .call(
             data,
             "bank_account",
-          );
-
+          ) &&
+        data.bank_account !== null &&
+        data.bank_account !== undefined;
 
       const hasCustomerNameUpdate =
         Object.prototype
@@ -3927,11 +4013,7 @@ router.put(
             "full_name",
           );
 
-
-      if (
-        hasBankAccountUpdate ||
-        hasCustomerNameUpdate
-      ) {
+      if (hasBankAccountUpdate) {
         let bank = {};
 
 
@@ -4308,25 +4390,11 @@ router.put(
         // Excludes PENDING too — a verification already in flight from an
         // earlier call must not be re-triggered by a later, unrelated
         // update-details call before it resolves.
-        const currentBankVerificationStatus =
-          String(
-            row.bank_verification_status || "",
-          )
-            .trim()
-            .toUpperCase();
-
-        const bankNotYetVerified =
-          !["VERIFIED", "PENDING"].includes(
-            currentBankVerificationStatus,
-          );
-
-        const shouldEvaluateBank =
-          hasCompleteBankDetails &&
-          (
-            coreBankFieldProvided ||
-            hasCustomerNameUpdate ||
-            bankNotYetVerified
-          );
+        const shouldEvaluateBank = Boolean(
+          hasBankAccountUpdate &&
+          coreBankFieldProvided &&
+          hasCompleteBankDetails,
+        );
 
 
         if (
@@ -4704,6 +4772,8 @@ router.put(
                     applicationId,
 
                     lan,
+
+                    customerName,
 
                     accountName,
 
