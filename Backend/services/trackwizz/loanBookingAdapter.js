@@ -407,40 +407,33 @@ const PARTNERS = {
   },
 
   quick_money: {
-  table: "loan_booking_quick_money",
-  primaryKey: "id",
+    table: "loan_booking_quick_money",
+    primaryKey: "id",
 
-  codeFields: [
-    "lan",
-    "partner_loan_id",
-  ],
+    codeFields: ["lan", "partner_loan_id"],
 
-  columns: {
-    lan: "lan",
-    name: "customer_name",
-    fatherName: "father_name",
-    pan: "pan_number",
-    mobile: "mobile",
-    email: "email",
-    dob: "dob",
-    gender: "gender",
-    createdAt: "created_at",
-    applicationRefNumber:
-      "partner_loan_id",
+    columns: {
+      lan: "lan",
+      name: "customer_name",
+      fatherName: "father_name",
+      pan: "pan_number",
+      mobile: "mobile",
+      email: "email",
+      dob: "dob",
+      gender: "gender",
+      createdAt: "created_at",
+      applicationRefNumber: "partner_loan_id",
+    },
+
+    amlColumns: {
+      status: "aml_status",
+      score: "aml_score",
+      totalMatches: "aml_total_matches",
+      reason: "aml_reason",
+      apiResponse: "aml_api_response",
+      checkedAt: "aml_checked_at",
+    },
   },
-
-  amlColumns: {
-    status: "aml_status",
-    score: "aml_score",
-    totalMatches:
-      "aml_total_matches",
-    reason: "aml_reason",
-    apiResponse:
-      "aml_api_response",
-    checkedAt:
-      "aml_checked_at",
-  },
-},
 
   ya_money: {
     table: "loan_booking_ya_money",
@@ -465,7 +458,7 @@ const PARTNERS = {
     },
   },
 
-    sabgrow: {
+  sabgrow: {
     table: "loan_booking_sabgrow",
     primaryKey: "id",
     codeFields: ["lan", "partner_loan_id"],
@@ -513,6 +506,32 @@ const PARTNERS = {
     },
   },
 
+  claim_buddy: {
+    table: "loan_booking_claim_buddy",
+    primaryKey: "id",
+    codeFields: ["lan", "app_id"], // adjust if claim_buddy has application_id etc.
+    columns: {
+      lan: "lan",
+      name: "customer_name", // ← match your actual claim_buddy column names
+      fatherName: "father_name",
+      pan: "pan_number",
+      mobile: "mobile_number",
+      email: "email_id",
+      dob: "dob",
+      gender: "gender",
+      createdAt: "created_at",
+      applicationRefNumber: "app_id",
+    },
+    amlColumns: {
+      status: "aml_status",
+      score: "aml_score",
+      totalMatches: "aml_total_matches",
+      reason: "aml_reason",
+      apiResponse: "aml_api_response",
+      checkedAt: "aml_checked_at",
+    },
+  },
+
   loan_digit: {
     table: "loan_booking_loan_digit",
     primaryKey: "id",
@@ -537,160 +556,160 @@ const PARTNERS = {
     },
   },
 
-    motion_corp: {
-      table: "loan_booking_motion_corp",
-      primaryKey: "id",
-      codeFields: ["lan", "partner_loan_id"], // adjust if motion_corp has application_id etc.
-      columns: {
-        lan: "lan",
-        name: "customer_name", // ← match your actual motion_corp column names
-        fatherName: "father_name",
-        pan: "pan_number",
-        mobile: "mobile_number",
-        email: "email",
-        dob: "dob",
-        gender: "gender",
-        createdAt: "created_at",
-        applicationRefNumber: "partner_loan_id",
-      },
-      amlColumns: {
-        status: "aml_status",
-        score: "aml_score",
-        totalMatches: "aml_total_matches",
-        reason: "aml_reason",
-        apiResponse: "aml_api_response",
-        checkedAt: "aml_checked_at",
-      },
+  motion_corp: {
+    table: "loan_booking_motion_corp",
+    primaryKey: "id",
+    codeFields: ["lan", "partner_loan_id"], // adjust if motion_corp has application_id etc.
+    columns: {
+      lan: "lan",
+      name: "customer_name", // ← match your actual motion_corp column names
+      fatherName: "father_name",
+      pan: "pan_number",
+      mobile: "mobile_number",
+      email: "email",
+      dob: "dob",
+      gender: "gender",
+      createdAt: "created_at",
+      applicationRefNumber: "partner_loan_id",
     },
+    amlColumns: {
+      status: "aml_status",
+      score: "aml_score",
+      totalMatches: "aml_total_matches",
+      reason: "aml_reason",
+      apiResponse: "aml_api_response",
+      checkedAt: "aml_checked_at",
+    },
+  },
 
-    // Seven Fincorp screens every party separately. Each party has its own
-    // partner key so the existing-screening check, report file name and
-    // loan_documents row are kept apart per person on the same LAN.
-    seven_fincorp: {
-      table: "loan_booking_seven_fincorp",
-      primaryKey: "id",
-      codeFields: ["lan", "partner_loan_id"],
-      columns: {
-        lan: "lan",
-        name: "customer_name",
-        fatherName: "father_name",
-        pan: "pan_card",
-        mobile: "mobile_number",
-        email: "email",
-        dob: "dob",
-        gender: "gender",
-        createdAt: "created_at",
-        applicationRefNumber: "partner_loan_id",
-      },
-      amlColumns: {
-        status: "aml_status",
-        score: "aml_score",
-        totalMatches: "aml_total_matches",
-        reason: "aml_reason",
-        apiResponse: "aml_api_response",
-        checkedAt: "aml_checked_at",
-      },
+  // Seven Fincorp screens every party separately. Each party has its own
+  // partner key so the existing-screening check, report file name and
+  // loan_documents row are kept apart per person on the same LAN.
+  seven_fincorp: {
+    table: "loan_booking_seven_fincorp",
+    primaryKey: "id",
+    codeFields: ["lan", "partner_loan_id"],
+    columns: {
+      lan: "lan",
+      name: "customer_name",
+      fatherName: "father_name",
+      pan: "pan_card",
+      mobile: "mobile_number",
+      email: "email",
+      dob: "dob",
+      gender: "gender",
+      createdAt: "created_at",
+      applicationRefNumber: "partner_loan_id",
     },
+    amlColumns: {
+      status: "aml_status",
+      score: "aml_score",
+      totalMatches: "aml_total_matches",
+      reason: "aml_reason",
+      apiResponse: "aml_api_response",
+      checkedAt: "aml_checked_at",
+    },
+  },
 
-    seven_fincorp_guarantor: {
-      table: "loan_booking_seven_fincorp",
-      primaryKey: "id",
-      codeFields: ["lan", "partner_loan_id"],
-      columns: {
-        lan: "lan",
-        name: "guarantor_name",
-        pan: "guarantor_pan",
-        mobile: "guarantor_mobile",
-        email: "guarantor_email",
-        dob: "guarantor_dob",
-        createdAt: "created_at",
-        applicationRefNumber: "partner_loan_id",
-      },
-      amlColumns: {
-        status: "guarantor_aml_status",
-        score: "guarantor_aml_score",
-        totalMatches: "guarantor_aml_total_matches",
-        reason: "guarantor_aml_reason",
-        apiResponse: "guarantor_aml_api_response",
-        checkedAt: "guarantor_aml_checked_at",
-      },
+  seven_fincorp_guarantor: {
+    table: "loan_booking_seven_fincorp",
+    primaryKey: "id",
+    codeFields: ["lan", "partner_loan_id"],
+    columns: {
+      lan: "lan",
+      name: "guarantor_name",
+      pan: "guarantor_pan",
+      mobile: "guarantor_mobile",
+      email: "guarantor_email",
+      dob: "guarantor_dob",
+      createdAt: "created_at",
+      applicationRefNumber: "partner_loan_id",
     },
+    amlColumns: {
+      status: "guarantor_aml_status",
+      score: "guarantor_aml_score",
+      totalMatches: "guarantor_aml_total_matches",
+      reason: "guarantor_aml_reason",
+      apiResponse: "guarantor_aml_api_response",
+      checkedAt: "guarantor_aml_checked_at",
+    },
+  },
 
-    seven_fincorp_co_applicant: {
-      table: "loan_booking_seven_fincorp",
-      primaryKey: "id",
-      codeFields: ["lan", "partner_loan_id"],
-      columns: {
-        lan: "lan",
-        name: "co_applicant_name",
-        pan: "co_applicant_pan",
-        mobile: "co_applicant_mobile",
-        email: "co_applicant_email",
-        dob: "co_applicant_dob",
-        createdAt: "created_at",
-        applicationRefNumber: "partner_loan_id",
-      },
-      amlColumns: {
-        status: "co_applicant_aml_status",
-        score: "co_applicant_aml_score",
-        totalMatches: "co_applicant_aml_total_matches",
-        reason: "co_applicant_aml_reason",
-        apiResponse: "co_applicant_aml_api_response",
-        checkedAt: "co_applicant_aml_checked_at",
-      },
+  seven_fincorp_co_applicant: {
+    table: "loan_booking_seven_fincorp",
+    primaryKey: "id",
+    codeFields: ["lan", "partner_loan_id"],
+    columns: {
+      lan: "lan",
+      name: "co_applicant_name",
+      pan: "co_applicant_pan",
+      mobile: "co_applicant_mobile",
+      email: "co_applicant_email",
+      dob: "co_applicant_dob",
+      createdAt: "created_at",
+      applicationRefNumber: "partner_loan_id",
     },
+    amlColumns: {
+      status: "co_applicant_aml_status",
+      score: "co_applicant_aml_score",
+      totalMatches: "co_applicant_aml_total_matches",
+      reason: "co_applicant_aml_reason",
+      apiResponse: "co_applicant_aml_api_response",
+      checkedAt: "co_applicant_aml_checked_at",
+    },
+  },
 
-    sampada: {
-      table: "loan_booking_sampada",
-      primaryKey: "id",
-      codeFields: ["lan", "partner_loan_id"],
-      columns: {
-        lan: "lan",
-        name: "customer_name",
-        fatherName: "father_name",
-        pan: "pan_card",
-        mobile: "mobile_number",
-        email: "email",
-        dob: "dob",
-        gender: "gender",
-        createdAt: "created_at",
-        applicationRefNumber: "partner_loan_id",
-      },
-      amlColumns: {
-        status: "aml_status",
-        score: "aml_score",
-        totalMatches: "aml_total_matches",
-        reason: "aml_reason",
-        apiResponse: "aml_api_response",
-        checkedAt: "aml_checked_at",
-      },
+  sampada: {
+    table: "loan_booking_sampada",
+    primaryKey: "id",
+    codeFields: ["lan", "partner_loan_id"],
+    columns: {
+      lan: "lan",
+      name: "customer_name",
+      fatherName: "father_name",
+      pan: "pan_card",
+      mobile: "mobile_number",
+      email: "email",
+      dob: "dob",
+      gender: "gender",
+      createdAt: "created_at",
+      applicationRefNumber: "partner_loan_id",
     },
+    amlColumns: {
+      status: "aml_status",
+      score: "aml_score",
+      totalMatches: "aml_total_matches",
+      reason: "aml_reason",
+      apiResponse: "aml_api_response",
+      checkedAt: "aml_checked_at",
+    },
+  },
 
-    fintreepl: {
-      table: "pl_partner_applications",
-      primaryKey: "id",
-      codeFields: ["lan","partner_application_id"], // adjust if motion_corp has application_id etc.
-      columns: {
-        lan: "lan",
-        name: "customer_full_name", // ← match your actual motion_corp column names
-        fatherName: "customer_father_name",
-        pan: "pan_number",
-        mobile: "mobile_number",
-        email: "email",
-        dob: "date_of_birth",
-        gender: "gender",
-        createdAt: "created_at",
-        applicationRefNumber: "partner_application_id",
-      },
-      amlColumns: {
-        status: "aml_status",
-        score: "aml_score",
-        totalMatches: "aml_total_matches",
-        reason: "aml_reason",
-        apiResponse: "aml_api_response",
-        checkedAt: "aml_checked_at",
-      },
+  fintreepl: {
+    table: "pl_partner_applications",
+    primaryKey: "id",
+    codeFields: ["lan", "partner_application_id"], // adjust if motion_corp has application_id etc.
+    columns: {
+      lan: "lan",
+      name: "customer_full_name", // ← match your actual motion_corp column names
+      fatherName: "customer_father_name",
+      pan: "pan_number",
+      mobile: "mobile_number",
+      email: "email",
+      dob: "date_of_birth",
+      gender: "gender",
+      createdAt: "created_at",
+      applicationRefNumber: "partner_application_id",
     },
+    amlColumns: {
+      status: "aml_status",
+      score: "aml_score",
+      totalMatches: "aml_total_matches",
+      reason: "aml_reason",
+      apiResponse: "aml_api_response",
+      checkedAt: "aml_checked_at",
+    },
+  },
 };
 
 /* ───────────────────────── Configuration helpers ───────────────────────── */
