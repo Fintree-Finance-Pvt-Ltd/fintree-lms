@@ -830,6 +830,25 @@ app.post("/api/runclayyovalidations", async (req, res) => {
   }
 });
 
+app.post("/api/runclaimbuddyvalidations", async (req, res) => {
+  try {
+    const { lan } = req.body;
+
+    if (!lan) {
+      return res.status(400).json({ ok: false, message: "LAN is required" });
+    }
+
+    await autoApproveClaimBuddyIfAllVerified(lan);
+
+    res.json({
+      ok: true,
+      message: `Claim Buddy validations executed successfully for LAN ${lan}`,
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 app.post("/api/runsevenfincorpvalidations", async (req, res) => {
   try {
     const { lan } = req.body;
