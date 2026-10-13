@@ -17,10 +17,40 @@ const getTodayDate = () => {
   return `${year}-${month}-${day}`;
 };
 
+const getPartnerFromLan = (lan) => {
+  const cleanLan = String(lan || "")
+    .trim()
+    .toUpperCase();
+
+  if (cleanLan.startsWith("SFL")) {
+    return {
+      partnerCode: "SEVEN_FINCORP",
+      partnerName: "Seven Fincorp",
+    };
+  }
+
+  if (cleanLan.startsWith("MCL")) {
+    return {
+      partnerCode: "MOTION_CORP",
+      partnerName: "Motion Corp",
+    };
+  }
+
+  if (cleanLan.startsWith("SW")) {
+    return {
+      partnerCode: "SASWAT",
+      partnerName: "Saswat",
+    };
+  }
+
+  return null;
+};
+
 const PaymentReceiptModal = ({
   open,
   onClose,
-  partnerCode = "SASWAT",
+  // partnerCode = "SASWAT",
+    // partnerName = "Saswat",
   defaultLan = "",
 }) => {
   const [form, setForm] = useState({
@@ -35,6 +65,14 @@ const PaymentReceiptModal = ({
   const [generating, setGenerating] = useState(false);
 
   const [error, setError] = useState("");
+const detectedPartner =
+  getPartnerFromLan(form.lan);
+
+const partnerCode =
+  detectedPartner?.partnerCode || "";
+
+const partnerName =
+  detectedPartner?.partnerName || "Auto Detect from LAN";
 
  useEffect(() => {
   if (open) {
@@ -77,13 +115,34 @@ const PaymentReceiptModal = ({
      FETCH LOAN DETAILS
   ========================================================= */
 
-  const fetchLoanDetails = async () => {
-    const lan = form.lan.trim().toUpperCase();
+  // const fetchLoanDetails = async () => {
+  //   const lan = form.lan.trim().toUpperCase();
 
-    if (!lan) {
-      setError("Please enter LAN");
-      return;
-    }
+  //   if (!lan) {
+  //     setError("Please enter LAN");
+  //     return;
+  //   }
+const fetchLoanDetails = async () => {
+  const lan = form.lan.trim().toUpperCase();
+
+  if (!lan) {
+    setError("Please enter LAN");
+    return;
+  }
+
+  const partner =
+    getPartnerFromLan(lan);
+
+  if (!partner) {
+    setError(
+      "Unable to identify partner from LAN"
+    );
+    return;
+  }
+
+  const {
+    partnerCode,
+  } = partner;
 
     try {
       setFetchingLoan(true);
@@ -169,11 +228,22 @@ const PaymentReceiptModal = ({
 const paymentDate = form.payment_date;
   const amount = Number(form.amount);
 
-  if (!lan) {
+    if (!lan) {
     setError("Please enter LAN");
     return;
   }
+  const partner = getPartnerFromLan(lan);
 
+if (!partner) {
+  setError("Unable to identify partner from LAN");
+  return;
+}
+
+const {
+  partnerCode,
+} = partner;
+
+ 
   if (!paymentId) {
     setError("Please enter Payment ID");
     return;
@@ -420,7 +490,8 @@ const paymentDate = form.payment_date;
             </h2>
 
             <p style={styles.subtitle}>
-              Saswat Payment Receipt
+              {partnerName} Payment Receipt
+              {/* Saswat Payment Receipt */}
             </p>
           </div>
 
@@ -443,7 +514,8 @@ const paymentDate = form.payment_date;
 
           <input
             type="text"
-            value="Saswat"
+            // value="Saswat"
+              value={partnerName}
             disabled
             style={{
               ...styles.input,

@@ -151,190 +151,218 @@ async function generateReceiptNo(connection) {
    FETCH LOAN FROM PARTNER TABLE
 ============================================================ */
 
-// async function fetchLoanByLan(
-//   config,
-//   lan
-// ) {
-//   const table =
-//     validateIdentifier(
-//       config.bookingTable
-//     );
+// async function fetchLoanByLan(config, lan) {
+//     const cleanValue = String(lan || "")
+//         .trim()
+//         .toUpperCase();
 
-//   const lanColumn =
-//     validateIdentifier(
-//       config.lanColumn
-//     );
+//     if (!cleanValue) {
+//         return null;
+//     }
 
+//     console.log("Payment Receipt LAN Search:", cleanValue);
 
-//   const query = `
+//     /*
+//       For Saswat:
+//       Search using:
+//         1. lan
+//         2. loan_account_number
+//         3. partner_loan_id
+//     */
 
+//     const [rows] = await db.promise().query(
+//         `
 //     SELECT
+//         id,
+//         lan,
+//         loan_account_number,
+//         partner_loan_id,
 
-//       ${selectColumn(
-//         config.lanColumn,
-//         "lan"
-//       )},
+//         customer_name,
 
-//       ${selectColumn(
-//         config.customerNameColumn,
-//         "customer_name"
-//       )},
+//         current_address,
+//         permanent_address,
 
-//       ${selectColumn(
-//         config.loanAccountColumn,
-//         "loan_account_number"
-//       )},
+//         lender,
+//         product,
+//         lender_type
 
-//       ${selectColumn(
-//         config.addressColumn,
-//         "current_address"
-//       )},
-
-//       ${selectColumn(
-//         config.alternateAddressColumn,
-//         "permanent_address"
-//       )},
-
-//       ${selectColumn(
-//         config.lenderColumn,
-//         "lender"
-//       )},
-
-//       ${selectColumn(
-//         config.productColumn,
-//         "product"
-//       )},
-
-//       ${selectColumn(
-//         config.lenderTypeColumn,
-//         "lender_type"
-//       )}
-
-//     FROM \`${table}\`
+//     FROM loan_booking_saswat
 
 //     WHERE
-//       UPPER(
-//         TRIM(
-//           \`${lanColumn}\`
-//         )
-//       ) = ?
+//         UPPER(TRIM(lan)) = ?
+//         OR UPPER(TRIM(COALESCE(loan_account_number, ''))) = ?
+//         OR UPPER(TRIM(COALESCE(partner_loan_id, ''))) = ?
 
 //     LIMIT 1
-//   `;
-
-
-//   const [rows] =
-//     await db
-//       .promise()
-//       .query(
-//         query,
-//         [cleanLan(lan)]
-//       );
-
-
-//   if (!rows.length) {
-//     return null;
-//   }
-
-
-//   const loan =
-//     rows[0];
-
-
-//   loan.customer_address =
-//     cleanText(
-//       loan.current_address
-//     ) ||
-//     cleanText(
-//       loan.permanent_address
-//     ) ||
-//     "";
-
-
-//   loan.loan_account_number =
-//     cleanText(
-//       loan.loan_account_number
-//     ) ||
-//     cleanText(
-//       loan.lan
+//     `,
+//         [
+//             cleanValue,
+//             cleanValue,
+//             cleanValue,
+//         ]
 //     );
 
+//     console.log(
+//         "Payment Receipt Loan Result:",
+//         rows
+//     );
 
-//   return loan;
+//     if (!rows.length) {
+//         return null;
+//     }
+
+//     const loan = rows[0];
+
+//     loan.customer_address =
+//         String(loan.current_address || "").trim() ||
+//         String(loan.permanent_address || "").trim() ||
+//         "";
+
+//     loan.loan_account_number =
+//         String(loan.loan_account_number || "").trim() ||
+//         String(loan.lan || "").trim();
+
+//     return loan;
 // }
+
 async function fetchLoanByLan(config, lan) {
-    const cleanValue = String(lan || "")
-        .trim()
-        .toUpperCase();
+  const cleanValue = cleanLan(lan);
 
-    if (!cleanValue) {
-        return null;
-    }
+  if (!cleanValue) {
+    return null;
+  }
 
-    console.log("Payment Receipt LAN Search:", cleanValue);
+  const table =
+    validateIdentifier(
+      config.bookingTable
+    );
 
-    /*
-      For Saswat:
-      Search using:
-        1. lan
-        2. loan_account_number
-        3. partner_loan_id
-    */
+  const lanColumn =
+    validateIdentifier(
+      config.lanColumn
+    );
 
-    const [rows] = await db.promise().query(
-        `
+  console.log(
+    `Payment Receipt Search [${config.partnerCode}]:`,
+    cleanValue
+  );
+
+
+  /* =========================================================
+     SELECT COLUMNS USING PARTNER CONFIG
+  ========================================================= */
+
+  const query = `
+
     SELECT
-        id,
-        lan,
-        loan_account_number,
-        partner_loan_id,
 
-        customer_name,
+      ${selectColumn(
+        config.lanColumn,
+        "lan"
+      )},
 
-        current_address,
-        permanent_address,
+      ${selectColumn(
+        config.customerNameColumn,
+        "customer_name"
+      )},
 
-        lender,
-        product,
-        lender_type
+      ${selectColumn(
+        config.loanAccountColumn,
+        "loan_account_number"
+      )},
 
-    FROM loan_booking_saswat
+      ${selectColumn(
+        config.addressColumn,
+        "current_address"
+      )},
+
+      ${selectColumn(
+        config.alternateAddressColumn,
+        "permanent_address"
+      )},
+
+      ${selectColumn(
+        config.lenderColumn,
+        "lender"
+      )},
+
+      ${selectColumn(
+        config.productColumn,
+        "product"
+      )},
+
+      ${selectColumn(
+        config.lenderTypeColumn,
+        "lender_type"
+      )}
+
+    FROM \`${table}\`
 
     WHERE
-        UPPER(TRIM(lan)) = ?
-        OR UPPER(TRIM(COALESCE(loan_account_number, ''))) = ?
-        OR UPPER(TRIM(COALESCE(partner_loan_id, ''))) = ?
+      UPPER(
+        TRIM(
+          \`${lanColumn}\`
+        )
+      ) = ?
 
     LIMIT 1
-    `,
-        [
-            cleanValue,
-            cleanValue,
-            cleanValue,
-        ]
+
+  `;
+
+
+  const [rows] =
+    await db
+      .promise()
+      .query(
+        query,
+        [cleanValue]
+      );
+
+
+  console.log(
+    `Payment Receipt Result [${config.partnerCode}]:`,
+    rows
+  );
+
+
+  if (!rows.length) {
+    return null;
+  }
+
+
+  const loan =
+    rows[0];
+
+
+  /* =========================================================
+     KEEP EXISTING ADDRESS LOGIC
+  ========================================================= */
+
+  loan.customer_address =
+    cleanText(
+      loan.current_address
+    ) ||
+    cleanText(
+      loan.permanent_address
+    ) ||
+    "";
+
+
+  /* =========================================================
+     KEEP EXISTING LOAN ACCOUNT FALLBACK
+  ========================================================= */
+
+  loan.loan_account_number =
+    cleanText(
+      loan.loan_account_number
+    ) ||
+    cleanText(
+      loan.lan
     );
 
-    console.log(
-        "Payment Receipt Loan Result:",
-        rows
-    );
 
-    if (!rows.length) {
-        return null;
-    }
-
-    const loan = rows[0];
-
-    loan.customer_address =
-        String(loan.current_address || "").trim() ||
-        String(loan.permanent_address || "").trim() ||
-        "";
-
-    loan.loan_account_number =
-        String(loan.loan_account_number || "").trim() ||
-        String(loan.lan || "").trim();
-
-    return loan;
+  return loan;
 }
 
 /* ============================================================
@@ -351,238 +379,284 @@ GET
 ============================================================ */
 
 // router.get(
-//   "/loan-details",
-//   async (req, res) => {
+//     "/loan-details",
+//     async (req, res) => {
+//         try {
+//             const partnerCode = String(
+//                 req.query.partner_code || ""
+//             )
+//                 .trim()
+//                 .toUpperCase();
 
-//     try {
+//             const lan = String(
+//                 req.query.lan || ""
+//             )
+//                 .trim()
+//                 .toUpperCase();
 
-//       const partnerCode =
-//         cleanText(
-//           req.query.partner_code
-//         ).toUpperCase();
+//             console.log("Partner Code:", partnerCode);
+//             console.log("Received LAN:", lan);
 
+//             if (!partnerCode) {
+//                 return res.status(400).json({
+//                     success: false,
+//                     message: "partner_code is required",
+//                 });
+//             }
 
-//       const lan =
-//         cleanLan(
-//           req.query.lan
-//         );
+//             if (!lan) {
+//                 return res.status(400).json({
+//                     success: false,
+//                     message: "LAN is required",
+//                 });
+//             }
 
+//             if (partnerCode !== "SASWAT") {
+//                 return res.status(400).json({
+//                     success: false,
+//                     message: "Currently only SASWAT is supported",
+//                 });
+//             }
 
-//       if (!partnerCode) {
-//         return res.status(400).json({
-//           success: false,
-//           message:
-//             "partner_code is required",
-//         });
-//       }
+//             const config =
+//                 PARTNER_CONFIG.SASWAT;
 
+//             const loan =
+//                 await fetchLoanByLan(
+//                     config,
+//                     lan
+//                 );
 
-//       if (!lan) {
-//         return res.status(400).json({
-//           success: false,
-//           message:
-//             "LAN is required",
-//         });
-//       }
+//             if (!loan) {
+//                 return res.status(404).json({
+//                     success: false,
+//                     message: `Loan not found for ${lan}`,
+//                 });
+//             }
 
+//             return res.status(200).json({
+//                 success: true,
 
-//       const config =
-//         getPartnerConfig(
-//           partnerCode
-//         );
+//                 data: {
+//                     partner_code: "SASWAT",
 
+//                     partner_name:
+//                         config.partnerName,
 
-//       if (!config) {
-//         return res.status(404).json({
-//           success: false,
-//           message:
-//             "Partner configuration not found",
-//         });
-//       }
+//                     lan:
+//                         loan.lan,
 
+//                     loan_account_number:
+//                         loan.loan_account_number,
 
-//       const loan =
-//         await fetchLoanByLan(
-//           config,
-//           lan
-//         );
+//                     partner_loan_id:
+//                         loan.partner_loan_id,
 
+//                     customer_name:
+//                         loan.customer_name,
 
-//       if (!loan) {
-//         return res.status(404).json({
-//           success: false,
+//                     customer_address:
+//                         loan.customer_address,
 
-//           message:
-//             `Loan ${lan} not found`,
-//         });
-//       }
+//                     lender:
+//                         loan.lender,
 
+//                     product:
+//                         loan.product,
 
-//       return res.status(200).json({
+//                     lender_type:
+//                         loan.lender_type,
+//                 },
+//             });
+//         } catch (error) {
+//             console.error(
+//                 "Payment Receipt Loan Error:",
+//                 error
+//             );
 
-//         success: true,
-
-//         data: {
-
-//           partner_code:
-//             config.partnerCode,
-
-//           partner_name:
-//             config.partnerName,
-
-//           lan:
-//             loan.lan,
-
-//           loan_account_number:
-//             loan.loan_account_number,
-
-//           customer_name:
-//             loan.customer_name,
-
-//           customer_address:
-//             loan.customer_address,
-
-//           lender:
-//             loan.lender,
-
-//           product:
-//             loan.product,
-
-//           lender_type:
-//             loan.lender_type,
-//         },
-
-//       });
-
-//     } catch (error) {
-
-//       console.error(
-//         "Receipt loan details error:",
-//         error
-//       );
-
-
-//       return res.status(500).json({
-
-//         success: false,
-
-//         message:
-//           "Unable to fetch loan details",
-
-//         error:
-//           error.message,
-
-//       });
-
+//             return res.status(500).json({
+//                 success: false,
+//                 message:
+//                     "Unable to fetch loan details",
+//                 error:
+//                     error.message,
+//             });
+//         }
 //     }
-
-//   }
 // );
+
 router.get(
-    "/loan-details",
-    async (req, res) => {
-        try {
-            const partnerCode = String(
-                req.query.partner_code || ""
-            )
-                .trim()
-                .toUpperCase();
+  "/loan-details",
 
-            const lan = String(
-                req.query.lan || ""
-            )
-                .trim()
-                .toUpperCase();
+  async (req, res) => {
+    try {
 
-            console.log("Partner Code:", partnerCode);
-            console.log("Received LAN:", lan);
+      /* =====================================================
+         INPUT
+      ===================================================== */
 
-            if (!partnerCode) {
-                return res.status(400).json({
-                    success: false,
-                    message: "partner_code is required",
-                });
-            }
+      const partnerCode =
+        cleanText(
+          req.query.partner_code
+        ).toUpperCase();
 
-            if (!lan) {
-                return res.status(400).json({
-                    success: false,
-                    message: "LAN is required",
-                });
-            }
 
-            if (partnerCode !== "SASWAT") {
-                return res.status(400).json({
-                    success: false,
-                    message: "Currently only SASWAT is supported",
-                });
-            }
+      const lan =
+        cleanLan(
+          req.query.lan
+        );
 
-            const config =
-                PARTNER_CONFIG.SASWAT;
 
-            const loan =
-                await fetchLoanByLan(
-                    config,
-                    lan
-                );
+      console.log(
+        "Payment Receipt Partner:",
+        partnerCode
+      );
 
-            if (!loan) {
-                return res.status(404).json({
-                    success: false,
-                    message: `Loan not found for ${lan}`,
-                });
-            }
+      console.log(
+        "Payment Receipt LAN:",
+        lan
+      );
 
-            return res.status(200).json({
-                success: true,
 
-                data: {
-                    partner_code: "SASWAT",
+      /* =====================================================
+         VALIDATION
+      ===================================================== */
 
-                    partner_name:
-                        config.partnerName,
+      if (!partnerCode) {
+        return res
+          .status(400)
+          .json({
+            success: false,
 
-                    lan:
-                        loan.lan,
+            message:
+              "partner_code is required",
+          });
+      }
 
-                    loan_account_number:
-                        loan.loan_account_number,
 
-                    partner_loan_id:
-                        loan.partner_loan_id,
+      if (!lan) {
+        return res
+          .status(400)
+          .json({
+            success: false,
 
-                    customer_name:
-                        loan.customer_name,
+            message:
+              "LAN is required",
+          });
+      }
 
-                    customer_address:
-                        loan.customer_address,
 
-                    lender:
-                        loan.lender,
+      /* =====================================================
+         GET PARTNER CONFIG
+      ===================================================== */
 
-                    product:
-                        loan.product,
+      const config =
+        getPartnerConfig(
+          partnerCode
+        );
 
-                    lender_type:
-                        loan.lender_type,
-                },
-            });
-        } catch (error) {
-            console.error(
-                "Payment Receipt Loan Error:",
-                error
-            );
 
-            return res.status(500).json({
-                success: false,
-                message:
-                    "Unable to fetch loan details",
-                error:
-                    error.message,
-            });
-        }
+      if (!config) {
+        return res
+          .status(404)
+          .json({
+            success: false,
+
+            message:
+              `Partner configuration not found for ${partnerCode}`,
+          });
+      }
+
+
+      /* =====================================================
+         FETCH LOAN
+      ===================================================== */
+
+      const loan =
+        await fetchLoanByLan(
+          config,
+          lan
+        );
+
+
+      if (!loan) {
+        return res
+          .status(404)
+          .json({
+            success: false,
+
+            message:
+              `Loan ${lan} not found for ${config.partnerName}`,
+          });
+      }
+
+
+      /* =====================================================
+         RESPONSE
+      ===================================================== */
+
+      return res
+        .status(200)
+        .json({
+
+          success: true,
+
+          data: {
+
+            partner_code:
+              config.partnerCode,
+
+            partner_name:
+              config.partnerName,
+
+            lan:
+              loan.lan,
+
+            loan_account_number:
+              loan.loan_account_number,
+
+            customer_name:
+              loan.customer_name,
+
+            customer_address:
+              loan.customer_address,
+
+            lender:
+              loan.lender,
+
+            product:
+              loan.product,
+
+            lender_type:
+              loan.lender_type,
+
+          },
+
+        });
+
+    } catch (error) {
+
+      console.error(
+        "Payment Receipt Loan Error:",
+        error
+      );
+
+
+      return res
+        .status(500)
+        .json({
+
+          success: false,
+
+          message:
+            "Unable to fetch loan details",
+
+          error:
+            error.message,
+
+        });
     }
+  }
 );
 
 /* ============================================================
@@ -831,7 +905,9 @@ if (existingReceiptRows.length > 0) {
         String(receiptId).padStart(4, "0");
 
     receiptNo =
-        `FTF-${receiptDate.replace(/-/g, "")}-${sequence}`;
+  `${config.receiptPrefix}-${receiptDate.replace(/-/g, "")}-${sequence}`;
+    // receiptNo =
+    //     `FTF-${receiptDate.replace(/-/g, "")}-${sequence}`;
 
     /*
        Save generated receipt number.

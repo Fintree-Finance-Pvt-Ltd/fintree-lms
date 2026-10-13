@@ -1,3 +1,4 @@
+
 // import React, { useState } from "react";
 // import PaymentReceiptModal from "./PaymentReceiptModal";
 
@@ -5,8 +6,27 @@
 //   const [open, setOpen] = useState(false);
 
 //   return (
-//     <div style={{ padding: "20px" }}>
-//       <h2>Saswat Payment Receipt</h2>
+//     <div
+//       style={{
+//         padding: "24px",
+//       }}
+//     >
+//       <h2
+//         style={{
+//           marginBottom: "8px",
+//         }}
+//       >
+//         Saswat Payment Receipt
+//       </h2>
+
+//       <p
+//         style={{
+//           color: "#6b7280",
+//           marginBottom: "20px",
+//         }}
+//       >
+//         Generate payment receipt for Saswat loan customers.
+//       </p>
 
 //       <button
 //         type="button"
@@ -16,7 +36,7 @@
 //           color: "#ffffff",
 //           border: "none",
 //           padding: "10px 18px",
-//           borderRadius: "6px",
+//           borderRadius: "7px",
 //           cursor: "pointer",
 //           fontWeight: "600",
 //         }}
@@ -35,9 +55,6 @@
 
 // export default SaswatPaymentReceipt;
 
-
-
-
 import React, { useState } from "react";
 import PaymentReceiptModal from "./PaymentReceiptModal";
 
@@ -55,7 +72,7 @@ const SaswatPaymentReceipt = () => {
           marginBottom: "8px",
         }}
       >
-        Saswat Payment Receipt
+        Payment Receipt
       </h2>
 
       <p
@@ -64,7 +81,7 @@ const SaswatPaymentReceipt = () => {
           marginBottom: "20px",
         }}
       >
-        Generate payment receipt for Saswat loan customers.
+        Generate payment receipt by entering the customer LAN.
       </p>
 
       <button
@@ -86,7 +103,6 @@ const SaswatPaymentReceipt = () => {
       <PaymentReceiptModal
         open={open}
         onClose={() => setOpen(false)}
-        partnerCode="SASWAT"
       />
     </div>
   );

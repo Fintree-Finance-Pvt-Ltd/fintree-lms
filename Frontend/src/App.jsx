@@ -468,8 +468,8 @@ function App() {
               </PermissionRoute>
             }
           />
-          <Route
-            path="/saswat/payment-receipt"
+           <Route
+               path="/payment-receipt"
             element={<SaswatPaymentReceipt />}
           />
           {/* <Route
