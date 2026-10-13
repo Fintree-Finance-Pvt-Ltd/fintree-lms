@@ -24,9 +24,9 @@ const {
   processMandateWebhook,
 } = require("../services/easebuzz/easebuzzMandateService");
 const partnerLimitService = require("../services/partnerLimitService");
-const {
-  processClaimBuddyDisbursement,
-} = require("../services/processClaimBuddyDisbursement");
+// const {
+//   processClaimBuddyDisbursement,
+// } = require("../services/processClaimBuddyDisbursement");
 const {
   sendFintreePlDisbursementWebhook,
 } = require("../services/payout.service");
