@@ -2490,7 +2490,7 @@ router.get("/loan-info/:lan", async (req, res) => {
 
       bureau_status: kycRow.bureau_status || "PENDING",
 
-      aml_status: kycRow.aml_status || "PENDING",
+      aml_status: row.aml_status || "PENDING",
 
       agreement_esign_status: row.agreement_esign_status || "PENDING",
 
