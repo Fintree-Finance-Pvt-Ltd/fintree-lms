@@ -283,6 +283,20 @@ function getKolkataDateString(d = new Date()) {
 }
 
 /**
+ * Format yesterday's date in Asia/Kolkata timezone to YYYY-MM-DD.
+ *
+ * @param {Date|string} [baseDate]
+ * @returns {string} YYYY-MM-DD
+ */
+function getYesterdayKolkataDateString(baseDate = new Date()) {
+  const todayStr = getKolkataDateString(baseDate);
+  const [y, m, d] = todayStr.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  dt.setUTCDate(dt.getUTCDate() - 1);
+  return dt.toISOString().slice(0, 10);
+}
+
+/**
  * Format YYYY-MM-DD to DD-MM-YYYY for display in Excel and labels.
  *
  * @param {string} ymd - YYYY-MM-DD
@@ -935,15 +949,15 @@ function buildDisbursementSvg(reportData) {
 
   // Always display the 5-column layout with Total_disbursal_amount and Total_Loan_Amount
   const columns = [
-    { key: "date", label: "disbursement_date", width: 180, align: "right" },
-    { key: "lender", label: "lender_name", width: 230, align: "left" },
+    { key: "date", label: "disbursement_date", width: 200, align: "right" },
+    { key: "lender", label: "lender_name", width: 220, align: "left" },
     { key: "loans", label: "total_loans", width: 140, align: "right" },
-    { key: "disbursal_amt", label: "Total_disbursal_amount", width: 250, align: "right" },
-    { key: "loan_amt", label: "Total_Loan_Amount", width: 240, align: "right" },
+    { key: "disbursal_amt", label: "total_disbursal_amount", width: 260, align: "right" },
+    { key: "loan_amt", label: "total_loan_amount", width: 240, align: "right" },
   ];
 
   const tableWidth = columns.reduce((acc, col) => acc + col.width, 0);
-  const headerHeight = 36;
+  const headerHeight = 44;
   const rowHeight = 34;
   const totalRowHeight = 36;
   const rowCount = Math.max(partners.length, 1);
@@ -956,6 +970,7 @@ function buildDisbursementSvg(reportData) {
   svg += `<svg width="${imageWidth}" height="${imageHeight}" viewBox="0 0 ${imageWidth} ${imageHeight}" xmlns="http://www.w3.org/2000/svg">\n`;
   svg += `  <defs>\n`;
   svg += `    <style>\n`;
+  svg += `      .tbl-header { font-family: Calibri, Aptos, Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif; font-size: 20px; fill: #000000; font-weight: 800; }\n`;
   svg += `      .tbl-text { font-family: Calibri, Aptos, Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif; font-size: 16px; fill: #000000; font-weight: 700; }\n`;
   svg += `    </style>\n`;
   svg += `  </defs>\n`;
@@ -973,20 +988,12 @@ function buildDisbursementSvg(reportData) {
     runningX += col.width;
   });
 
-  // 1. Column Headers
+  // 1. Column Headers (Enlarged font, filter icons removed)
   let colX = 0;
   columns.forEach((col) => {
-    const textX = colX + 10;
+    const textX = colX + 12;
     const textY = headerHeight / 2;
-    svg += `  <text x="${textX}" y="${textY}" class="tbl-text" text-anchor="start" dominant-baseline="central">${escapeXml(col.label)}</text>\n`;
-
-    // Excel filter dropdown icon button
-    const btnSize = 16;
-    const btnX = colX + col.width - btnSize - 6;
-    const btnY = (headerHeight - btnSize) / 2;
-    svg += `  <rect x="${btnX}" y="${btnY}" width="${btnSize}" height="${btnSize}" fill="#EAEAEA" stroke="#7A7A7A" stroke-width="1" rx="1"/>\n`;
-    svg += `  <polygon points="${btnX + 4},${btnY + 6} ${btnX + btnSize - 4},${btnY + 6} ${btnX + btnSize / 2},${btnY + btnSize - 5}" fill="#000000"/>\n`;
-
+    svg += `  <text x="${textX}" y="${textY}" class="tbl-header" text-anchor="start" dominant-baseline="central">${escapeXml(col.label)}</text>\n`;
     colX += col.width;
   });
 
@@ -1626,6 +1633,7 @@ module.exports = {
   initializeReportLogsTable,
   resolvePartnerName,
   getKolkataDateString,
+  getYesterdayKolkataDateString,
   formatDisplayDate,
   formatDateToLong,
   hasReportBeenSent,

@@ -17,6 +17,7 @@
 const cron = require("node-cron");
 const {
   getKolkataDateString,
+  getYesterdayKolkataDateString,
   hasReportBeenSent,
   generateAndSendDailyReport,
   generateAndSendDailyImageReport,
@@ -44,9 +45,9 @@ function getKolkataCurrentHour() {
  */
 function initWhatsAppReportScheduler() {
   const autoEnabled = String(process.env.WHATSAPP_AUTO_ENABLED || "true").toLowerCase() === "true";
-  const reportHour = parseInt(process.env.WHATSAPP_DAILY_REPORT_HOUR, 10) || 20; // Default 20:00 (8:00 PM IST)
+  const reportHour = parseInt(process.env.WHATSAPP_DAILY_REPORT_HOUR, 10) || 6; // Default 06:00 (6:00 AM IST)
   const reportMinute = parseInt(process.env.WHATSAPP_DAILY_REPORT_MINUTE, 10) || 0; // Default minute 0
-  const startHour = parseInt(process.env.WHATSAPP_START_HOUR, 10) || 9;
+  const startHour = parseInt(process.env.WHATSAPP_START_HOUR, 10) || 6;
   const endHour = parseInt(process.env.WHATSAPP_END_HOUR, 10) || 20;
 
   if (!autoEnabled) {
@@ -84,15 +85,27 @@ function initWhatsAppReportScheduler() {
           return;
         }
 
-        const todayKolkata = getKolkataDateString();
-        console.log(`[WhatsAppScheduler] Triggering scheduled daily disbursement report for date: ${todayKolkata}`);
+        // When running morning reports (e.g. 6:00 AM) or when WHATSAPP_REPORT_PREVIOUS_DAY is explicitly set to true,
+        // send yesterday's full-day disbursal count. Otherwise send today's count.
+        const sendPreviousDay =
+          process.env.WHATSAPP_REPORT_PREVIOUS_DAY !== undefined
+            ? String(process.env.WHATSAPP_REPORT_PREVIOUS_DAY).toLowerCase() === "true"
+            : reportHour < 12;
 
-        const isSent = await hasReportBeenSent(todayKolkata, REPORT_TYPE);
+        const targetReportDate = sendPreviousDay
+          ? getYesterdayKolkataDateString()
+          : getKolkataDateString();
+
+        console.log(
+          `[WhatsAppScheduler] Triggering scheduled daily disbursement report for date: ${targetReportDate} (${sendPreviousDay ? "Yesterday" : "Today"})`
+        );
+
+        const isSent = await hasReportBeenSent(targetReportDate, REPORT_TYPE);
         if (!isSent) {
           try {
-            console.log(`[WhatsAppScheduler] Dispatching daily disbursement IMAGE in document format for date: ${todayKolkata}`);
+            console.log(`[WhatsAppScheduler] Dispatching daily disbursement IMAGE in document format for date: ${targetReportDate}`);
             const result = await generateAndSendDailyReport({
-              date: todayKolkata,
+              date: targetReportDate,
               forceResend: false,
               triggeredBy: "SCHEDULER",
             });
@@ -108,7 +121,7 @@ function initWhatsAppReportScheduler() {
             console.error("[WhatsAppScheduler] Scheduled report failed:", err.message);
           }
         } else {
-          console.log(`[WhatsAppScheduler] Daily report for ${todayKolkata} already sent. Skipping automatic dispatch.`);
+          console.log(`[WhatsAppScheduler] Daily report for ${targetReportDate} already sent. Skipping automatic dispatch.`);
         }
       } catch (error) {
         console.error("[WhatsAppScheduler] Error during scheduled report execution:", error.message);
