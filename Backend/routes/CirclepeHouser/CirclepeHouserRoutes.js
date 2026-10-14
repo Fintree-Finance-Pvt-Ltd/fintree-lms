@@ -874,9 +874,18 @@ router.post("/circle-pe/external", verifyApiKey, async (req, res) => {
       bre_decision: breResult.decision,
       reasons: breResult.reasons,
       checks: breResult.checks,
-    }).catch((whErr) => {
-      console.error("CirclePe Houser Webhook invocation error:", whErr);
-    });
+    })
+      .then((result) => {
+        if (!result?.success) {
+          console.error("❌ Circle Pe Houser BRE webhook not delivered", {
+            lan,
+            result,
+          });
+        }
+      })
+      .catch((error) => {
+        console.error("❌ Circle Pe Houser BRE webhook error:", error.message);
+      });
 
     return res.status(201).json({
       success: true,

@@ -558,6 +558,8 @@ const {
   sendQuickMoneyDisbursementWebhook,
 } = require("./QuickMoney/quickMoneyWebhook");
 
+
+
 function excelDateToJSDate(serial) {
   const utc_days = Math.floor(serial - 25569);
   const utc_value = utc_days * 86400;
@@ -744,8 +746,17 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
             processedCount++;
             insertedLANs.add(lan);
             try {
-              const emailResult = await welcomeLetterQueue.add("send-welcome-letter", { lan, utrNumber: String(disbursementUTR).trim() }, { jobId: `welcome-${lan}-${Date.now()}` });
-              welcomeEmailResults.push({ lan, utr: disbursementUTR, recipient: emailResult.recipient, status: "SENT" });
+              const emailResult = await welcomeLetterQueue.add(
+                "send-welcome-letter",
+                { lan, utrNumber: String(disbursementUTR).trim() },
+                { jobId: `welcome-${lan}-${Date.now()}` },
+              );
+              welcomeEmailResults.push({
+                lan,
+                utr: disbursementUTR,
+                recipient: emailResult.recipient,
+                status: "SENT",
+              });
             } catch (error) {
               welcomeEmailErrors.push({
                 lan,
@@ -1101,8 +1112,8 @@ WHERE lan = ?`,
         else if (lan.startsWith("CBF")) {
           [loanRes] = await db.promise().query(
             `
-    SELECT
-      COALESCE(final_limit, approved_limit, loan_amount) AS loan_amount,
+    SELECT 
+      loan_amount,
       interest_rate,
       loan_tenure,
       product,
@@ -1382,13 +1393,6 @@ WHERE lan = ?`,
               "UPDATE loan_booking_clayyo SET status = 'Disbursed' , stage = 'Disbursed' WHERE lan = ?",
               [lan],
             );
-          } else if (lan.startsWith("CBF")) {
-            await conn.query(
-              `UPDATE loan_booking_claim_buddy
-               SET status = 'DISBURSED', stage = 'DISBURSED', disbursed_at = ?
-               WHERE lan = ?`,
-              [disbursementDate, lan],
-            );
           } else if (lan.startsWith("LDF")) {
             await conn.query(
               "UPDATE loan_booking_loan_digit SET status = 'Disbursed' WHERE lan = ?",
@@ -1497,14 +1501,13 @@ WHERE lan = ?`,
                   SET status = 'Disbursed'
                   WHERE lan = ?
                 `,
-                [lan],
-              );
-            
-              console.log("✅ Saswat status updated", {
-                lan,
-                affectedRows: saswatUpdate.affectedRows,
-              });
-            
+              [lan],
+            );
+
+            console.log("✅ Saswat status updated", {
+              lan,
+              affectedRows: saswatUpdate.affectedRows,
+            });
           } else if (lan.startsWith("ZBCL")) {
             await conn.query(
               "UPDATE loan_booking_zebrs SET status = 'Disbursed', stage = 'Disbursed' WHERE lan = ?",
@@ -1561,34 +1564,20 @@ WHERE lan = ?`,
         insertedLANs.add(lan);
         processedCount++;
 
-        // Seven Fincorp: count this disbursement against the monthly limit.
-        // Runs after commit and never throws, so it cannot undo or block a
-        // disbursement that already happened. Deduped per LAN, so a LAN already
-        // recorded by the payout API (UTR in its response) is not counted twice.
-        if (lan.startsWith("SFL")) {
-          await partnerLimitService.recordDisbursementUsage(db.promise(), {
-            partnerName: "Seven Fincorp",
-            amount: Number(loan_amount),
-            lan,
-          });
-        }
-
         if (!welcomeEmailAttemptedLANs.has(lan)) {
           welcomeEmailAttemptedLANs.add(lan);
           try {
             const emailResult = await welcomeLetterQueue.add(
               "send-welcome-letter",
               { lan, utrNumber: String(disbursementUTR).trim() },
-              { jobId: `welcome-${lan}-${Date.now()}` }
+              { jobId: `welcome-${lan}-${Date.now()}` },
             );
             welcomeEmailResults.push({
               lan,
               utr: disbursementUTR,
               status: "QUEUED",
             });
-            console.log(
-              `✅ Welcome email queued successfully | LAN: ${lan}`,
-            );
+            console.log(`✅ Welcome email queued successfully | LAN: ${lan}`);
           } catch (welcomeEmailError) {
             console.error(
               `❌ Welcome email failed | LAN: ${lan}`,
@@ -1807,6 +1796,8 @@ WHERE lan = ?`,
             });
           }
         }
+
+       
         // ✅ Call webhook for FINE (Finso) loans only
         if (lan.startsWith("FINS")) {
           try {
