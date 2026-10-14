@@ -333,14 +333,18 @@ function formatDateToLong(ymd) {
 }
 
 /**
- * Format numerical amounts with en-IN comma separation (e.g. 21,81,773).
+ * Format numerical amounts with Indian comma separation (e.g. 2,70,900 or 1,09,98,804).
+ *
+ * @param {number|string} val
+ * @param {boolean} [roundToInteger=true] - If true, round off completely with no decimals
+ * @returns {string} Formatted number string with commas
  */
-function formatAmount(val) {
+function formatAmount(val, roundToInteger = true) {
   if (val == null || val === "" || isNaN(val)) return "0";
-  const num = Math.round(Number(val) * 100) / 100;
+  const num = roundToInteger ? Math.round(Number(val)) : Math.round(Number(val) * 100) / 100;
   return num.toLocaleString("en-IN", {
-    maximumFractionDigits: 2,
-    minimumFractionDigits: Number.isInteger(num) ? 0 : 2,
+    maximumFractionDigits: roundToInteger ? 0 : 2,
+    minimumFractionDigits: 0,
   });
 }
 
@@ -949,17 +953,17 @@ function buildDisbursementSvg(reportData) {
 
   // Always display the 5-column layout with Total_disbursal_amount and Total_Loan_Amount
   const columns = [
-    { key: "date", label: "disbursement_date", width: 200, align: "right" },
-    { key: "lender", label: "lender_name", width: 220, align: "left" },
-    { key: "loans", label: "total_loans", width: 140, align: "right" },
-    { key: "disbursal_amt", label: "total_disbursal_amount", width: 260, align: "right" },
-    { key: "loan_amt", label: "total_loan_amount", width: 240, align: "right" },
+    { key: "date", label: "disbursement_date", width: 240, align: "right" },
+    { key: "lender", label: "lender_name", width: 260, align: "center" },
+    { key: "loans", label: "total_loans", width: 170, align: "center" },
+    { key: "disbursal_amt", label: "total_disbursal_amount", width: 320, align: "right" },
+    { key: "loan_amt", label: "total_loan_amount", width: 280, align: "right" },
   ];
 
   const tableWidth = columns.reduce((acc, col) => acc + col.width, 0);
-  const headerHeight = 44;
-  const rowHeight = 34;
-  const totalRowHeight = 36;
+  const headerHeight = 52;
+  const rowHeight = 46;
+  const totalRowHeight = 50;
   const rowCount = Math.max(partners.length, 1);
   const tableHeight = headerHeight + rowCount * rowHeight + totalRowHeight;
 
@@ -970,8 +974,9 @@ function buildDisbursementSvg(reportData) {
   svg += `<svg width="${imageWidth}" height="${imageHeight}" viewBox="0 0 ${imageWidth} ${imageHeight}" xmlns="http://www.w3.org/2000/svg">\n`;
   svg += `  <defs>\n`;
   svg += `    <style>\n`;
-  svg += `      .tbl-header { font-family: Calibri, Aptos, Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif; font-size: 20px; fill: #000000; font-weight: 800; }\n`;
-  svg += `      .tbl-text { font-family: Calibri, Aptos, Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif; font-size: 16px; fill: #000000; font-weight: 700; }\n`;
+  svg += `      .tbl-header { font-family: Calibri, Aptos, Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif; font-size: 28px; fill: #000000; font-weight: 800; }\n`;
+  svg += `      .tbl-text { font-family: Calibri, Aptos, Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif; font-size: 30px; fill: #000000; font-weight: 800; }\n`;
+  svg += `      .tbl-total { font-family: Calibri, Aptos, Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif; font-size: 30px; fill: #000000; font-weight: 800; }\n`;
   svg += `    </style>\n`;
   svg += `  </defs>\n`;
 
@@ -988,12 +993,20 @@ function buildDisbursementSvg(reportData) {
     runningX += col.width;
   });
 
-  // 1. Column Headers (Enlarged font, filter icons removed)
+  // 1. Column Headers (Enlarged font, centered lender_name, filter icons removed)
   let colX = 0;
   columns.forEach((col) => {
-    const textX = colX + 12;
+    let textX;
+    let anchor = "start";
+    if (col.align === "center") {
+      anchor = "middle";
+      textX = colX + col.width / 2;
+    } else {
+      anchor = "start";
+      textX = colX + 16;
+    }
     const textY = headerHeight / 2;
-    svg += `  <text x="${textX}" y="${textY}" class="tbl-header" text-anchor="start" dominant-baseline="central">${escapeXml(col.label)}</text>\n`;
+    svg += `  <text x="${textX}" y="${textY}" class="tbl-header" text-anchor="${anchor}" dominant-baseline="central">${escapeXml(col.label)}</text>\n`;
     colX += col.width;
   });
 
@@ -1015,22 +1028,24 @@ function buildDisbursementSvg(reportData) {
         } else if (col.key === "lender") {
           val = p.partnerName;
         } else if (col.key === "loans") {
-          val = String(p.disbursedCaseCount != null ? p.disbursedCaseCount : (p.totalLoans != null ? p.totalLoans : 0));
+          const rawCount = p.disbursedCaseCount != null ? p.disbursedCaseCount : (p.totalLoans != null ? p.totalLoans : 0);
+          val = Number(rawCount).toLocaleString("en-IN");
         } else if (col.key === "disbursal_amt") {
           const amt = p.totalDisbursalAmount != null ? p.totalDisbursalAmount : (p.disbursalAmount != null ? p.disbursalAmount : p.total_disbursal_amount);
-          val = amt != null ? formatAmount(amt) : "0";
+          val = amt != null ? formatAmount(amt, true) : "0";
         } else if (col.key === "loan_amt") {
           const amt = p.totalLoanAmount != null ? p.totalLoanAmount : (p.loanAmount != null ? p.loanAmount : p.total_loan_amount);
-          val = amt != null ? formatAmount(amt) : "0";
+          val = amt != null ? formatAmount(amt, true) : "0";
         }
 
         if (col.align === "left") {
           anchor = "start";
-          textX = rX + 12;
+          textX = rX + 16;
         } else if (col.align === "right") {
           anchor = "end";
-          textX = rX + col.width - 12;
+          textX = rX + col.width - 16;
         } else {
+          // center (for lender_name)
           anchor = "middle";
           textX = rX + col.width / 2;
         }
@@ -1042,7 +1057,7 @@ function buildDisbursementSvg(reportData) {
     });
   }
 
-  // 3. Total Row
+  // 3. Total Row (Rounded off completely with Indian comma separators, e.g. 2,70,900)
   let totX = 0;
   const grandTotalCases = totalDisbursedCases || partners.reduce((s, p) => s + Number(p.disbursedCaseCount || p.totalLoans || 0), 0);
   columns.forEach((col, idx) => {
@@ -1054,36 +1069,33 @@ function buildDisbursementSvg(reportData) {
       val = "";
     } else if (idx === 1) {
       val = "Total Amount";
-      anchor = "start";
-    } else if (col.key === "loans") {
-      val = String(grandTotalCases);
-      anchor = "end";
-    } else if (col.key === "disbursal_amt") {
+      anchor = "middle";
+      textX = totX + col.width / 2;
+} else if (col.key === "loans") {
+  val = Number(grandTotalCases).toLocaleString("en-IN");
+  anchor = "middle";
+  textX = totX + col.width / 2;
+} else if (col.key === "disbursal_amt") {
       const tot = partners.reduce((s, p) => {
         const amt = p.totalDisbursalAmount != null ? p.totalDisbursalAmount : (p.disbursalAmount != null ? p.disbursalAmount : p.total_disbursal_amount);
         return s + Number(amt || 0);
       }, 0);
-      val = formatAmount(tot);
+      val = formatAmount(tot, true); // Formatted with Indian commas (e.g. 1,09,98,804)
       anchor = "end";
+      textX = totX + col.width - 16;
     } else if (col.key === "loan_amt") {
       const tot = partners.reduce((s, p) => {
         const amt = p.totalLoanAmount != null ? p.totalLoanAmount : (p.loanAmount != null ? p.loanAmount : p.total_loan_amount);
         return s + Number(amt || 0);
       }, 0);
-      val = formatAmount(tot);
+      val = formatAmount(tot, true); // Formatted with Indian commas (e.g. 1,23,36,920)
       anchor = "end";
+      textX = totX + col.width - 16;
     }
 
     if (val) {
-      if (anchor === "start") {
-        textX = totX + 12;
-      } else if (anchor === "end") {
-        textX = totX + col.width - 12;
-      } else {
-        textX = totX + col.width / 2;
-      }
       const textY = curY + totalRowHeight / 2;
-      svg += `  <text x="${textX}" y="${textY}" class="tbl-text" text-anchor="${anchor}" dominant-baseline="central">${escapeXml(val)}</text>\n`;
+      svg += `  <text x="${textX}" y="${textY}" class="tbl-total" text-anchor="${anchor}" dominant-baseline="central">${escapeXml(val)}</text>\n`;
     }
     totX += col.width;
   });
