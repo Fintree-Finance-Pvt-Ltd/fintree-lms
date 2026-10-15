@@ -8,6 +8,7 @@ const { sendCirclePeHouserBREWebhook } = require("./circlepeHouserWebhook");
 const {
   generateRepaymentScheduleCirclePeHouser,
 } = require("../../utils/repaymentScheduleGenerator");
+const { checkCirclePeHouserDedup } = require("./circlepeHouserDedup");
 
 const router = express.Router();
 
@@ -548,6 +549,17 @@ router.post("/circle-pe-houser", verifyApiKey, async (req, res) => {
       });
     }
 
+    const dedup = await checkCirclePeHouserDedup(loanData.pan_number);
+
+    if (!dedup.eligible) {
+      return res.status(409).json({
+        success: false,
+        code: "DEDUP_REJECTED",
+        message: "Customer already has two open loans",
+        data: dedup,
+      });
+    }
+
     /*
      * Uses the same LAN and partner-loan-ID generator
      * as the existing Excel upload API.
@@ -684,82 +696,129 @@ router.post("/circle-pe/external", verifyApiKey, async (req, res) => {
      * - mobile_number
      * - email_id (if provided)
      */
-    const duplicateConditions = [];
-    const duplicateParams = [];
+    // const duplicateConditions = [];
+    // const duplicateParams = [];
 
-    if (loanData.partner_loan_id) {
-      duplicateConditions.push("partner_loan_id = ?");
-      duplicateParams.push(loanData.partner_loan_id);
+    // if (loanData.partner_loan_id) {
+    //   duplicateConditions.push("partner_loan_id = ?");
+    //   duplicateParams.push(loanData.partner_loan_id);
+    // }
+
+    // if (loanData.pan_number) {
+    //   duplicateConditions.push("pan_number = ?");
+    //   duplicateParams.push(loanData.pan_number);
+    // }
+
+    // if (loanData.mobile_number) {
+    //   duplicateConditions.push("mobile_number = ?");
+    //   duplicateParams.push(loanData.mobile_number);
+    // }
+
+    // if (loanData.email_id) {
+    //   duplicateConditions.push("email_id = ?");
+    //   duplicateParams.push(loanData.email_id);
+    // }
+
+    // if (duplicateConditions.length > 0) {
+    //   const [existingMatches] = await db.promise().query(
+    //     `
+    //       SELECT lan, partner_loan_id, app_id, pan_number, mobile_number, email_id, status
+    //       FROM ${TABLE_NAME}
+    //       WHERE ${duplicateConditions.join(" OR ")}
+    //       LIMIT 1
+    //     `,
+    //     duplicateParams,
+    //   );
+
+    //   if (existingMatches.length > 0) {
+    //     const match = existingMatches[0];
+    //     let duplicateField = "Record";
+    //     let duplicateValue = "";
+
+    //     if (
+    //       loanData.partner_loan_id &&
+    //       match.partner_loan_id === loanData.partner_loan_id
+    //     ) {
+    //       duplicateField = "partner_loan_id";
+    //       duplicateValue = loanData.partner_loan_id;
+    //     } else if (
+    //       loanData.pan_number &&
+    //       match.pan_number === loanData.pan_number
+    //     ) {
+    //       duplicateField = "pan_number";
+    //       duplicateValue = loanData.pan_number;
+    //     } else if (
+    //       loanData.mobile_number &&
+    //       match.mobile_number === loanData.mobile_number
+    //     ) {
+    //       duplicateField = "mobile_number";
+    //       duplicateValue = loanData.mobile_number;
+    //     } else if (loanData.email_id && match.email_id === loanData.email_id) {
+    //       duplicateField = "email_id";
+    //       duplicateValue = loanData.email_id;
+    //     }
+
+    //     return res.status(409).json({
+    //       success: false,
+    //       code: "DUPLICATE_RECORD",
+    //       message: `Duplicate loan application found with matching ${duplicateField}: ${duplicateValue} (Existing LAN: ${match.lan}, Status: ${match.status})`,
+    //       data: {
+    //         lan: match.lan,
+    //         partner_loan_id: match.partner_loan_id,
+    //         status: match.status,
+    //         matched_field: duplicateField,
+    //         matched_value: duplicateValue,
+    //       },
+    //     });
+    //   }
+    // }
+
+    /*
+     * CirclePe Houser DE-DUP Check
+     * Maximum 2 open loans per customer.
+     * Fully Paid / Foreclosed = Closed.
+     */
+
+    // 1. Check duplicate partner loan ID
+    const [existingPartnerLoans] = await db.promise().query(
+      `
+        SELECT lan
+        FROM ${TABLE_NAME}
+        WHERE partner_loan_id = ?
+        LIMIT 1
+      `,
+      [loanData.partner_loan_id],
+    );
+
+    if (existingPartnerLoans.length > 0) {
+      return res.status(409).json({
+        success: false,
+        code: "DUPLICATE_PARTNER_LOAN_ID",
+        message: "Partner loan ID already exists",
+      });
     }
 
-    if (loanData.pan_number) {
-      duplicateConditions.push("pan_number = ?");
-      duplicateParams.push(loanData.pan_number);
+    // 2. Check customer DE-DUP using PAN
+    const dedup = await checkCirclePeHouserDedup(loanData.pan_number);
+
+    if (!dedup.eligible) {
+      return res.status(409).json({
+        success: false,
+        code: "DEDUP_REJECTED",
+        message: "Customer already has 2 open loans. New loan is not allowed.",
+        data: {
+          totalPreviousLoans: dedup.totalPreviousLoans,
+          openLoanCount: dedup.openLoanCount,
+          closedLoanCount: dedup.closedLoanCount,
+        },
+      });
     }
 
-    if (loanData.mobile_number) {
-      duplicateConditions.push("mobile_number = ?");
-      duplicateParams.push(loanData.mobile_number);
-    }
-
-    if (loanData.email_id) {
-      duplicateConditions.push("email_id = ?");
-      duplicateParams.push(loanData.email_id);
-    }
-
-    if (duplicateConditions.length > 0) {
-      const [existingMatches] = await db.promise().query(
-        `
-          SELECT lan, partner_loan_id, app_id, pan_number, mobile_number, email_id, status
-          FROM ${TABLE_NAME}
-          WHERE ${duplicateConditions.join(" OR ")}
-          LIMIT 1
-        `,
-        duplicateParams,
-      );
-
-      if (existingMatches.length > 0) {
-        const match = existingMatches[0];
-        let duplicateField = "Record";
-        let duplicateValue = "";
-
-        if (
-          loanData.partner_loan_id &&
-          match.partner_loan_id === loanData.partner_loan_id
-        ) {
-          duplicateField = "partner_loan_id";
-          duplicateValue = loanData.partner_loan_id;
-        } else if (
-          loanData.pan_number &&
-          match.pan_number === loanData.pan_number
-        ) {
-          duplicateField = "pan_number";
-          duplicateValue = loanData.pan_number;
-        } else if (
-          loanData.mobile_number &&
-          match.mobile_number === loanData.mobile_number
-        ) {
-          duplicateField = "mobile_number";
-          duplicateValue = loanData.mobile_number;
-        } else if (loanData.email_id && match.email_id === loanData.email_id) {
-          duplicateField = "email_id";
-          duplicateValue = loanData.email_id;
-        }
-
-        return res.status(409).json({
-          success: false,
-          code: "DUPLICATE_RECORD",
-          message: `Duplicate loan application found with matching ${duplicateField}: ${duplicateValue} (Existing LAN: ${match.lan}, Status: ${match.status})`,
-          data: {
-            lan: match.lan,
-            partner_loan_id: match.partner_loan_id,
-            status: match.status,
-            matched_field: duplicateField,
-            matched_value: duplicateValue,
-          },
-        });
-      }
-    }
+    console.log("CirclePe Houser DE-DUP Passed", {
+      totalPreviousLoans: dedup.totalPreviousLoans,
+      openLoanCount: dedup.openLoanCount,
+      closedLoanCount: dedup.closedLoanCount,
+    });
 
     /*
      * Uses the same LAN and partner-loan-ID generator
@@ -995,6 +1054,19 @@ async function handleCirclePeHouserFinalSubmit(req, res) {
     const currentLoan = existingRows[0];
     const targetLan = currentLoan.lan;
 
+    // ✅ NEW: CirclePe Houser DE-DUP Check
+    const dedup = await checkCirclePeHouserDedup(
+      currentLoan.pan_number,
+      currentLoan.lan,
+    );
+
+    if (!dedup.eligible) {
+      throw apiError(
+        409,
+        "DE-DUP Rejected: Customer already has 2 other open loans.",
+      );
+    }
+
     // Check already disbursed
     if (String(currentLoan.status).toLowerCase() === "disbursed") {
       throw apiError(400, `Loan ${targetLan} is already disbursed`);
@@ -1204,7 +1276,11 @@ async function handleCirclePeHouserFinalSubmit(req, res) {
     return res.status(error.statusCode || 500).json({
       success: false,
       code:
-        error.statusCode === 400 ? "VALIDATION_ERROR" : "INTERNAL_SERVER_ERROR",
+        error.statusCode === 409
+          ? "DEDUP_REJECTED"
+          : error.statusCode === 400
+            ? "VALIDATION_ERROR"
+            : "INTERNAL_SERVER_ERROR",
       message:
         error.message || "Failed to process Circle Pe Houser final submit",
     });
