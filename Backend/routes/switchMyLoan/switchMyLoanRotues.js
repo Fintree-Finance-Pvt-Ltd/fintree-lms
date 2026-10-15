@@ -133,6 +133,13 @@ function normalizeName(name) {
     .replace(/[^a-z0-9]/g, "");
 }
 
+function normalizeAddress(address) {
+  return String(address || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
 async function verifySmlBankAndStoreResult({
   partnerLoanId,
   applicationId,
@@ -3487,6 +3494,17 @@ router.put(
     let bankNameMismatchDetected =
       false;
 
+    /*
+     * Used to reject case if an unpaid
+     * previous loan exists for the same
+     * customer name and address.
+     */
+    let previousLoanUnpaidDetected =
+      false;
+
+    let previousLoanUnpaidReason =
+      "";
+
     try {
       connection =
         await db
@@ -3882,6 +3900,120 @@ router.put(
         "current_address_state",
         data.current_address_state,
       );
+
+      // ======================================================
+      // PREVIOUS UNPAID LOAN CHECK (BY CUSTOMER NAME & ADDRESS)
+      // ======================================================
+
+      /*
+       * When address_line_1 is provided in the payload, verify whether
+       * another application already exists for the same customer name
+       * and address. If previous cases exist, ensure they are fully paid.
+       * If any previous case is still active/unpaid, reject this case.
+       *
+       * The rejection is recorded internally and notified to the partner
+       * via the rejection webhook after commit, while this update call
+       * responds with success.
+       */
+      const incomingAddresses = [
+        data.address_line_1,
+        data.current_address_line_1,
+      ]
+        .filter(
+          (a) =>
+            a !== null &&
+            a !== undefined &&
+            typeof a === "string" &&
+            a.trim().length > 0,
+        )
+        .map((a) => a.trim());
+
+      const hasAddressUpdate = incomingAddresses.length > 0;
+
+      if (hasAddressUpdate) {
+        const effectiveCustomerName = String(
+          data.full_name !== undefined && data.full_name !== null
+            ? data.full_name
+            : row.customer_name || "",
+        ).trim();
+
+        const normIncomingAddresses = incomingAddresses
+          .map((a) => normalizeAddress(a))
+          .filter((a) => a.length >= 5);
+
+        const normCustomerName = normalizeName(effectiveCustomerName);
+
+        if (normCustomerName.length > 0 && normIncomingAddresses.length > 0) {
+          const namesToSearch = Array.from(
+            new Set(
+              [effectiveCustomerName, row.customer_name]
+                .filter(
+                  (n) => n && typeof n === "string" && n.trim().length > 0,
+                )
+                .map((n) => n.trim()),
+            ),
+          );
+
+          if (namesToSearch.length > 0) {
+            const [previousCases] = await connection.query(
+              `SELECT id, partner_loan_id, lan, application_id, customer_name, address_line_1, current_address_line_1, status
+               FROM loan_booking_switch_my_loan
+               WHERE partner_loan_id != ?
+                 AND customer_name IN (?)
+                 AND status NOT IN ('Fully Paid', 'CLOSED', 'REJECTED', 'CANCELLED', 'REJECTED_BY_PARTNER')`,
+              [data.partner_loan_id, namesToSearch],
+            );
+
+            const unpaidMatchingCase = (previousCases || []).find((prev) => {
+              const prevNameNorm = normalizeName(prev.customer_name);
+              const nameMatches =
+                prevNameNorm === normCustomerName ||
+                (row.customer_name &&
+                  prevNameNorm === normalizeName(row.customer_name));
+
+              if (!nameMatches) return false;
+
+              const prevAddr1Norm = normalizeAddress(prev.address_line_1);
+              const prevCurrAddr1Norm = normalizeAddress(
+                prev.current_address_line_1,
+              );
+
+              return normIncomingAddresses.some(
+                (incomingNorm) =>
+                  (prevAddr1Norm && prevAddr1Norm === incomingNorm) ||
+                  (prevCurrAddr1Norm && prevCurrAddr1Norm === incomingNorm),
+              );
+            });
+
+            if (unpaidMatchingCase) {
+              previousLoanUnpaidDetected = true;
+              previousLoanUnpaidReason = `ACTIVE_LOAN_EXISTS: Customer name and address match unpaid previous loan (LAN: ${
+                unpaidMatchingCase.lan ||
+                unpaidMatchingCase.application_id ||
+                "N/A"
+              }, Status: ${unpaidMatchingCase.status})`;
+
+              console.warn(
+                "SML loan marked for rejection due to unpaid previous case with same customer name and address:",
+                {
+                  partnerLoanId: data.partner_loan_id,
+                  applicationId,
+                  lan,
+                  effectiveCustomerName,
+                  incomingAddresses,
+                  unpaidPreviousCase: {
+                    id: unpaidMatchingCase.id,
+                    partner_loan_id: unpaidMatchingCase.partner_loan_id,
+                    lan: unpaidMatchingCase.lan,
+                    application_id: unpaidMatchingCase.application_id,
+                    status: unpaidMatchingCase.status,
+                  },
+                },
+              );
+            }
+          }
+        }
+      }
 
 
       // ======================================================
@@ -4883,6 +5015,23 @@ router.put(
           "BANK_ACCOUNT_NAME_MISMATCH",
         );
       } else if (
+        previousLoanUnpaidDetected
+      ) {
+        addField(
+          "status",
+          "REJECTED",
+        );
+
+        addField(
+          "sml_bre_status",
+          "REJECTED",
+        );
+
+        addField(
+          "sml_bre_reason",
+          previousLoanUnpaidReason,
+        );
+      } else if (
         String(
           row.status || "",
         ).toUpperCase() !==
@@ -4945,7 +5094,8 @@ router.put(
        */
 
       if (
-        bankVerificationJob
+        bankVerificationJob &&
+        !previousLoanUnpaidDetected
       ) {
         try {
           await verifySmlBankAndStoreResult(
@@ -4976,7 +5126,7 @@ router.put(
 
 
       // ======================================================
-      // REJECTION WEBHOOK (bank name mismatch)
+      // REJECTION WEBHOOK (bank name mismatch or unpaid previous loan)
       // ======================================================
 
       /*
@@ -4991,7 +5141,8 @@ router.put(
        */
 
       if (
-        bankNameMismatchDetected
+        bankNameMismatchDetected ||
+        previousLoanUnpaidDetected
       ) {
         try {
           await sendRejectionWebhook({
@@ -5001,10 +5152,13 @@ router.put(
           rejectionWebhookError
         ) {
           console.error(
-            "Failed to send rejection webhook after bank name mismatch:",
+            "Failed to send rejection webhook after rejection:",
             {
               applicationId,
               lan,
+              reason: bankNameMismatchDetected
+                ? "BANK_ACCOUNT_NAME_MISMATCH"
+                : previousLoanUnpaidReason,
               message:
                 rejectionWebhookError.message,
             },
