@@ -1292,10 +1292,93 @@ async function handleCirclePeHouserFinalSubmit(req, res) {
 }
 
 // Register Final Submit endpoints
-router.post(
-  "/circle-pe/final-submit",
-  verifyApiKey,
-  handleCirclePeHouserFinalSubmit,
+router.post("/circle-pe/final-submit",verifyApiKey,handleCirclePeHouserFinalSubmit);
+
+/** CirclePe Houser - Loan Application Information API Fetch loan details using app_id. */
+
+router.get("/circle-pe-houser/:application_id/customer-details",verifyApiKey,async (req, res) => {
+    try {
+      const { application_id } = req.params;
+
+      const [rows] = await db.promise().query(
+        `
+        SELECT
+          lan,
+          partner_loan_id,
+          customer_name,
+          gender,
+          dob,
+          father_name,
+          mobile_number,
+          email_id,
+          pan_number,
+          loan_amount,
+          interest_rate,
+          loan_tenure,
+          emi_amount,
+          product,
+          name_in_bank,
+          account_number,
+          ifsc,
+          status
+        FROM loan_booking_circle_pe_houser
+        WHERE app_id = ?
+        LIMIT 1
+        `,
+        [application_id]
+      );
+
+      if (!rows.length) {
+        return res.status(404).json({
+          is_success: false,
+          error: {
+            message: "Loan application not found",
+            code: "not_found",
+          },
+        });
+      }
+
+      const loan = rows[0];
+
+      return res.status(200).json({
+        is_success: true,
+        data: {
+          lan: loan.lan,
+          partner_loan_id: loan.partner_loan_id,
+          customer_name: loan.customer_name,
+          gender: loan.gender,
+          dob: loan.dob,
+          father_name: loan.father_name,
+          mobile_number: loan.mobile_number,
+          email_id: loan.email_id,
+          pan_number: loan.pan_number,
+          loan_amount: loan.loan_amount,
+          interest_rate: loan.interest_rate,
+          loan_tenure: loan.loan_tenure,
+          emi_amount: loan.emi_amount,
+          product: loan.product,
+          name_in_bank: loan.name_in_bank,
+          account_number: loan.account_number,
+          ifsc: loan.ifsc,
+          status: loan.status,
+        },
+      });
+    } catch (error) {
+      console.error(
+        "CirclePe Houser Application Details Error:",
+        error
+      );
+
+      return res.status(500).json({
+        is_success: false,
+        error: {
+          message: "Failed to fetch loan application details",
+          code: "server_error",
+        },
+      });
+    }
+  }
 );
+
 
 module.exports = router;
