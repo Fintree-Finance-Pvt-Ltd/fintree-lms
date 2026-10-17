@@ -3023,6 +3023,11 @@ router.post("/generate-soa", async (req, res) => {
     rpsTable = "manual_rps_emiclub2";
     paymentsTable = "repayments_upload";
     chargesTable = "loan_charges";
+  } else if (lan.startsWith("FINS")) {
+    loanTable = "loan_booking_finso";
+    rpsTable = "manual_rps_finso";
+    paymentsTable = "repayments_upload";
+    chargesTable = "loan_charges";
   } else if (lan.startsWith("FINE")) {
     loanTable = "loan_booking_emiclub";
     rpsTable = "manual_rps_emiclub";
