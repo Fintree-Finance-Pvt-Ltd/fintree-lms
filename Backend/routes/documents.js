@@ -3025,7 +3025,7 @@ router.post("/generate-soa", async (req, res) => {
     chargesTable = "loan_charges";
   } else if (lan.startsWith("FINS")) {
     loanTable = "loan_booking_finso";
-    rpsTable = "manual_rps_finso";
+    rpsTable = "manual_rps_finso_loan";
     paymentsTable = "repayments_upload";
     chargesTable = "loan_charges";
   } else if (lan.startsWith("FINE")) {
