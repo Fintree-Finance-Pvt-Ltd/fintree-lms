@@ -1817,7 +1817,7 @@ async function runBRE(data, options = {}) {
     bureauScoreMissing
       ? "BUREAU_SCORE_MISSING"
       : bureauScoreBelowMinimum
-        ? "BUREAU_SCORE_BELOW_650"
+        ? "BUREAU_SCORE_BELOW_700"
         : null,
     {
       bureauScore: bureau.score,

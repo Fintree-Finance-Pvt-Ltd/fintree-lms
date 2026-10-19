@@ -427,7 +427,7 @@ rules.CREDIT_LIMIT_CHECK_RPM =
   if (bureauScore === null || bureauScore === undefined) {
     scoreReason = "BUREAU_SCORE_MISSING";
   } else if (bureauScore < POLICY.MIN_BUREAU_SCORE) {
-    scoreReason = "BUREAU_SCORE_BELOW_650";
+    scoreReason = "BUREAU_SCORE_BELOW_700";
   }
   addReason(reasons, scoreReason);
   rules.BUREAU_SCORE_CHECK_RPM = rule(!scoreReason, scoreReason, {

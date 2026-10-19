@@ -3089,7 +3089,7 @@ async function runQuickMoneyBRE(
   ) {
     addReason(
       reasons,
-      "BUREAU_SCORE_BELOW_650",
+      "BUREAU_SCORE_BELOW_700",
     );
   }
 
@@ -3102,7 +3102,7 @@ async function runQuickMoneyBRE(
       bureauScoreMissing
         ? "BUREAU_SCORE_MISSING"
         : bureauScoreBelowMinimum
-          ? "BUREAU_SCORE_BELOW_650"
+          ? "BUREAU_SCORE_BELOW_700"
           : null,
 
       {
