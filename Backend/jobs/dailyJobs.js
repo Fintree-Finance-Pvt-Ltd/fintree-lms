@@ -599,11 +599,11 @@ cron.schedule(
     console.log("🧾 Checking for pending CIBIL PDFs to queue...");
 
     try {
-      // Fetch up to 50 pending PDFs per cycle to avoid flooding BullMQ / Redis
+      // Fetch up to 150 pending PDFs per cycle to match upgraded VPS concurrency
       const [rows] = await db
         .promise()
         .query(
-          "SELECT id FROM loan_cibil_reports WHERE pdf_generated = 0 ORDER BY id ASC LIMIT 50",
+          "SELECT id FROM loan_cibil_reports WHERE pdf_generated = 0 ORDER BY id ASC LIMIT 150",
         );
 
       for (const row of rows) {

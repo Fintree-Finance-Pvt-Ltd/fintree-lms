@@ -9,19 +9,25 @@ const connection = {
   maxRetriesPerRequest: null, // Required by BullMQ to prevent crashing on disconnects
 };
 
+// Configurable concurrency with sensible defaults for 8 GB RAM / 2-core VPS
+const DAY_CONCURRENCY = Number(process.env.PDF_CONCURRENCY_DAY || process.env.PDF_WORKER_CONCURRENCY || 4);
+const NIGHT_CONCURRENCY = Number(process.env.PDF_CONCURRENCY_NIGHT || process.env.PDF_WORKER_CONCURRENCY || 6);
+
 // Create a new queue for PDF generation
 const pdfQueue = new Queue("pdf-generation", { 
   connection,
   defaultJobOptions: {
     attempts: 3,
-    backoff: { type: 'exponential', delay: 5000 }
+    backoff: { type: 'exponential', delay: 5000 },
+    removeOnComplete: { count: 1000 },
+    removeOnFail: { count: 500 },
   }
 });
 
 /**
  * Determines concurrency based on IST time:
- * - 2:30 AM to 8:00 AM IST => concurrency 2 (off-peak night mode)
- * - 8:00 AM to 2:30 AM IST => concurrency 1 (peak day mode)
+ * - 2:30 AM to 8:00 AM IST => concurrency 6 (off-peak night mode)
+ * - 8:00 AM to 2:30 AM IST => concurrency 4 (daytime mode)
  */
 function getInitialConcurrency() {
   const istString = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
@@ -30,7 +36,7 @@ function getInitialConcurrency() {
 
   // 2:30 AM is 150 minutes, 8:00 AM is 480 minutes
   const isNightOffPeak = minutes >= 150 && minutes < 480;
-  return isNightOffPeak ? 2 : 1;
+  return isNightOffPeak ? NIGHT_CONCURRENCY : DAY_CONCURRENCY;
 }
 
 // Set up the worker that will process jobs from this queue
@@ -39,7 +45,7 @@ if (process.env.RUN_CRONS === 'true') {
   const initialConcurrency = getInitialConcurrency();
   console.log(
     `[PDF Worker] Starting with concurrency: ${initialConcurrency} (${
-      initialConcurrency === 2 ? "Night Off-Peak Mode" : "Day Peak Safe Mode"
+      initialConcurrency === NIGHT_CONCURRENCY ? `Night Off-Peak Mode (${NIGHT_CONCURRENCY})` : `Day Mode (${DAY_CONCURRENCY})`
     })`
   );
 
@@ -72,28 +78,28 @@ if (process.env.RUN_CRONS === 'true') {
     console.error(`[PDF Worker] Job ${job.id} failed with error: ${err.message}`);
   });
 
-  // Switch to Concurrency 2 at 2:30 AM IST (off-peak hours)
+  // Switch to Night off-peak concurrency at 2:30 AM IST
   cron.schedule(
     "30 2 * * *",
     () => {
       if (pdfWorker) {
-        pdfWorker.concurrency = 2;
+        pdfWorker.concurrency = NIGHT_CONCURRENCY;
         console.log(
-          "⚡ [PDF Worker] Night off-peak mode enabled: Concurrency switched to 2 (2:30 AM - 8:00 AM IST)"
+          `⚡ [PDF Worker] Night off-peak mode enabled: Concurrency switched to ${NIGHT_CONCURRENCY} (2:30 AM - 8:00 AM IST)`
         );
       }
     },
     { timezone: "Asia/Kolkata" }
   );
 
-  // Switch to Concurrency 1 at 8:00 AM IST (daytime user hours)
+  // Switch to Daytime concurrency at 8:00 AM IST
   cron.schedule(
     "0 8 * * *",
     () => {
       if (pdfWorker) {
-        pdfWorker.concurrency = 1;
+        pdfWorker.concurrency = DAY_CONCURRENCY;
         console.log(
-          "🛡️ [PDF Worker] Daytime safe mode enabled: Concurrency switched to 1 (8:00 AM - 2:30 AM IST)"
+          `🛡️ [PDF Worker] Daytime mode enabled: Concurrency switched to ${DAY_CONCURRENCY} (8:00 AM - 2:30 AM IST)`
         );
       }
     },
