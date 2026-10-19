@@ -123,11 +123,27 @@ const allocateCarePay = async (
 
 
     if (!loanRows.length) {
-
       throw new Error(
         `CarePay loan not found for LAN ${normalizedLan}`
       );
+    }
 
+    const currentLoanStatus = String(loanRows[0]?.status || "").trim().toLowerCase();
+    if (!["disbursed", "fully paid"].includes(currentLoanStatus)) {
+      throw new Error(
+        `Cannot allocate payment: CarePay loan ${normalizedLan} is not in Disbursed status (current status: ${loanRows[0]?.status})`
+      );
+    }
+
+    const [totalScheduleRows] = await conn.query(
+      `SELECT COUNT(*) as count FROM ${emiTable} WHERE lan = ?`,
+      [normalizedLan]
+    );
+    const totalScheduleCount = Number(totalScheduleRows[0]?.count || 0);
+    if (totalScheduleCount === 0) {
+      throw new Error(
+        `No repayment schedule (RPS) found for CarePay loan ${normalizedLan}`
+      );
     }
 
 
@@ -548,8 +564,7 @@ const allocateCarePay = async (
 
 
 
-    if(pendingCount===0){
-
+    if (totalScheduleCount > 0 && pendingCount === 0) {
       await conn.query(
         `
         UPDATE ${loanTable}
@@ -562,7 +577,6 @@ const allocateCarePay = async (
           normalizedLan
         ]
       );
-
     }
 
 
