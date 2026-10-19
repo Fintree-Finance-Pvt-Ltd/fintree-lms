@@ -1906,14 +1906,15 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
     );
 
     // ======================================================
-    // PREVIOUS UNPAID LOAN CHECK (BY CUSTOMER NAME & ADDRESS)
+    // PREVIOUS UNPAID LOAN CHECK (BY ADDRESS ONLY)
     // ======================================================
 
     /*
      * When address is provided in the payload, verify whether
-     * another application already exists for the same customer name
-     * and address. If previous cases exist, ensure they are fully paid.
-     * If any previous case is still active/unpaid, reject this case.
+     * another application already exists for the same address.
+     * If previous cases exist, ensure they are fully paid or closed.
+     * If any previous case at this address is still in an active/disbursed
+     * stage, reject this new case regardless of customer name.
      *
      * The rejection is recorded internally and notified to the partner
      * via the rejection webhook after commit, while this update call
@@ -1937,86 +1938,96 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
     const hasAddressUpdate = incomingAddresses.length > 0;
 
     if (hasAddressUpdate) {
-      const effectiveCustomerName = String(
-        data.full_name !== undefined && data.full_name !== null
-          ? data.full_name
-          : row.customer_name || "",
-      ).trim();
-
       const normIncomingAddresses = incomingAddresses
         .map((a) => normalizeAddress(a))
         .filter((a) => a.length >= 5);
 
-      const normCustomerName = normalizeName(effectiveCustomerName);
+      if (normIncomingAddresses.length > 0) {
+        const incomingPincode = String(
+          data.address_pincode !== undefined && data.address_pincode !== null
+            ? data.address_pincode
+            : data.pincode !== undefined && data.pincode !== null
+              ? data.pincode
+              : row.address_pincode || row.pincode || "",
+        ).trim();
 
-      if (normCustomerName.length > 0 && normIncomingAddresses.length > 0) {
-        const namesToSearch = Array.from(
-          new Set(
-            [effectiveCustomerName, row.customer_name]
-              .filter(
-                (n) => n && typeof n === "string" && n.trim().length > 0,
-              )
-              .map((n) => n.trim()),
-          ),
-        );
+        const hasPincode = incomingPincode.length >= 6;
 
-        if (namesToSearch.length > 0) {
-          const [previousCases] = await connection.query(
-            `SELECT id, partner_loan_id, lan, application_id, customer_name, address_line_1, current_address_line_1, status
+        const querySql = hasPincode
+          ? `SELECT id, partner_loan_id, lan, application_id, customer_name, address_line_1, current_address_line_1, status
              FROM loan_booking_quick_money
              WHERE partner_loan_id != ?
-               AND customer_name IN (?)
-               AND status NOT IN ('Fully Paid', 'CLOSED', 'REJECTED', 'CANCELLED', 'REJECTED_BY_PARTNER')`,
-            [data.partner_loan_id, namesToSearch],
+               AND status IN ('DISBURSED', 'DISBURSE_INITIATED', 'APPROVED')
+               AND (
+                 address_pincode = ?
+                 OR address_line_1 IN (?)
+                 OR current_address_line_1 IN (?)
+               )`
+          : `SELECT id, partner_loan_id, lan, application_id, customer_name, address_line_1, current_address_line_1, status
+             FROM loan_booking_quick_money
+             WHERE partner_loan_id != ?
+               AND status IN ('DISBURSED', 'DISBURSE_INITIATED', 'APPROVED')
+               AND (
+                 address_line_1 IN (?)
+                 OR current_address_line_1 IN (?)
+               )`;
+
+        const queryParams = hasPincode
+          ? [
+              data.partner_loan_id,
+              incomingPincode,
+              incomingAddresses,
+              incomingAddresses,
+            ]
+          : [
+              data.partner_loan_id,
+              incomingAddresses,
+              incomingAddresses,
+            ];
+
+        const [previousCases] = await connection.query(
+          querySql,
+          queryParams,
+        );
+
+        const unpaidMatchingCase = (previousCases || []).find((prev) => {
+          const prevAddr1Norm = normalizeAddress(prev.address_line_1);
+          const prevCurrAddr1Norm = normalizeAddress(
+            prev.current_address_line_1,
           );
 
-          const unpaidMatchingCase = (previousCases || []).find((prev) => {
-            const prevNameNorm = normalizeName(prev.customer_name);
-            const nameMatches =
-              prevNameNorm === normCustomerName ||
-              (row.customer_name &&
-                prevNameNorm === normalizeName(row.customer_name));
+          return normIncomingAddresses.some(
+            (incomingNorm) =>
+              (prevAddr1Norm && prevAddr1Norm === incomingNorm) ||
+              (prevCurrAddr1Norm && prevCurrAddr1Norm === incomingNorm),
+          );
+        });
 
-            if (!nameMatches) return false;
+        if (unpaidMatchingCase) {
+          previousLoanUnpaidDetected = true;
+          previousLoanUnpaidReason = `ACTIVE_LOAN_EXISTS: Address matches active/unpaid loan (LAN: ${
+            unpaidMatchingCase.lan ||
+            unpaidMatchingCase.application_id ||
+            "N/A"
+          }, Status: ${unpaidMatchingCase.status})`;
 
-            const prevAddr1Norm = normalizeAddress(prev.address_line_1);
-            const prevCurrAddr1Norm = normalizeAddress(
-              prev.current_address_line_1,
-            );
-
-            return normIncomingAddresses.some(
-              (incomingNorm) =>
-                (prevAddr1Norm && prevAddr1Norm === incomingNorm) ||
-                (prevCurrAddr1Norm && prevCurrAddr1Norm === incomingNorm),
-            );
-          });
-
-          if (unpaidMatchingCase) {
-            previousLoanUnpaidDetected = true;
-            previousLoanUnpaidReason = `ACTIVE_LOAN_EXISTS: Customer name and address match unpaid previous loan (LAN: ${
-              unpaidMatchingCase.lan ||
-              unpaidMatchingCase.application_id ||
-              "N/A"
-            }, Status: ${unpaidMatchingCase.status})`;
-
-            console.warn(
-              "QuickMoney loan marked for rejection due to unpaid previous case with same customer name and address:",
-              {
-                partnerLoanId: data.partner_loan_id,
-                applicationId,
-                lan,
-                effectiveCustomerName,
-                incomingAddresses,
-                unpaidPreviousCase: {
-                  id: unpaidMatchingCase.id,
-                  partner_loan_id: unpaidMatchingCase.partner_loan_id,
-                  lan: unpaidMatchingCase.lan,
-                  application_id: unpaidMatchingCase.application_id,
-                  status: unpaidMatchingCase.status,
-                },
+          console.warn(
+            "QuickMoney loan marked for rejection due to active/unpaid case with same address:",
+            {
+              partnerLoanId: data.partner_loan_id,
+              applicationId,
+              lan,
+              incomingAddresses,
+              unpaidPreviousCase: {
+                id: unpaidMatchingCase.id,
+                partner_loan_id: unpaidMatchingCase.partner_loan_id,
+                lan: unpaidMatchingCase.lan,
+                application_id: unpaidMatchingCase.application_id,
+                customer_name: unpaidMatchingCase.customer_name,
+                status: unpaidMatchingCase.status,
               },
-            );
-          }
+            },
+          );
         }
       }
     }
