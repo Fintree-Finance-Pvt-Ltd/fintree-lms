@@ -1296,7 +1296,7 @@ router.post("/circle-pe/final-submit",verifyApiKey,handleCirclePeHouserFinalSubm
 
 /** CirclePe Houser - Loan Application Information API Fetch loan details using app_id. */
 
-router.get("/circle-pe-houser/:application_id/customer-details",verifyApiKey,async (req, res) => {
+router.get("/:application_id/customer-details",verifyApiKey,async (req, res) => {
     try {
       const { application_id } = req.params;
 
@@ -1382,3 +1382,4 @@ router.get("/circle-pe-houser/:application_id/customer-details",verifyApiKey,asy
 
 
 module.exports = router;
+

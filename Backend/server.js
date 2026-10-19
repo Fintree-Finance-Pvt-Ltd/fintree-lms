@@ -186,13 +186,13 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/loan-booking", sterlionRoutes);
 app.use("/api/loan-booking", carePayRoutes.loanBookingRouter);
 app.use("/api/loan-booking", excelUploadRoutes);
-app.use("/api/loan-booking", require("./routes/EmiClub2/Emiclub2Routes"));
+app.use("/api/loan-booking/ec2", require("./routes/EmiClub2/Emiclub2Routes"));
 app.use("/api/wctl-ccod", require("./routes/wctlCCODRoutes/wctlRoutes")); // ✅ Register WCTL-CC-OD Routes
 app.use("/api/helium-loans", require("./routes/heliumRoutes/heliumRoutes")); // ✅ Register Helium Loan Routes
 app.use("/api/clayyo-loans", require("./routes/clyooRoutes/clyooRoutes")); // ✅ Register Clayyo Routes
 app.use("/api/payu", require("./services/PayuIntegration/payu.routes")); // ✅ Register PayU Routes
 app.use("/api/sterlion-ubl", sterlionUblRoutes); // ✅ Register Sterlion UBL Routes
-app.use("/api/loan-booking", circlePeHouserRoutes); // ✅ Register Circlepe Houser Routes
+app.use("/api/cph", circlePeHouserRoutes); // ✅ Register Circlepe Houser Routes
 app.use("/api/loan-booking/yaMoney", require("./routes/YaMoney/yaMoneyRoutes")); // Register Routes for Ya Money Business Loan
 app.use(
   "/api/motion-corp",
