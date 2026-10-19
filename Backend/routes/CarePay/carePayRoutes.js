@@ -13,6 +13,7 @@ const createCarePayEsignRoutes = require("./esignRoutes");
 const {
   evaluateCarePayLoginBre,
   buildBreSnapshot,
+  extractCarePayBureauDpd,
 } = require("./carePayBreEngine");
 const { approveAndInitiatePayout } = require("../../services/payout.service");
 const { XMLParser } = require("fast-xml-parser");
@@ -1492,10 +1493,13 @@ console.log("✅ CAREPAY DUMMY BUREAU:", {
   score: bureauResult.score,
   status: "VERIFIED",
 });
+      const dpdFacts = extractCarePayBureauDpd(bureauResult.response);
       breDecision = evaluateCarePayLoginBre({
         data,
         requestAmount,
         bureauScore: bureauResult.score,
+        bureauResponse: bureauResult.response,
+        dpdFacts,
       });
       let breSnapshot = buildBreSnapshot({
         data,
@@ -1503,6 +1507,7 @@ console.log("✅ CAREPAY DUMMY BUREAU:", {
         bureauScore: bureauResult.score,
         decision: breDecision,
         bureauResponse: bureauResult.response,
+        dpdFacts,
       });
       // always update snapshot (and status if it flipped to Rejected)
       await db.promise().query(
@@ -2772,11 +2777,15 @@ loanBookingRouter.post("/v1/carepay-bre/:lan", verifyApiKey, async (req, res) =>
       });
     }
 
+    const dpdFacts = extractCarePayBureauDpd(bureauResponse);
+
     // 5. RUN BRE
     const breDecision = evaluateCarePayLoginBre({
       data,
       requestAmount,
       bureauScore,
+      bureauResponse,
+      dpdFacts,
     });
 
     // 6. Build BRE snapshot
@@ -2786,6 +2795,7 @@ loanBookingRouter.post("/v1/carepay-bre/:lan", verifyApiKey, async (req, res) =>
       bureauScore,
       decision: breDecision,
       bureauResponse,
+      dpdFacts,
     });
 
     // 7. Update loan
