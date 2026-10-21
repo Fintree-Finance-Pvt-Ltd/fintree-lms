@@ -9168,6 +9168,215 @@ const generateRepaymentScheduleAdikosh = async (
 };
 
 ////////////////////////ADIKOSH END //////////////////////////////////
+// ================= YA MONEY RPS START =================
+
+const YA_MONEY_BOOKING_TABLE = "loan_booking_ya_money";
+const YA_MONEY_RPS_TABLE = "manual_rps_ya_money";
+
+const roundYaMoneyAmount = (value) =>
+  Math.round((Number(value) + Number.EPSILON) * 100) / 100;
+
+function formatYaMoneyDateYMD(value) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(`Invalid date: ${value}`);
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function calculateYaMoneyEmi(loanAmount, annualInterestRate, tenure) {
+  const monthlyRate = annualInterestRate / 12 / 100;
+
+  if (monthlyRate === 0) {
+    return loanAmount / tenure;
+  }
+
+  const multiplier = Math.pow(1 + monthlyRate, tenure);
+
+  return (loanAmount * monthlyRate * multiplier) / (multiplier - 1);
+}
+
+function getYaMoneyDueDate(disbursementDate, monthOffset) {
+  const disbursedAt = new Date(disbursementDate);
+
+  if (Number.isNaN(disbursedAt.getTime())) {
+    throw new Error(`Invalid Ya Money disbursement date: ${disbursementDate}`);
+  }
+
+  const dueDate = new Date(disbursedAt);
+  const firstMonthGap = disbursedAt.getDate() <= 20 ? 1 : 2;
+
+  dueDate.setDate(1);
+  dueDate.setMonth(dueDate.getMonth() + firstMonthGap + monthOffset);
+  dueDate.setDate(5);
+  dueDate.setHours(12, 0, 0, 0);
+
+  return dueDate;
+}
+
+async function generateYaMoneyRepaymentSchedule({
+  conn,
+  lan,
+  loanAmount,
+  interestRate,
+  tenure,
+  disbursementDate,
+    product,
+  lender,
+  emiAmount,
+}) {
+  const principalAmount = roundYaMoneyAmount(loanAmount);
+  const annualInterestRate = Number(interestRate || 0);
+  const repaymentTenure = Number(tenure);
+
+  if (!Number.isFinite(principalAmount) || principalAmount <= 0) {
+    throw new Error(`Invalid Ya Money loan amount: ${loanAmount}`);
+  }
+
+  if (!Number.isFinite(annualInterestRate) || annualInterestRate < 0) {
+    throw new Error(`Invalid Ya Money interest rate: ${interestRate}`);
+  }
+
+  if (!Number.isInteger(repaymentTenure) || repaymentTenure <= 0) {
+    throw new Error(`Invalid Ya Money tenure: ${tenure}`);
+  }
+
+  const [deleteResult] = await conn.query(
+    `
+    DELETE FROM ${YA_MONEY_RPS_TABLE}
+    WHERE lan = ?
+    `,
+    [lan],
+  );
+
+  const persistedEmi = Number(emiAmount);
+
+  const regularEmi =
+    Number.isFinite(persistedEmi) && persistedEmi > 0
+      ? roundYaMoneyAmount(persistedEmi)
+      : roundYaMoneyAmount(
+          calculateYaMoneyEmi(
+            principalAmount,
+            annualInterestRate,
+            repaymentTenure,
+          ),
+        );
+
+  if (!Number.isFinite(regularEmi) || regularEmi <= 0) {
+    throw new Error(`Unable to calculate Ya Money EMI for LAN ${lan}`);
+  }
+
+  const monthlyRate = annualInterestRate / 12 / 100;
+  let openingPrincipal = principalAmount;
+  const rpsData = [];
+
+  for (
+    let installment = 1;
+    installment <= repaymentTenure;
+    installment += 1
+  ) {
+    const dueDate = getYaMoneyDueDate(
+      disbursementDate,
+      installment - 1,
+    );
+
+    let interest = roundYaMoneyAmount(openingPrincipal * monthlyRate);
+    let principal = roundYaMoneyAmount(regularEmi - interest);
+
+    if (monthlyRate === 0) {
+      interest = 0;
+      principal = roundYaMoneyAmount(regularEmi);
+    }
+
+    if (principal <= 0 && installment !== repaymentTenure) {
+      throw new Error(
+        `Invalid Ya Money principal for LAN ${lan}, installment ${installment}`,
+      );
+    }
+
+    if (installment === repaymentTenure || principal > openingPrincipal) {
+      principal = openingPrincipal;
+    }
+
+    const actualEmi = roundYaMoneyAmount(principal + interest);
+
+    const closingPrincipal = Math.max(
+      0,
+      roundYaMoneyAmount(openingPrincipal - principal),
+    );
+
+    rpsData.push([
+      lan,
+      formatYaMoneyDateYMD(dueDate),
+      actualEmi,
+      interest,
+      principal,
+      principal,
+      interest,
+      actualEmi,
+      openingPrincipal,
+      closingPrincipal,
+      "Pending",
+      actualEmi,
+      0,
+    ]);
+
+    openingPrincipal = closingPrincipal;
+  }
+
+  if (Math.abs(openingPrincipal) > 0.01) {
+    throw new Error(
+      `Ya Money RPS did not close correctly. Remaining principal: ${openingPrincipal}`,
+    );
+  }
+
+  await conn.query(
+    `
+    INSERT INTO ${YA_MONEY_RPS_TABLE}
+    (
+      lan,
+      due_date,
+      emi,
+      interest,
+      principal,
+      remaining_principal,
+      remaining_interest,
+      remaining_emi,
+      opening,
+      closing,
+      status,
+      remaining_amount,
+      extra_paid
+    )
+    VALUES ?
+    `,
+    [rpsData],
+  );
+
+  await conn.query(
+    `
+    UPDATE ${YA_MONEY_BOOKING_TABLE}
+    SET emi_amount = ?
+    WHERE lan = ?
+    `,
+    [regularEmi, lan],
+  );
+
+  return {
+    success: true,
+    rowsDeleted: deleteResult.affectedRows || 0,
+    rowsInserted: rpsData.length,
+    regularEmi,
+  };
+}
+
+// ================= YA MONEY RPS END =================
 
 ///////////////// Motion corp RPS Start /////////////////////////
 
@@ -10949,7 +11158,19 @@ const generateRepaymentSchedule = async (
       product,
       lender,
     );
-  } else if (lan.startsWith("SW")) {
+  }else if (lan.startsWith("YAM")) {
+  return generateYaMoneyRepaymentSchedule({
+    conn,
+    lan,
+    loanAmount,
+    interestRate,
+    tenure,
+    disbursementDate,
+    product,
+    lender,
+    emiAmount: null,
+  });
+} else if (lan.startsWith("SW")) {
     console.log("[SASWAT RPS GENERATION START]", {
       lan,
       loanAmount,
@@ -11962,6 +12183,7 @@ module.exports = {
   generateRepaymentScheduleWctlFfpl,
   generateRepaymentScheduleSterlionUbl,
   generateRepaymentScheduleSaswat,
+  generateYaMoneyRepaymentSchedule,
   generateRepaymentScheduleSevenFincorp,
   generateRepaymentScheduleClaimBuddy,
 };

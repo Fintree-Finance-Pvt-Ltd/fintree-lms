@@ -584,6 +584,8 @@ function getPartnerNameByLan(lan, lender, product) {
   if (lan.startsWith("EV")) return "EV Loan";
   if (lan.startsWith("BL")) return "BL Loan";
   if (lan.startsWith("WCTLFFPL")) return "WCTL FFPL";
+  if (lan.startsWith("YAM")) return "ya money";
+
   if (lan.startsWith("WCTL")) return "WCTL";
   if (lan.startsWith("HEYEV")) return "Hey EV";
   if (lan.startsWith("HEYBF1")) return "HeyEV Battery";
@@ -1012,6 +1014,12 @@ WHERE lan = ?`,
              FROM loan_booking_wctl_ffpl WHERE lan = ?`,
             [lan],
           );
+        }else if (lan.startsWith("YAM")) {
+          [loanRes] = await db.promise().query(
+            `SELECT loan_amount, interest AS interest_rate, loan_tenure, product, lender
+             FROM loan_booking_ya_money WHERE lan = ?`,
+            [lan],
+          );
         } else if (lan.startsWith("ADK")) {
           [loanRes] = await db.promise().query(
             `SELECT loan_amount, interest_rate, loan_tenure, salary_day, product, lender 
@@ -1352,7 +1360,12 @@ WHERE lan = ?`,
               "UPDATE loan_booking_wctl_ffpl SET status = 'Disbursed' WHERE lan = ?",
               [lan],
             );
-          } else if (lan.startsWith("UBLF")) {
+          } else if (lan.startsWith("YAM")) {
+            await conn.query(
+              "UPDATE loan_booking_ya_money SET status = 'Disbursed' WHERE lan = ?",
+              [lan],
+            );
+          }  else if (lan.startsWith("UBLF")) {
             // UBLF prefix for Sterlion UBL
             await conn.query(
               `UPDATE loan_booking_sterlion_ubl SET status = 'Disbursed' ,
