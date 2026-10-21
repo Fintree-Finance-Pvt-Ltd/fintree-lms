@@ -9378,6 +9378,145 @@ async function generateYaMoneyRepaymentSchedule({
 
 // ================= YA MONEY RPS END =================
 
+
+async function generateRepaymentClaimCureBuddy(
+  conn,
+  lan,
+  loanAmount,
+  interestRate,
+  tenure,
+  disbursementDate,
+  product,
+  lender
+) {
+  const normalizedLan = String(lan || "").trim().toUpperCase();
+
+  if (!normalizedLan.startsWith("CCB")) {
+    throw new Error("Invalid Claim Cure Buddy LAN");
+  }
+
+  const [[loan]] = await conn.query(
+    `SELECT
+        lb.loan_amount,
+        lb.loan_tenure,
+        s.total_interest_amount,
+        s.total_repayment_amount
+     FROM loan_booking_claim_cure_buddy lb
+     LEFT JOIN claim_cure_buddy_loan_summary s
+       ON s.lan = lb.lan
+     WHERE lb.lan = ?
+     LIMIT 1`,
+    [normalizedLan]
+  );
+
+  if (!loan) {
+    throw new Error(`Claim Cure Buddy loan not found: ${normalizedLan}`);
+  }
+
+  const principal = Number(loan.loan_amount);
+  const tenureDays = Number(loan.loan_tenure);
+  const interest = Number(loan.total_interest_amount);
+  const totalRepayment = Number(loan.total_repayment_amount);
+
+  if (!Number.isFinite(principal) || principal <= 0) {
+    throw new Error("Invalid Claim Cure Buddy loan amount");
+  }
+
+  if (!Number.isInteger(tenureDays) || tenureDays <= 0) {
+    throw new Error("Invalid Claim Cure Buddy tenure");
+  }
+
+  if (!Number.isFinite(interest) || interest < 0) {
+    throw new Error("Invalid Claim Cure Buddy signed interest");
+  }
+
+  if (!Number.isFinite(totalRepayment) || totalRepayment <= 0) {
+    throw new Error("Invalid Claim Cure Buddy repayment amount");
+  }
+
+  if (!disbursementDate) {
+    throw new Error("Disbursement date is required");
+  }
+
+  const date = new Date(disbursementDate);
+
+  if (Number.isNaN(date.getTime())) {
+    throw new Error("Invalid disbursement date");
+  }
+
+  const disbursementDateOnly = date.toISOString().split("T")[0];
+  const dueDateObj = new Date(`${disbursementDateOnly}T00:00:00.000Z`);
+
+  dueDateObj.setUTCDate(dueDateObj.getUTCDate() + tenureDays);
+
+  const dueDate = dueDateObj.toISOString().split("T")[0];
+
+  const [existingRps] = await conn.query(
+    `SELECT id
+     FROM manual_rps_claim_cure_buddy
+     WHERE lan = ?
+     LIMIT 1`,
+    [normalizedLan]
+  );
+
+  if (existingRps.length > 0) {
+    return {
+      skipped: true,
+      reason: "RPS_ALREADY_EXISTS",
+      lan: normalizedLan
+    };
+  }
+
+  await conn.query(
+    `INSERT INTO manual_rps_claim_cure_buddy
+     (
+       lan,
+       emi_no,
+       due_date,
+       emi,
+       interest,
+       principal,
+       remaining_principal,
+       remaining_interest,
+       remaining_emi,
+       opening,
+       closing,
+       status,
+       dpd
+     )
+     VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'Pending', 0)`,
+    [
+      normalizedLan,
+      dueDate,
+      totalRepayment,
+      interest,
+      principal,
+      principal,
+      interest,
+      totalRepayment,
+      principal
+    ]
+  );
+
+  console.log("[ClaimCureBuddy] RPS Generated Successfully", {
+    lan: normalizedLan,
+    dueDate,
+    principal,
+    interest,
+    totalRepayment
+  });
+
+  return {
+    success: true,
+    lan: normalizedLan,
+    dueDate,
+    principal,
+    interest,
+    totalRepayment
+  };
+}
+
+
 ///////////////// Motion corp RPS Start /////////////////////////
 
 const generateRepaymentScheduleMotionCorp = async (
@@ -11170,6 +11309,18 @@ const generateRepaymentSchedule = async (
     lender,
     emiAmount: null,
   });
+}
+else if (lan.startsWith("CCB")) {
+  return generateRepaymentClaimCureBuddy(
+    conn,
+    lan,
+    loanAmount,
+    interestRate,
+    tenure,
+    disbursementDate,
+    product,
+    lender
+  );
 } else if (lan.startsWith("SW")) {
     console.log("[SASWAT RPS GENERATION START]", {
       lan,
@@ -12186,4 +12337,5 @@ module.exports = {
   generateYaMoneyRepaymentSchedule,
   generateRepaymentScheduleSevenFincorp,
   generateRepaymentScheduleClaimBuddy,
+  generateRepaymentClaimCureBuddy,
 };
