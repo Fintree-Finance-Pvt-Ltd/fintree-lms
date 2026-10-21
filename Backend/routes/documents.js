@@ -1690,7 +1690,7 @@ async function evaluateEmiClubAutoDisburse(lan) {
   }
 
   await db.promise().query(
-    `UPDATE loan_booking_emiclub SET status = 'approved' WHERE lan = ?`,
+    `UPDATE loan_booking_emiclub SET status = 'Disburse initiate' WHERE lan = ?`,
     [lan],
   );
 
@@ -1702,6 +1702,13 @@ async function evaluateEmiClubAutoDisburse(lan) {
       table: "loan_booking_emiclub",
     });
 
+    if (!payout?.success) {
+      await db.promise().query(
+        `UPDATE loan_booking_emiclub SET status = 'Disburse initiate' WHERE lan = ?`,
+        [lan],
+      ).catch((e) => console.error("Failed to ensure EmiClub status is Disburse initiate", e));
+    }
+
     return {
       triggered: true,
       success: Boolean(payout?.success),
@@ -1709,6 +1716,10 @@ async function evaluateEmiClubAutoDisburse(lan) {
     };
   } catch (err) {
     console.error("EmiClub auto-disbursal failed", { lan, message: err.message });
+    await db.promise().query(
+      `UPDATE loan_booking_emiclub SET status = 'Disburse initiate' WHERE lan = ?`,
+      [lan],
+    ).catch((e) => console.error("Failed to reset EmiClub status to Disburse initiate", e));
     return { triggered: true, success: false, message: err.message };
   }
 }
