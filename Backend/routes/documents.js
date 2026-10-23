@@ -3118,18 +3118,25 @@ router.post("/generate-soa", async (req, res) => {
 
     const [rpsRows] = await db.promise().query(
   isSterlionGroup
-    ? `SELECT
-         maturity_date AS due_date,
-         invoice_amount AS emi
-       FROM loan_invoices_sterlion_mexon_dexon
-       WHERE lan = ?
-         AND maturity_date <= CURDATE()
-       ORDER BY maturity_date`
-    : `SELECT due_date, emi
-       FROM ${rpsTable}
-       WHERE lan = ?
-         AND due_date <= CURDATE()
-       ORDER BY due_date`,
+    ? `
+      SELECT
+        id,
+        invoice_number,
+        disbursement_date,
+        maturity_date AS due_date,
+        disbursement_amount AS emi
+      FROM loan_invoices_sterlion_mexon_dexon
+      WHERE lan = ?
+        AND disbursement_date <= CURDATE()
+      ORDER BY disbursement_date, id
+    `
+    : `
+      SELECT due_date, emi
+      FROM ${rpsTable}
+      WHERE lan = ?
+        AND due_date <= CURDATE()
+      ORDER BY due_date
+    `,
   [lan],
 );
     const [chargesRows] = await db.promise().query(
@@ -3194,13 +3201,15 @@ router.post("/generate-soa", async (req, res) => {
   isSterlionGroup
     ? `
       SELECT
-        id,
-        NULL AS due_date,
-        allocation_date,
-        allocated_amount,
-        allocation_component AS charge_type,
-        collection_id AS payment_id,
-        allocation_date AS bank_date_allocation
+      id,
+      invoice_number,
+      invoice_id,
+      NULL AS due_date,
+      allocation_date,
+      allocated_amount,
+      allocation_component AS charge_type,
+      collection_id AS payment_id,
+      allocation_date AS bank_date_allocation
       FROM loan_collection_allocations_sterlion_mexon_dexon
       WHERE lan = ?
       ORDER BY allocation_date, id
@@ -3322,7 +3331,8 @@ const [[overdueAgg]] = await db.promise().query(
     );
 
     // -------- starting outstanding = Loan Amount (no Advance/Pre-EMI deduction) --------
-    let outstanding = baseLoanAmt;
+    // let outstanding = baseLoanAmt;
+    let outstanding = isSterlionGroup ? 0 : baseLoanAmt;
 
     // -------- build timeline --------
     const payMap = new Map((paymentRows || []).map((p) => [p.payment_id, p]));
@@ -3332,9 +3342,18 @@ const [[overdueAgg]] = await db.promise().query(
     (rpsRows || []).forEach((r) => {
       debits.push({
         type: "DEBIT",
-        date: r.due_date,
-        description: "EMI Due",
-        charge_type: "EMI",
+        date: isSterlionGroup
+          ? r.disbursement_date
+          : r.due_date,
+      
+        description: isSterlionGroup
+          ? `Invoice Disbursement - ${r.invoice_number}`
+          : "EMI Due",
+      
+        charge_type: isSterlionGroup
+          ? "DISBURSEMENT"
+          : "EMI",
+      
         debit: safeNum(r.emi).toFixed(2),
       });
     });
@@ -3359,13 +3378,22 @@ const [[overdueAgg]] = await db.promise().query(
 
       credits.push({
         type: "CREDIT",
-        date: allocDate || payment_date || new Date(),
-        description: `Allocation - ${a.charge_type || "Allocation"}`,
-        charge_type: a.charge_type,
-        principal: ct === "principal" ? amt.toFixed(2) : "0.00",
-        interest: ct === "interest" ? amt.toFixed(2) : "0.00",
-        other:
-          ct !== "principal" && ct !== "interest" ? amt.toFixed(2) : "0.00",
+        date: isSterlionGroup
+          ? (payment_date || allocDate || new Date())
+          : (allocDate || payment_date || new Date()),     
+        description: isSterlionGroup
+          ? `Collection - ${a.invoice_number || "Unlinked invoice"} - ${a.charge_type}`
+          : `Allocation - ${a.charge_type || "Allocation"}`,     
+        charge_type: a.charge_type,     
+        principal: ct === "principal"
+          ? amt.toFixed(2)
+          : "0.00",     
+        interest: ct === "interest"
+          ? amt.toFixed(2)
+          : "0.00",
+        other: ct !== "principal" && ct !== "interest"
+          ? amt.toFixed(2)
+          : "0.00",
         total: amt.toFixed(2),
         payment_date,
       });
@@ -3406,7 +3434,11 @@ const [[overdueAgg]] = await db.promise().query(
     for (const it of all) {
       const opening = outstanding;
       if (it.type === "DEBIT") {
-        rows.push({
+  if (isSterlionGroup && it.charge_type === "DISBURSEMENT") {
+    outstanding += safeNum(it.debit);
+  }
+
+  rows.push({
           date: fmtDate(it.date),
           description: it.description,
           charge: it.charge_type || "-",
@@ -3415,6 +3447,7 @@ const [[overdueAgg]] = await db.promise().query(
           interest: "0.00",
           total_credit: "0.00",
           opening: opening.toFixed(2),
+          // closing: opening.toFixed(2),
           closing: opening.toFixed(2),
           paydate: "-",
         });
