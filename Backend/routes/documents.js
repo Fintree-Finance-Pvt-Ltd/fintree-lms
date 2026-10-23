@@ -3081,14 +3081,25 @@ router.post("/generate-soa", async (req, res) => {
     paymentsTable = "repayments_upload";
     chargesTable = "loan_charges";
   }
+   else if ( lan.startsWith("STF")||
+  lan.startsWith("DXF") || lan.startsWith("MXF")) {
+  loanTable = "loan_booking_sterlion_mexon_dexon";
+  rpsTable = "loan_invoices_sterlion_mexon_dexon";
+  paymentsTable = "loan_collections_sterlion_mexon_dexon";
+  chargesTable = "loan_charges";
+}
 
   try {
+      const isSterlionGroup =
+    loanTable === "loan_booking_sterlion_mexon_dexon";
     // -------- fetch from DB --------
     const [loanRows] = await db
       .promise()
       .query(`SELECT * FROM ${loanTable} WHERE lan = ? LIMIT 1`, [lan]);
     const loan = loanRows[0] || {};
-    const baseLoanAmt = safeNum(
+   const baseLoanAmt = isSterlionGroup
+  ? safeNum(loan.utilized_amount)
+  : safeNum(
       loan.loan_amount ||
         loan.disbursed_amount ||
         loan.disbursal_amount ||
@@ -3096,15 +3107,31 @@ router.post("/generate-soa", async (req, res) => {
         0,
     );
 
-    const [rpsRows] = await db.promise().query(
-      `SELECT due_date, emi
-         FROM ${rpsTable}
-        WHERE lan = ?
-          AND due_date <= CURDATE()
-        ORDER BY due_date`,
-      [lan],
-    );
+    // const [rpsRows] = await db.promise().query(
+    //   `SELECT due_date, emi
+    //      FROM ${rpsTable}
+    //     WHERE lan = ?
+    //       AND due_date <= CURDATE()
+    //     ORDER BY due_date`,
+    //   [lan],
+    // );
 
+    const [rpsRows] = await db.promise().query(
+  isSterlionGroup
+    ? `SELECT
+         maturity_date AS due_date,
+         invoice_amount AS emi
+       FROM loan_invoices_sterlion_mexon_dexon
+       WHERE lan = ?
+         AND maturity_date <= CURDATE()
+       ORDER BY maturity_date`
+    : `SELECT due_date, emi
+       FROM ${rpsTable}
+       WHERE lan = ?
+         AND due_date <= CURDATE()
+       ORDER BY due_date`,
+  [lan],
+);
     const [chargesRows] = await db.promise().query(
       `SELECT due_date, charge_type, amount, charge_date
          FROM ${chargesTable}
@@ -3114,34 +3141,120 @@ router.post("/generate-soa", async (req, res) => {
       [lan],
     );
 
+    // const [paymentRows] = await db.promise().query(
+    //   `SELECT payment_id, bank_date, payment_date, payment_mode, transfer_amount
+    //      FROM ${paymentsTable}
+    //     WHERE lan = ?
+    //       AND (bank_date <= CURDATE() OR payment_date <= CURDATE())
+    //     ORDER BY COALESCE(bank_date, payment_date)`,
+    //   [lan],
+    // );
+
     const [paymentRows] = await db.promise().query(
-      `SELECT payment_id, bank_date, payment_date, payment_mode, transfer_amount
-         FROM ${paymentsTable}
-        WHERE lan = ?
-          AND (bank_date <= CURDATE() OR payment_date <= CURDATE())
-        ORDER BY COALESCE(bank_date, payment_date)`,
-      [lan],
-    );
+  isSterlionGroup
+    ? `
+      SELECT
+        id AS payment_id,
+        collection_date AS bank_date,
+        collection_date AS payment_date,
+        'Collection' AS payment_mode,
+        collection_amount AS transfer_amount
+      FROM loan_collections_sterlion_mexon_dexon
+      WHERE lan = ?
+        AND collection_date <= CURDATE()
+      ORDER BY collection_date
+    `
+    : `
+      SELECT
+        payment_id,
+        bank_date,
+        payment_date,
+        payment_mode,
+        transfer_amount
+      FROM ${paymentsTable}
+      WHERE lan = ?
+        AND (
+          bank_date <= CURDATE()
+          OR payment_date <= CURDATE()
+        )
+      ORDER BY COALESCE(bank_date, payment_date)
+    `,
+  [lan],
+);
+
+    // const [allocationRows] = await db.promise().query(
+    //   `SELECT id, due_date, allocation_date, allocated_amount, charge_type, payment_id, bank_date_allocation
+    //      FROM allocation
+    //     WHERE lan = ?
+    //     ORDER BY COALESCE(allocation_date, bank_date_allocation), id`,
+    //   [lan],
+    // );
 
     const [allocationRows] = await db.promise().query(
-      `SELECT id, due_date, allocation_date, allocated_amount, charge_type, payment_id, bank_date_allocation
-         FROM allocation
-        WHERE lan = ?
-        ORDER BY COALESCE(allocation_date, bank_date_allocation), id`,
-      [lan],
-    );
+  isSterlionGroup
+    ? `
+      SELECT
+        id,
+        NULL AS due_date,
+        allocation_date,
+        allocated_amount,
+        allocation_component AS charge_type,
+        collection_id AS payment_id,
+        allocation_date AS bank_date_allocation
+      FROM loan_collection_allocations_sterlion_mexon_dexon
+      WHERE lan = ?
+      ORDER BY allocation_date, id
+    `
+    : `
+      SELECT
+        id,
+        due_date,
+        allocation_date,
+        allocated_amount,
+        charge_type,
+        payment_id,
+        bank_date_allocation
+      FROM allocation
+      WHERE lan = ?
+      ORDER BY COALESCE(allocation_date, bank_date_allocation), id
+    `,
+  [lan],
+);
+
 
     // Aggregate tenure / start / end / emi for the full schedule (no date filter)
-    const [[tenureAgg]] = await db.promise().query(
-      `SELECT MIN(due_date) AS start_date,
-          MAX(due_date) AS end_date,
-          COUNT(*)       AS total_instalments,
-          MAX(emi)       AS emi_any
-     FROM ${rpsTable}
-    WHERE lan = ?`,
-      [lan],
-    );
+    // const [[tenureAgg]] = await db.promise().query(
+    //   `SELECT MIN(due_date) AS start_date,
+    //       MAX(due_date) AS end_date,
+    //       COUNT(*)       AS total_instalments,
+    //       MAX(emi)       AS emi_any
+    //  FROM ${rpsTable}
+    // WHERE lan = ?`,
+    //   [lan],
+    // );
 
+    const [[tenureAgg]] = await db.promise().query(
+  isSterlionGroup
+    ? `
+      SELECT
+        MIN(disbursement_date) AS start_date,
+        MAX(maturity_date) AS end_date,
+        COUNT(*) AS total_instalments,
+        NULL AS emi_any
+      FROM loan_invoices_sterlion_mexon_dexon
+      WHERE lan = ?
+    `
+    : `
+      SELECT
+        MIN(due_date) AS start_date,
+        MAX(due_date) AS end_date,
+        COUNT(*) AS total_instalments,
+        MAX(emi) AS emi_any
+      FROM ${rpsTable}
+      WHERE lan = ?
+    `,
+  [lan],
+);
     // EMI/PEMI overdue = sum of the amount still actually unpaid on EMIs
     // with due_date <= today and status <> 'Paid'. A "Part Paid" EMI was
     // previously counted at its FULL emi value here instead of what's
@@ -3158,12 +3271,45 @@ router.post("/generate-soa", async (req, res) => {
       ? "COALESCE(remaining_emi, emi)"
       : "emi";
 
-    const [[overdueAgg]] = await db.promise().query(
-      `SELECT COALESCE(SUM(CASE WHEN status <> 'Paid' AND due_date <= CURDATE() THEN ${overdueEmiExpr} ELSE 0 END),0) AS total_emi_overdue
-     FROM ${rpsTable}
-    WHERE lan = ?`,
-      [lan],
-    );
+    // const [[overdueAgg]] = await db.promise().query(
+    //   `SELECT COALESCE(SUM(CASE WHEN status <> 'Paid' AND due_date <= CURDATE() THEN ${overdueEmiExpr} ELSE 0 END),0) AS total_emi_overdue
+    //  FROM ${rpsTable}
+    // WHERE lan = ?`,
+    //   [lan],
+    // );
+const [[overdueAgg]] = await db.promise().query(
+  isSterlionGroup
+    ? `
+      SELECT
+        COALESCE(
+          SUM(
+            CASE
+              WHEN maturity_date <= CURDATE()
+               AND outstanding_principal > 0
+              THEN outstanding_principal
+              ELSE 0
+            END
+          ), 0
+        ) AS total_emi_overdue
+      FROM loan_invoices_sterlion_mexon_dexon
+      WHERE lan = ?
+    `
+    : `
+      SELECT COALESCE(
+        SUM(
+          CASE
+            WHEN status <> 'Paid'
+             AND due_date <= CURDATE()
+            THEN ${overdueEmiExpr}
+            ELSE 0
+          END
+        ), 0
+      ) AS total_emi_overdue
+      FROM ${rpsTable}
+      WHERE lan = ?
+    `,
+  [lan],
+);
 
     // Other overdues = unpaid loan_charges with due_date/charge_date <= today
     const [[otherDueAgg]] = await db.promise().query(
@@ -3303,8 +3449,11 @@ router.post("/generate-soa", async (req, res) => {
     const emiLast = tenureAgg?.end_date || null;
 
     // tenure months: from DB if present, else count of instalments
-    const tenureMonths =
-      loan.loan_tenure || tenureAgg?.total_instalments || "-";
+    // const tenureMonths =
+    //   loan.loan_tenure || tenureAgg?.total_instalments || "-";
+    const tenureMonths = isSterlionGroup
+  ? loan.tenure_months || "-"
+  : loan.loan_tenure || tenureAgg?.total_instalments || "-";
 
     // emi amount: prefer loan.emi_amount then any schedule EMI
     const emiAmt = safeNum(loan.emi_amount || tenureAgg?.emi_any || 0);
@@ -3470,7 +3619,16 @@ router.post("/generate-soa", async (req, res) => {
     doc
       .fillColor("#2c55b5")
       .font("Helvetica-Bold")
-      .text(`${loan.customer_name || "-"}`, MARGINS.left + 285, infoPlateY + 7);
+      // .text(`${loan.customer_name || "-"}`, MARGINS.left + 285, infoPlateY + 7);
+      .text(
+  `${
+    isSterlionGroup
+      ? [loan.first_name, loan.last_name].filter(Boolean).join(" ") || "-"
+      : loan.customer_name || "-"
+  }`,
+  MARGINS.left + 285,
+  infoPlateY + 7
+);
 
     doc
       .fillColor("#64748B")
@@ -3671,7 +3829,7 @@ router.post("/generate-noc", async (req, res) => {
   else if (lan.startsWith("SH")) loanTable = "loan_booking_srbh";
   else if (lan.startsWith("RML")) loanTable = "loan_booking_switch_my_loan";
   else if (lan.startsWith("CCB")) loanTable = "loan_booking_claim_cure_buddy";
-  else if (lan.startsWith("CBF")) loanTable = "loan_booking_claim_buddy";  // CLAIM BUDDY
+   else if (lan.startsWith("CBF")) loanTable = "loan_booking_claim_buddy";  // CLAIM BUDDY
   
 
   try {
