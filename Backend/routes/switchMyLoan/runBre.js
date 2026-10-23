@@ -57,7 +57,7 @@ if (
   throw new Error("AML/Bureau bypass is not permitted in production");
 }
 
-const POLICY_VERSION = "RAPID_MONEY_POLICY_PDF_2026_07";
+const POLICY_VERSION = "RAPID_MONEY_POLICY_2026_10";
 
 function safeJson(value) {
   try {

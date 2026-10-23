@@ -136,7 +136,7 @@ if (
  * We can still give QuickMoney its own audit label.
  */
 const POLICY_VERSION =
-  "QUICK_MONEY_POLICY_2026_07";
+  "QUICK_MONEY_POLICY_2026_10_23";
 
 
 /*

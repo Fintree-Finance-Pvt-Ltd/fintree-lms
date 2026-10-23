@@ -8,7 +8,7 @@ const {
   isNewCustomer,
   calculateRepeatCreditLimit,
 } = require("./rapidMoneyPolicy");
-const POLICY_VERSION = "RAPID_MONEY_POLICY_PDF_2026_07";
+const POLICY_VERSION = "RAPID_MONEY_POLICY_2026_10";
 function rule(passed, reason = null, derivedValues = {}, executed = true) {
   return { executed, passed, reason, derived_values: derivedValues };
 }
