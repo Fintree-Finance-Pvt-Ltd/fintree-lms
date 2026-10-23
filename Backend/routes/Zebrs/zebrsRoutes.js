@@ -1152,7 +1152,7 @@ router.get("/product/:applicationId", async (req, res) => {
           created_at
        FROM zebrs_dealer_products
        WHERE application_id = ?
-       LIMIT 1`,
+       ORDER BY id ASC`,
       [applicationId],
     );
 
@@ -1165,7 +1165,7 @@ router.get("/product/:applicationId", async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: rows[0],
+      data: rows,
     });
   } catch (error) {
     console.error("Error fetching ZEBRS product:", error);
