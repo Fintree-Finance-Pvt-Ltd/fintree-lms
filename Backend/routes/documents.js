@@ -36,6 +36,11 @@ const {
 const {
   generateNocForFullyPaidLoans: generateNocForFullyPaidQuickMoneyLoans,
 } = require("../jobs/generate-noc-for-quick-money");
+
+const {
+  checkAndApproveCarePayEducationLoan,
+} = require("./CarePayEdu/carePayEduRoute");
+
 // ---------- DB helper ----------
 function q(sql, params = []) {
   return new Promise((resolve, reject) => {
@@ -670,6 +675,46 @@ router.post("/upload", upload.single("document"), async (req, res) => {
         [cleanLan, storedName, requestedDocumentName],
       );
     }
+
+
+      /*
+      |--------------------------------------------------------------------------
+      | CAREPAY EDUCATION DOCUMENT UPLOAD
+      |--------------------------------------------------------------------------
+      */
+
+      // This executes after the document is saved
+      // into the loan_documents table.
+
+      if (cleanLan.startsWith("CAREDU")) {
+
+        // Check approval only when salary declaration is uploaded.
+        if (documentType === "salarydeclaration") {
+
+          const approvalResult =
+            await checkAndApproveCarePayEducationLoan(cleanLan);
+
+          return res.status(200).json({
+            success: true,
+            message: approvalResult.approved
+              ? "Salary declaration uploaded and loan approved"
+              : "Salary declaration uploaded, approval pending",
+
+            lan: cleanLan,
+            document_uploaded: true,
+            carepay_education_approval: approvalResult,
+          });
+        }
+
+        // Other CarePay Education documents:
+        // save document, but do not trigger approval.
+        return res.status(200).json({
+          success: true,
+          message: "CarePay Education document uploaded successfully",
+          lan: cleanLan,
+          document_uploaded: true,
+        });
+      }
 
     if (!cleanLan.startsWith("CARE")) {
       return res.status(200).json({
