@@ -1799,6 +1799,9 @@ import { useNavigate } from "react-router-dom";
 import DataTable from "../ui/DataTable";
 import LoaderOverlay from "../ui/LoaderOverlay";
 
+// Agreement already sent (or signed) - block re-sending even after refresh
+const AGREEMENT_LOCKED_STATUSES = ["INITIATED", "IN_PROGRESS", "SIGNED"];
+
 const ClayooLimitEntry = ({
   apiUrl = `/clayyo-loans/credit-approved-loans?table=loan_booking_clayyo&prefix=CLY`,
   title = "Credit Limit Approval And Disburse Loans",
@@ -2022,7 +2025,7 @@ const ClayooLimitEntry = ({
       .trim()
       .toUpperCase();
 
-    if (agreementRequests.current.has(lan) || ["INITIATED", "SIGNED"].includes(agreementStatus)) {
+    if (agreementRequests.current.has(lan) || AGREEMENT_LOCKED_STATUSES.includes(agreementStatus)) {
       return;
     }
 
@@ -2032,11 +2035,17 @@ const ClayooLimitEntry = ({
     setActionLan(lan);
 
     try {
-      await api.post(`/esign/${lan}/esign/agreement`);
+      const res = await api.post(`/esign/${lan}/esign/agreement`);
 
       setRows((old) =>
         old.map((r) =>
-          r.lan === lan ? { ...r, agreement_esign_status: "INITIATED" } : r,
+          r.lan === lan
+            ? {
+                ...r,
+                agreement_esign_status:
+                  res.data?.agreement_esign_status || "INITIATED",
+              }
+            : r,
         ),
       );
 
@@ -2203,11 +2212,12 @@ const ClayooLimitEntry = ({
   };
 
   const EsignChip = ({ status }) => {
-    const st = (status || "PENDING").toUpperCase();
+    const st = String(status || "PENDING").trim().toUpperCase();
 
     const map = {
       SIGNED: { bg: "#dcfce7", fg: "#14532d", label: "Signed" },
       INITIATED: { bg: "#dbeafe", fg: "#1e3a8a", label: "Initiated" },
+      IN_PROGRESS: { bg: "#dbeafe", fg: "#1e3a8a", label: "In Progress" },
       FAILED: { bg: "#fee2e2", fg: "#991b1b", label: "Failed" },
       PENDING: { bg: "#fef9c3", fg: "#713f12", label: "Pending" },
     };
@@ -2710,8 +2720,7 @@ const ClayooLimitEntry = ({
           !opsApproved ||
           agreementRequests.current.has(r.lan) ||
           actionLan === r.lan ||
-          agreementStatus === "INITIATED" ||
-          agreementStatus === "SIGNED";
+          AGREEMENT_LOCKED_STATUSES.includes(agreementStatus);
 
         const bankChipMap = {
           PENDING: {
@@ -2763,7 +2772,8 @@ const ClayooLimitEntry = ({
             >
               {actionLan === r.lan
                 ? "Processing..."
-                : agreementStatus === "INITIATED"
+                : agreementStatus === "INITIATED" ||
+                    agreementStatus === "IN_PROGRESS"
                   ? "Pending Signature…"
                   : agreementStatus === "SIGNED"
                     ? "Already Signed"

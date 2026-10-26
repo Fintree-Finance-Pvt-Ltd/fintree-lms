@@ -4,6 +4,9 @@ import { useNavigate } from "react-router-dom";
 import DataTable from "../ui/DataTable";
 import LoaderOverlay from "../ui/LoaderOverlay";
 
+// Agreement already sent (or signed) - block re-sending even after refresh
+const AGREEMENT_LOCKED_STATUSES = ["INITIATED", "IN_PROGRESS", "SIGNED"];
+
 const ClaimBuddyLimitEntry = ({
   apiUrl = `/claim-buddy/credit-approved-loans?table=loan_booking_claim_buddy&prefix=CBF`,
   title = "Credit Limit Approval And Disburse Loans",
@@ -222,12 +225,19 @@ const ClaimBuddyLimitEntry = ({
   const handleAgreementEsign = async (row) => {
     const lan = row.lan;
 
-    if (
-      String(row.agreement_esign_status || "")
-        .trim()
-        .toUpperCase() === "SIGNED"
-    ) {
+    const agreementStatus = String(row.agreement_esign_status || "")
+      .trim()
+      .toUpperCase();
+
+    if (actionLan === lan) return;
+
+    if (agreementStatus === "SIGNED") {
       alert("Agreement already signed");
+      return;
+    }
+
+    if (AGREEMENT_LOCKED_STATUSES.includes(agreementStatus)) {
+      alert("Agreement eSign already sent");
       return;
     }
 
@@ -239,14 +249,15 @@ const ClaimBuddyLimitEntry = ({
 
     try {
       // Shared existing eSign endpoint - unchanged
-      await api.post(`/esign/${lan}/esign/agreement`);
+      const res = await api.post(`/esign/${lan}/esign/agreement`);
 
       setRows((old) =>
         old.map((r) =>
           r.lan === lan
             ? {
                 ...r,
-                agreement_esign_status: "INITIATED",
+                agreement_esign_status:
+                  res.data?.agreement_esign_status || "INITIATED",
               }
             : r,
         ),
@@ -467,7 +478,7 @@ const ClaimBuddyLimitEntry = ({
   };
 
   const EsignChip = ({ status }) => {
-    const st = (status || "PENDING").toUpperCase();
+    const st = String(status || "PENDING").trim().toUpperCase();
 
     const map = {
       SIGNED: {
@@ -480,6 +491,12 @@ const ClaimBuddyLimitEntry = ({
         bg: "#dbeafe",
         fg: "#1e3a8a",
         label: "Initiated",
+      },
+
+      IN_PROGRESS: {
+        bg: "#dbeafe",
+        fg: "#1e3a8a",
+        label: "In Progress",
       },
 
       FAILED: {
@@ -1131,8 +1148,7 @@ Required: ₹${Number(errorData.required_amount || 0).toLocaleString("en-IN")}`,
         const isAgreementDisabled =
           !opsApproved ||
           actionLan === r.lan ||
-          agreementStatus === "INITIATED" ||
-          agreementStatus === "SIGNED";
+          AGREEMENT_LOCKED_STATUSES.includes(agreementStatus);
 
         const bankChipMap = {
           PENDING: {
@@ -1201,7 +1217,8 @@ Required: ₹${Number(errorData.required_amount || 0).toLocaleString("en-IN")}`,
             >
               {actionLan === r.lan
                 ? "Processing..."
-                : agreementStatus === "INITIATED"
+                : agreementStatus === "INITIATED" ||
+                    agreementStatus === "IN_PROGRESS"
                   ? "Pending Signature…"
                   : agreementStatus === "SIGNED"
                     ? "Already Signed"
