@@ -22,6 +22,8 @@ const payoutRoutes = require("./routes/payoutRoutes");
 const excelUploadRoutes = require("./routes/excelUpload");
 const sterlionRoutes = require("./routes/sterlion/sterlionRoutes");
 const carePayRoutes = require("./routes/CarePay/carePayRoutes");
+const carePayEduRoutes = require("./routes/CarePayEdu/carePayEduRoute");
+
 const claimBuddyRoutes = require("./routes/ClaimBuddy/claimBuddyRoutes"); //Claim Buddy
 const loanRoutes = require("./routes/loanRoutes");
 const repaymentRoutes = require("./routes/repaymentsRoutes");
@@ -196,7 +198,7 @@ app.use("/api/cph", circlePeHouserRoutes); // ✅ Register Circlepe Houser Route
 app.use("/api/loan-booking/yaMoney", require("./routes/YaMoney/yaMoneyRoutes")); // Register Routes for Ya Money Business Loan
 app.use(
   "/api/motion-corp",
-  require("./routes/MotionCorp/motionCorpDealerRoutes"),
+  require("./routes/MotionCorp/motionCorpDealerRoutes"),  
 );
 app.use("/api/sampada", require("./routes/Sampada/sampadaDealerRoutes"));
 
@@ -619,6 +621,7 @@ app.use("/api/customers", verifyToken, require("./routes/Customer/customerRoutes
 app.use("/api/partners", verifyToken, require("./routes/partnerLimitRoutes")); // ✅ Partner Limit Management
 app.use("/api/zebrs", require("./routes/Zebrs/zebrsRoutes")); // ✅ Register Routes for Zebrs
 app.use("/api/carepay", carePayRoutes); // ✅ Register Routes for CarePay Mandate UMRN Update
+app.use("/api/carepayEducation", carePayEduRoutes);
 app.use("/api/claim-buddy", claimBuddyRoutes); // Claim Buddy
 
 app.use(

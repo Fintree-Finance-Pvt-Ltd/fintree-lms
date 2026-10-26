@@ -1588,6 +1588,80 @@ WHERE lan = ?`,
         insertedLANs.add(lan);
         processedCount++;
 
+        console.log("🔵 AFTER UTR COMMIT", {
+          lan,
+          utr: disbursementUTR,
+        });
+       
+        // ============================================================
+        // YA MONEY DISBURSEMENT WEBHOOK
+        // Send webhook only after UTR transaction is successfully committed
+        // ============================================================
+        if (lan.startsWith("YAM")) {
+            console.log("🟡 YA MONEY WEBHOOK BLOCK ENTERED", {
+              lan,
+              utr: disbursementUTR,
+            });
+          let partnerLoanId = null;
+
+          try {
+            const [partnerData] = await db.promise().query(
+              `
+              SELECT partner_loan_id
+              FROM loan_booking_ya_money
+              WHERE lan = ?
+              LIMIT 1
+              `,
+              [lan],
+            );
+
+            partnerLoanId =
+              partnerData.length > 0
+                ? partnerData[0].partner_loan_id
+                : null;
+
+                    console.log("🟠 YA MONEY PARTNER LOAN ID", {
+                      lan,
+                      partnerLoanId,
+                    });
+
+            if (!partnerLoanId) {
+              throw new Error(
+                `partner_loan_id not found for Ya Money loan ${lan}`,
+              );
+            }
+                console.log("🟣 CALLING YA MONEY WEBHOOK", {
+      lan,
+      partnerLoanId,
+      utr: disbursementUTR,
+    });
+
+
+            const webhookResult = await sendLoanWebhook({
+              external_ref_no: partnerLoanId,
+              utr: String(disbursementUTR).trim(),
+              disbursement_date:
+                disbursementDate.toISOString().split("T")[0],
+              reference_number: lan,
+              status: "DISBURSED",
+              reject_reason: null,
+            });
+
+            console.log("✅ Ya Money disbursement webhook result", {
+              lan,
+              partnerLoanId,
+              webhookResult,
+            });
+
+          } catch (webhookErr) {
+            console.error("❌ Ya Money disbursement webhook failed", {
+              lan,
+              partnerLoanId,
+              message: webhookErr.message,
+            });
+          }
+        }
+
         if (!welcomeEmailAttemptedLANs.has(lan)) {
           welcomeEmailAttemptedLANs.add(lan);
           try {
