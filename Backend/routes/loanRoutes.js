@@ -129,6 +129,8 @@ router.get("/loan-booking/:lan", (req, res) => {
     table = "loan_booking_wctl_cc_od";
   } else if (lan.startsWith("RML")) {
     table = "loan_booking_switch_my_loan";
+  } else if (lan.startsWith("RMLN")) {
+    table = "loan_booking_rapid_money_v2";
   } else if (lan.startsWith("QML")) {
     table = "loan_booking_quick_money";
   } else if (lan.startsWith("UBLF")) {

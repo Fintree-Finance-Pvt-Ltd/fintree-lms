@@ -428,6 +428,12 @@ app.use(
   require("./routes/switchMyLoan/switchMyLoanRotues"),
 ); // ✅ Register Switch My Loan Routes
 
+app.use(
+  "/api/rapid-money-new",
+  rmlApiAuditMiddleware,
+  require("./routes/RapidMoneyV2/rapidMoneyV2LoanRotues"),
+); // ✅ Register Switch My Loan Routes
+
 function quickMoneyApiAuditMiddleware(req, res, next) {
   const startedAt = Date.now();
 
