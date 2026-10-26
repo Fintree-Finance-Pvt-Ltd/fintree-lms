@@ -1588,13 +1588,20 @@ WHERE lan = ?`,
         insertedLANs.add(lan);
         processedCount++;
 
-
+        console.log("🔵 AFTER UTR COMMIT", {
+          lan,
+          utr: disbursementUTR,
+        });
        
         // ============================================================
         // YA MONEY DISBURSEMENT WEBHOOK
         // Send webhook only after UTR transaction is successfully committed
         // ============================================================
         if (lan.startsWith("YAM")) {
+            console.log("🟡 YA MONEY WEBHOOK BLOCK ENTERED", {
+              lan,
+              utr: disbursementUTR,
+            });
           let partnerLoanId = null;
 
           try {
@@ -1613,11 +1620,22 @@ WHERE lan = ?`,
                 ? partnerData[0].partner_loan_id
                 : null;
 
+                    console.log("🟠 YA MONEY PARTNER LOAN ID", {
+                      lan,
+                      partnerLoanId,
+                    });
+
             if (!partnerLoanId) {
               throw new Error(
                 `partner_loan_id not found for Ya Money loan ${lan}`,
               );
             }
+                console.log("🟣 CALLING YA MONEY WEBHOOK", {
+      lan,
+      partnerLoanId,
+      utr: disbursementUTR,
+    });
+
 
             const webhookResult = await sendLoanWebhook({
               external_ref_no: partnerLoanId,
