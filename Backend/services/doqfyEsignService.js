@@ -513,17 +513,30 @@ console.log(
 // Serialize Sampada agreement sends across tabs and server processes, and use
 // persisted documents to protect loans whose booking status is stale.
 exports.initDoqfyEsign = async (lan, type) => {
-  if (getLoanContext(lan).type !== "SAMPADA" || type !== "AGREEMENT") {
+  const loanType = getLoanContext(lan).type;
+  if (type !== "AGREEMENT" || !["SAMPADA", "CLAYYO"].includes(loanType)) {
     return initDoqfyEsign(lan, type);
   }
-  const { loadSampadaAgreementStatus } = require("./sampadaAgreementStatus");
   const connection = await db.promise().getConnection();
-  const lockName = `sampada-agreement:${String(lan).trim().toUpperCase()}`;
+  const lockName = `${loanType.toLowerCase()}-agreement:${String(lan).trim().toUpperCase()}`;
   let locked = false;
   try {
     const [[lock]] = await connection.query("SELECT GET_LOCK(?, 0) AS acquired", [lockName]);
     locked = Number(lock.acquired) === 1;
     if (!locked) throw new Error("Agreement send is already processing. Refresh to check its status.");
+    if (loanType === "CLAYYO") {
+      const [rows] = await connection.query(
+        "SELECT agreement_esign_status FROM loan_booking_clayyo WHERE lan = ?",
+        [lan],
+      );
+      if (!rows.length) throw new Error("Loan not found");
+      const status = String(rows[0].agreement_esign_status || "").trim().toUpperCase();
+      if (["INITIATED", "SIGNED"].includes(status)) {
+        return { success: true, already_initiated: true, lan, agreement_esign_status: status };
+      }
+      return await initDoqfyEsign(lan, type);
+    }
+    const { loadSampadaAgreementStatus } = require("./sampadaAgreementStatus");
     const [rows] = await connection.query(
       "SELECT lan, agreement_esign_status, agreement_esign_sent_at, agreement_esign_document_id FROM loan_booking_sampada WHERE lan = ?",
       [lan],

@@ -1793,7 +1793,7 @@
 
 // export default ClayooLimitEntry;
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import api from "../../api/api";
 import { useNavigate } from "react-router-dom";
 import DataTable from "../ui/DataTable";
@@ -1811,6 +1811,7 @@ const ClayooLimitEntry = ({
   const [submitting, setSubmitting] = useState({});
   const [err, setErr] = useState("");
   const [actionLan, setActionLan] = useState(null);
+  const agreementRequests = useRef(new Set());
   const [toast, setToast] = useState(null);
 
   const [showBankModal, setShowBankModal] = useState(false);
@@ -2017,17 +2018,17 @@ const ClayooLimitEntry = ({
 
   const handleAgreementEsign = async (row) => {
     const lan = row.lan;
+    const agreementStatus = String(row.agreement_esign_status || "")
+      .trim()
+      .toUpperCase();
 
-    if (
-      String(row.agreement_esign_status || "").trim().toUpperCase() ===
-      "SIGNED"
-    ) {
-      alert("Agreement already signed");
+    if (agreementRequests.current.has(lan) || ["INITIATED", "SIGNED"].includes(agreementStatus)) {
       return;
     }
 
     if (!window.confirm(`Send agreement eSign to ${lan}?`)) return;
 
+    agreementRequests.current.add(lan);
     setActionLan(lan);
 
     try {
@@ -2046,6 +2047,7 @@ const ClayooLimitEntry = ({
       setToast({ type: "error", msg: "Failed to start agreement eSign" });
       resetToastAfterDelay();
     } finally {
+      agreementRequests.current.delete(lan);
       setActionLan(null);
     }
   };
@@ -2706,6 +2708,7 @@ const ClayooLimitEntry = ({
 
         const isAgreementDisabled =
           !opsApproved ||
+          agreementRequests.current.has(r.lan) ||
           actionLan === r.lan ||
           agreementStatus === "INITIATED" ||
           agreementStatus === "SIGNED";
