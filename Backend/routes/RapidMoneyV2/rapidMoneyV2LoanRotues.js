@@ -50,6 +50,13 @@ const SHOULD_MOCK_CLEAR_BANK =
   ["test", "uat"].includes(DEPLOYMENT_ENV) &&
   BANK_MODE === "mock-clear";
 
+
+  console.log("RAPID MONEY V2 BANK CONFIG:", {
+  deploymentEnv: DEPLOYMENT_ENV,
+  bankMode: BANK_MODE,
+  shouldMock: SHOULD_MOCK_CLEAR_BANK,
+});
+
 // console.log("SML bank verification configuration:", {
   // deploymentEnvironment: DEPLOYMENT_ENV,
   // bankMode: BANK_MODE,
@@ -1398,7 +1405,7 @@ const normalizeCreateUpdatePayload = (data) => {
 //     transactionStarted = true;
 
 //     const [existingPayment] = await connection.query(
-//       `SELECT id FROM switch_my_loan_assessment_fee WHERE payment_id = ? LIMIT 1`,
+//       `SELECT id FROM rapid_money_v2_assessment_fee WHERE payment_id = ? LIMIT 1`,
 //       [payment_id]
 //     );
 
@@ -1468,7 +1475,7 @@ const normalizeCreateUpdatePayload = (data) => {
 //     }
 
 //     await connection.query(
-//       `INSERT INTO switch_my_loan_assessment_fee (
+//       `INSERT INTO rapid_money_v2_assessment_fee (
 //         application_id,
 //         partner_loan_id,
 //         lan,
@@ -1572,7 +1579,7 @@ router.post("/v2/loan/assessment-fee", verifyApiKey, async (req, res) => {
     transactionStarted = true;
 
     const [duplicate] = await connection.query(
-      "SELECT id FROM switch_my_loan_assessment_fee WHERE payment_id = ? LIMIT 1",
+      "SELECT id FROM rapid_money_v2_assessment_fee WHERE payment_id = ? LIMIT 1",
       [payment_id],
     );
     if (duplicate.length) {
@@ -1624,7 +1631,7 @@ router.post("/v2/loan/assessment-fee", verifyApiKey, async (req, res) => {
     );
 
     await connection.query(
-      `INSERT INTO switch_my_loan_assessment_fee (application_id, partner_loan_id, lan, amount, payment_date, payment_id, api_status)
+      `INSERT INTO rapid_money_v2_assessment_fee (application_id, partner_loan_id, lan, amount, payment_date, payment_id, api_status)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         applicationId,
@@ -5580,8 +5587,7 @@ function buildPartnerBreResponse(breResult = {}) {
 }
 
 // 4) APPROVE API
-router.post(
-  "/v2/loan/:application_id/approve",
+router.post("/v2/loan/:application_id/approve",
   verifyApiKey,
   async (req, res) => {
     let connection;
@@ -5668,7 +5674,15 @@ const hasCompleteBankDetails = Boolean(
   String(loan.bank_ifsc_code || "").trim(),
 );
 
-if (hasCompleteBankDetails) {
+console.log("RAPID MONEY V2 APPROVE BANK CHECK:", {
+  applicationId: application_id,
+  lan: loan.lan,
+  hasCompleteBankDetails,
+  shouldMock: SHOULD_MOCK_CLEAR_BANK,
+  bankStatus: loan.bank_verification_status,
+  bankVerified: loan.bank_is_verified,
+});
+if (hasCompleteBankDetails && !SHOULD_MOCK_CLEAR_BANK) {
   const bankVerificationStatus = String(
     loan.bank_verification_status || "",
   )
@@ -5730,50 +5744,7 @@ if (hasCompleteBankDetails) {
     });
   }
 }
-      // ======================================================
-      // CROSS PRODUCT CHECK: QUICK MONEY
-      // ======================================================
-      if (loan.pan_number) {
-        const [quickMoneyCases] = await connection.query(
-          `
-          SELECT status 
-          FROM loan_booking_rapid_money_v2 
-          WHERE pan_number = ? 
-            AND status NOT IN ('Fully Paid', 'CLOSED', 'REJECTED', 'CANCELLED')
-          LIMIT 1
-          `,
-          [loan.pan_number]
-        );
-
-        if (quickMoneyCases.length > 0) {
-          await connection.query(
-            `UPDATE loan_booking_rapid_money_v2
-             SET status = ?,
-                 sml_bre_status = ?,
-                 sml_bre_reason = ?,
-                 updated_at = CURRENT_TIMESTAMP
-             WHERE application_id = ?`,
-            [
-              "REJECTED",
-              "REJECTED",
-              "Active Quick Money loan exists",
-              application_id,
-            ]
-          );
-
-          const breResponse = buildPartnerBreResponse({
-            decision: "REJECTED",
-          });
-
-          return res.json({
-            is_success: true,
-            data: {
-              status: "Rejected",
-              bre_response: breResponse,
-            },
-          });
-        }
-      }
+  
 
       const breEngineResult = await runBRE(loan, {
         onboardingCompleted: onboarding_completed,
@@ -6292,8 +6263,7 @@ if (hasCompleteBankDetails) {
 
 /////  Sajag 
 
-router.post(
-  "/v2/loan/:application_id/disburse",
+router.post("/v2/loan/:application_id/disburse",
   verifyApiKey,
   async (req, res) => {
     const { application_id } = req.params;
@@ -6634,8 +6604,7 @@ router.post(
 );
 
 ///////////////////// Partner-Initiated Rejection
-router.post(
-  "/v2/loan/:application_id/reject-by-partner",
+router.post( "/v2/loan/:application_id/reject-by-partner",
   verifyApiKey,
   async (req, res) => {
     try {
@@ -6719,8 +6688,7 @@ router.post(
 );
 
 ///////////////////// 6) Repayment API
-router.post(
-  "/v2/loan/:application_id/repayment",
+router.post( "/v2/loan/:application_id/repayment",
   verifyApiKey,
   async (req, res) => {
     try {
@@ -6879,8 +6847,7 @@ router.post(
 );
 
 ///////////////////// 7) Loan charges api
-router.post(
-  "/v2/loan/:application_id/repayment-charges",
+router.post( "/v2/loan/:application_id/repayment-charges",
   verifyApiKey,
   async (req, res) => {
     try {
@@ -7368,8 +7335,7 @@ router.post("/v2/loan/extra_charge_waiver", verifyApiKey, async (req, res) => {
 //   }
 // );
 
-router.get(
-  "/v2/loan/:application_id/customer-details",
+router.get("/v2/loan/:application_id/customer-details",
   verifyApiKey,
   async (req, res) => {
     let connection;

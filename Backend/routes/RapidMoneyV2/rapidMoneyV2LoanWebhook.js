@@ -2,14 +2,14 @@ const axios = require("axios");
 const db = require("../../config/db");
 const dayjs = require("dayjs");
 const BASE_URL =
-  process.env.RAPID_MONEY_WEBHOOK_BASE_URL ;
+  process.env.RAPID_MONEY_V2_WEBHOOK_BASE_URL ;
 
 const MAX_ATTEMPTS = 5;
 const RETRY_AFTER_MINUTES = 5;
 
 function getHeaders() {
   const token =
-    process.env.RAPID_MONEY_WEBHOOK_TOKEN;
+    process.env.RAPID_MONEY_V2_WEBHOOK_TOKEN;
 
   // console.log("[SML] Token check:", {
     // hasToken: Boolean(token),
@@ -17,7 +17,7 @@ function getHeaders() {
   // });
 
   if (!token) {
-    throw new Error("RAPID_MONEY_WEBHOOK_TOKEN is missing in .env");
+    throw new Error("RAPID_MONEY_V2_WEBHOOK_TOKEN is missing in .env");
   }
 
   return {
@@ -81,7 +81,7 @@ async function createWebhookLog({
 }) {
   await db.promise().query(
     `
-    INSERT INTO rapid_money_webhook_logs (
+    INSERT INTO rapid_money_v2_webhook_logs (
       webhook_type,
       application_id,
       lan,
@@ -113,7 +113,7 @@ async function createWebhookLog({
   const [[log]] = await db.promise().query(
     `
     SELECT *
-    FROM rapid_money_webhook_logs
+    FROM rapid_money_v2_webhook_logs
     WHERE application_id = ?
       AND webhook_type = ?
     LIMIT 1
@@ -131,7 +131,7 @@ async function sendWebhookLog(logId) {
   const [[log]] = await db.promise().query(
     `
     SELECT *
-    FROM rapid_money_webhook_logs
+    FROM rapid_money_v2_webhook_logs
     WHERE id = ?
     LIMIT 1
     `,
@@ -178,7 +178,7 @@ async function sendWebhookLog(logId) {
 
     await db.promise().query(
       `
-      UPDATE rapid_money_webhook_logs
+      UPDATE rapid_money_v2_webhook_logs
       SET
         status = 'SUCCESS',
         attempts = attempts + 1,
@@ -240,7 +240,7 @@ async function sendWebhookLog(logId) {
 
   await db.promise().query(
     `
-    UPDATE rapid_money_webhook_logs
+    UPDATE rapid_money_v2_webhook_logs
     SET
       status = 'FAILED',
       attempts = ?,
@@ -479,7 +479,7 @@ async function retryFailedWebhooks() {
   const [logs] = await db.promise().query(
     `
     SELECT id
-    FROM rapid_money_webhook_logs
+    FROM rapid_money_v2_webhook_logs
     WHERE status IN ('PENDING', 'FAILED')
       AND attempts < max_attempts
       AND (
