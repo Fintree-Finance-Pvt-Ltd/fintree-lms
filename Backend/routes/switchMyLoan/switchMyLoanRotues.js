@@ -252,13 +252,14 @@ async function verifySmlBankAndStoreResult({
       bankNamesMatch(accountName, beneficiaryName),
     );
 
-    const digioFuzzyPassed = Boolean(fuzzyResult && fuzzyScore >= 70);
-
+    // Deliberately NOT using Digio's own fuzzy_match_result/score here — only
+    // our own bankNamesMatch logic decides a match, against the actual
+    // bank-confirmed beneficiary name (not just the partner-submitted
+    // ac_name, which the partner controls and can't be trusted on its own).
     const isNameMatched =
       !beneficiaryName ||
       nameMatchesCustomer ||
-      nameMatchesAccount ||
-      digioFuzzyPassed;
+      nameMatchesAccount;
 
     if (!isNameMatched) {
       const mismatchReason = `BANK_ACCOUNT_NAME_MISMATCH: Beneficiary name "${beneficiaryName}" does not match customer name "${targetCustomerName || accountName}"`;
@@ -273,6 +274,10 @@ async function verifySmlBankAndStoreResult({
              status = 'REJECTED',
              sml_bre_status = 'REJECTED',
              sml_bre_reason = 'BANK_ACCOUNT_NAME_MISMATCH',
+             bank_name_match_status = 'MISMATCH',
+             bank_name_match_reason = ?,
+             bank_name_match_customer = ?,
+             bank_name_match_bank = ?,
              updated_at = NOW()
          WHERE partner_loan_id = ?
            AND bank_verification_status = 'PENDING'`,
@@ -281,6 +286,9 @@ async function verifySmlBankAndStoreResult({
             ...(result || {}),
             rejection_reason: mismatchReason,
           }),
+          mismatchReason,
+          targetCustomerName || accountName,
+          beneficiaryName,
           partnerLoanId,
         ],
       );
@@ -308,6 +316,12 @@ async function verifySmlBankAndStoreResult({
     }
 
     // Both penny-drop AND name match succeeded:
+    const matchReasonForColumn = !beneficiaryName
+      ? "NO_BENEFICIARY_NAME_RETURNED"
+      : nameMatchesCustomer
+        ? "MATCHES_CUSTOMER_NAME"
+        : "MATCHES_SUBMITTED_ACCOUNT_NAME";
+
     await db.promise().query(
       `UPDATE loan_booking_switch_my_loan
        SET bank_verification_status = 'VERIFIED',
@@ -315,10 +329,20 @@ async function verifySmlBankAndStoreResult({
            bank_verification_response = ?,
            bank_verification_error = NULL,
            bank_verified_at = NOW(),
+           bank_name_match_status = 'MATCHED',
+           bank_name_match_reason = ?,
+           bank_name_match_customer = ?,
+           bank_name_match_bank = ?,
            updated_at = NOW()
        WHERE partner_loan_id = ?
          AND bank_verification_status = 'PENDING'`,
-      [JSON.stringify(result || {}), partnerLoanId],
+      [
+        JSON.stringify(result || {}),
+        matchReasonForColumn,
+        targetCustomerName || accountName,
+        beneficiaryName || accountName,
+        partnerLoanId,
+      ],
     );
   } catch (error) {
     console.error("SML bank verification failed:", {
@@ -3828,6 +3852,22 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
           // ================================================
 
           const isNameMatched = bankNamesMatch(customerName, accountName);
+
+          addField(
+            "bank_name_match_status",
+            isNameMatched ? "MATCHED" : "MISMATCH",
+          );
+
+          addField(
+            "bank_name_match_reason",
+            isNameMatched
+              ? "MATCHES_SUBMITTED_ACCOUNT_NAME"
+              : `BANK_ACCOUNT_NAME_MISMATCH: Customer name "${customerName}" does not match bank account holder name "${accountName}"`,
+          );
+
+          addField("bank_name_match_customer", customerName);
+
+          addField("bank_name_match_bank", accountName);
 
           // console.log(
           // "SML bank account name validation:",
