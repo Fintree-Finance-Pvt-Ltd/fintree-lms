@@ -29,13 +29,13 @@ const router = express.Router();
 
 
 const DEPLOYMENT_ENV = String(
-  process.env.DEPLOYMENT_ENV || "production",
+  process.env.RAPIDMONEYV2_DEPLOYMENT_ENV || "uat",
 )
   .trim()
   .toLowerCase();
 
 const BANK_MODE = String(
-  process.env.BANK_MODE || "live",
+  process.env.RAPIDMONEYV2_BANK_MODE || "mock-clear",
 )
   .trim()
   .toLowerCase();
@@ -7485,7 +7485,7 @@ router.post("/v2/bre/test-eligibility", async (req, res) => {
   try {
     /* * Keep the testing endpoint disabled unless * explicitly enabled through environment. */ if (
       String(
-        process.env.ENABLE_RAPID_MONEY_BRE_TEST_API || "",
+        process.env.ENABLE_RAPID_MONEY_NEW_BRE_TEST_API || "",
       ).toLowerCase() !== "true"
     ) {
       return res

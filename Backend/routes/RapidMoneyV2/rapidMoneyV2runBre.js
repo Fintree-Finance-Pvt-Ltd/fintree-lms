@@ -23,16 +23,16 @@ const AML_REJECT_REASON = "AML REJECT";
 const TRACKWIZZ_AML_STATUSES = new Set(["PROCEED", "REVIEW", "STOP"]);
 
 const DEPLOYMENT_ENV = String(
-  process.env.DEPLOYMENT_ENV || process.env.NODE_ENV || "development",
+  process.env.RAPIDMONEYV2_DEPLOYMENT_ENV || process.env.RAPIDMONEYV2_NODE_ENV || "uat",
 )
   .trim()
   .toLowerCase();
 
-const AML_MODE = String(process.env.AML_MODE || "")
+const AML_MODE = String(process.env.RAPIDMONEYV2_AML_MODE || "")
   .trim()
   .toLowerCase();
 
-const BUREAU_MODE = String(process.env.BUREAU_MODE || "")
+const BUREAU_MODE = String(process.env.RAPIDMONEYV2_BUREAU_MODE || "")
   .trim()
   .toLowerCase();
 
