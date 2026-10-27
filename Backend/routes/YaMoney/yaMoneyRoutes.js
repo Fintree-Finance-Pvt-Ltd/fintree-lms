@@ -1206,7 +1206,7 @@ router.get("/all-loans", authenticateUser, (req, res) =>
 );
 
 router.get("/credit-screen-loans", authenticateUser, (req, res) =>
-  fetchYaMoneyLoans(req, res, ["bre_approved"]),
+  fetchYaMoneyLoans(req, res, ["bre_approved" ,"bre_rejected"]),
 );
 
 router.get("/ops-maker-loans", authenticateUser, (req, res) =>
@@ -1747,6 +1747,116 @@ router.patch("/:lan/final-details", async (req, res) => {
     return sendServerError(res, error);
   }
 });
+
+
+router.post("/:lan/credit-approve", async (req, res) => {
+  let connection;
+
+  try {
+    const { lan } = req.params;
+
+    if (!lan) {
+      return res.status(400).json({
+        success: false,
+        message: "LAN is required",
+      });
+    }
+
+    connection = await db.promise().getConnection();
+
+    const [rows] = await connection.query(
+      `
+      SELECT
+        id,
+        lan,
+        status,
+        stage,
+        lender
+      FROM loan_booking_ya_money
+      WHERE lan = ?
+      LIMIT 1
+      `,
+      [lan]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Ya Money loan not found",
+      });
+    }
+
+    const loan = rows[0];
+
+    // Only BRE_REJECTED cases can be manually approved
+    if (
+      String(loan.status || "").toUpperCase() !== "BRE_REJECTED" ||
+      String(loan.stage || "").toUpperCase() !== "BRE_REJECTED"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Only BRE Rejected cases can be credit approved",
+        current_status: loan.status,
+        current_stage: loan.stage,
+      });
+    }
+
+    // BRE_REJECTED → BRE_APPROVED
+    const [updateResult] = await connection.query(
+      `
+      UPDATE loan_booking_ya_money
+      SET
+        status = ?,
+        stage = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE lan = ?
+        AND status = 'BRE_REJECTED'
+        AND stage = 'BRE_REJECTED'
+      `,
+      [
+        "BRE_APPROVED",
+        "BRE_APPROVED",
+        lan,
+      ]
+    );
+
+    if (updateResult.affectedRows === 0) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Ya Money loan was not updated. Status or stage may have changed.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Ya Money loan credit approved successfully",
+      data: {
+        lan,
+        previous_status: loan.status,
+        previous_stage: loan.stage,
+        status: "BRE_APPROVED",
+        stage: "BRE_APPROVED",
+      },
+    });
+
+  } catch (error) {
+    console.error("Ya Money credit approval error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to approve Ya Money loan",
+      error: error.message,
+    });
+
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+});
+
+
 function normalizeName(name) {
   return String(name || "")
     .trim()
