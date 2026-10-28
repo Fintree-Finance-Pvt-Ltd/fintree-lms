@@ -3,7 +3,7 @@ const {
   generateRepaymentSchedule,
 } = require("../utils/repaymentScheduleGenerator");
 const {
-  generateRapidMoneyRepaymentSchedule,
+  generateRapidMoneyRepaymentSchedule, generateRapidMoneyV2RepaymentSchedule
 } = require("../utils/generateRapidMoneyRepaymentSchedule");
 const {
   generateQuickMoneyRepaymentSchedule,
@@ -279,6 +279,170 @@ async function processRapidMoneyDisbursement({
 
     await conn.query(
       `UPDATE loan_booking_switch_my_loan SET status = 'Disbursed' WHERE lan = ?`,
+      [lan],
+    );
+
+    await conn.commit();
+
+    /* =================================================
+       6) Welcome letter + webhook (do AFTER commit)
+    ================================================= */
+
+    console.log("[Rapid money][SUCCESS] Disbursement completed successfully", {
+      lan,
+      utr: disbursementUTR,
+    });
+
+    try {
+      const welcomeLetterResult = await welcomeLetterQueue.add(
+        "send-welcome-letter",
+        {
+          lan,
+          utrNumber: disbursementUTR,
+        },
+        { jobId: `welcome-${lan}-${Date.now()}` },
+      );
+
+      console.log("[Rapid money][WELCOME_LETTER] Sent", {
+        lan,
+        utr: disbursementUTR,
+        messageId: welcomeLetterResult?.emailMessageId,
+        recipient: welcomeLetterResult?.recipient,
+      });
+    } catch (welcomeLetterError) {
+      // The disbursement itself already committed successfully — a
+      // welcome letter failure (bad email, template issue, etc.) must
+      // never be treated as a disbursement failure.
+      console.error("[Rapid money][WELCOME_LETTER] Failed", {
+        lan,
+        utr: disbursementUTR,
+        errorCode: welcomeLetterError?.code || "WELCOME_LETTER_FAILED",
+        errorMessage:
+          welcomeLetterError?.message || "Unable to send welcome letter",
+      });
+    }
+
+    return { success: true };
+  } catch (err) {
+    if (conn) await conn.rollback();
+    throw err;
+  } finally {
+    if (conn) conn.release();
+  }
+}
+
+
+async function processRapidMoneyV2Disbursement({
+  lan,
+  disbursementUTR,
+  disbursementDate,
+}) {
+  // ✅ Only EMI CLUB
+  if (!lan || !lan.startsWith("RML"))
+    return { skipped: true, reason: "NOT_RapidMoney" };
+
+  // ✅ Basic validation
+  if (!disbursementUTR || !disbursementDate) {
+    console.log("[Rapid money][SKIP] Missing UTR or Disbursement Date", {
+      lan,
+      disbursementUTR,
+      disbursementDate,
+    });
+
+    return { skipped: true, reason: "MISSING_UTR_OR_DATE" };
+  }
+
+  let conn;
+  try {
+    conn = await db.promise().getConnection();
+    await conn.beginTransaction();
+
+    /* =================================================
+       1) Fetch EMI CLUB loan (lock row)
+    ================================================= */
+    const [[loan]] = await conn.query(
+      `
+      SELECT partner_loan_id, application_id, repayment_date, loan_amount, interest_rate, tenure, status
+      FROM loan_booking_rapid_money_v2
+      WHERE lan = ?
+      FOR UPDATE
+      `,
+      [lan],
+    );
+
+    if (!loan) throw new Error(`Rapid Money loan not found: ${lan}`);
+
+    // Optional: if already disbursed, skip safely
+    if (String(loan.status).toLowerCase() === "disbursed") {
+      await conn.rollback();
+      return { skipped: true, reason: "ALREADY_DISBURSED" };
+    }
+
+    /* =================================================
+       2) Idempotency: prevent duplicate UTR inserts
+    ================================================= */
+    const [utrExists] = await conn.query(
+      `SELECT 1 FROM ev_disbursement_utr WHERE Disbursement_UTR = ? LIMIT 1`,
+      [disbursementUTR],
+    );
+
+    if (utrExists.length > 0) {
+      await conn.rollback();
+      return { skipped: true, reason: "DUPLICATE_UTR" };
+    }
+
+    const [existingRps] = await conn.query(
+      `
+  SELECT id
+  FROM manual_rps_rapid_money_v2
+  WHERE lan = ?
+  LIMIT 1
+  `,
+      [lan],
+    );
+
+    if (existingRps.length > 0) {
+      await conn.rollback();
+
+      return {
+        skipped: true,
+        reason: "RPS_ALREADY_EXISTS",
+      };
+    }
+
+    /* =================================================
+       3) Generate Repayment Schedule (RPS)
+       IMPORTANT: pass conn (transaction connection)
+    ================================================= */
+    await generateRapidMoneyV2RepaymentSchedule(
+      conn,
+      lan,
+      loan.loan_amount,
+      loan.interest_rate,
+      loan.tenure,
+      disbursementDate,
+      loan.repayment_date,
+    );
+
+    /* =================================================
+       4) Insert into ev_disbursement_utr
+    ================================================= */
+
+    await conn.query(
+      `
+      INSERT INTO ev_disbursement_utr
+        (Disbursement_UTR, Disbursement_Date, LAN)
+      VALUES (?, ?, ?)
+      `,
+      [disbursementUTR, disbursementDate, lan],
+    );
+
+    /* =================================================
+       5) Update Rapid Money loan status to Disbursed
+    ================================================= */
+
+    await conn.query(
+      `UPDATE loan_booking_rapid_money_v2 SET status = 'Disbursed' WHERE lan = ?`,
       [lan],
     );
 
@@ -1911,12 +2075,851 @@ async function processYaMoneyDisbursement({
   }
 }
 
+const SABGROW_BOOKING_TABLE = "loan_booking_sabgrow";
+const SABGROW_RPS_TABLE = "manual_rps_sabgrow";
+const SABGROW_PARTNER_NAME = "SABGROW";
+
+const roundSabGrowAmount = (value) =>
+  Math.round((Number(value) + Number.EPSILON) * 100) / 100;
+
+
+function formatSabGrowDateYMD(value) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(`Invalid date: ${value}`);
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+
+function calculateSabGrowEmi(
+  loanAmount,
+  annualInterestRate,
+  tenure
+) {
+  const monthlyRate =
+    annualInterestRate / 12 / 100;
+
+  if (monthlyRate === 0) {
+    return loanAmount / tenure;
+  }
+
+  const multiplier =
+    Math.pow(1 + monthlyRate, tenure);
+
+  return (
+    (loanAmount *
+      monthlyRate *
+      multiplier) /
+    (multiplier - 1)
+  );
+}
+
+
+function getSabGrowDueDate(
+  disbursementDate,
+  monthOffset
+) {
+  const disbursedAt =
+    new Date(disbursementDate);
+
+  if (Number.isNaN(disbursedAt.getTime())) {
+    throw new Error(
+      `Invalid SabGrow disbursement date: ${disbursementDate}`
+    );
+  }
+
+  const dueDate =
+    new Date(disbursedAt);
+
+  const firstMonthGap =
+    disbursedAt.getDate() <= 20
+      ? 1
+      : 2;
+
+  dueDate.setDate(1);
+
+  dueDate.setMonth(
+    dueDate.getMonth() +
+      firstMonthGap +
+      monthOffset
+  );
+
+  dueDate.setDate(5);
+
+  dueDate.setHours(
+    12,
+    0,
+    0,
+    0
+  );
+
+  return dueDate;
+}
+
+async function generateSabGrowRepaymentSchedule({
+  conn,
+  lan,
+  loanAmount,
+  interestRate,
+  tenure,
+  disbursementDate,
+}) {
+  const principalAmount =
+    roundSabGrowAmount(loanAmount);
+
+  const annualInterestRate =
+    Number(interestRate || 0);
+
+  const repaymentTenure =
+    Number(tenure);
+
+  if (
+    !Number.isFinite(principalAmount) ||
+    principalAmount <= 0
+  ) {
+    throw new Error(
+      `Invalid SabGrow loan amount: ${loanAmount}`
+    );
+  }
+
+  if (
+    !Number.isFinite(annualInterestRate) ||
+    annualInterestRate < 0
+  ) {
+    throw new Error(
+      `Invalid SabGrow interest rate: ${interestRate}`
+    );
+  }
+
+  if (
+    !Number.isInteger(repaymentTenure) ||
+    repaymentTenure <= 0
+  ) {
+    throw new Error(
+      `Invalid SabGrow tenure: ${tenure}`
+    );
+  }
+
+  /*
+   * Prevent duplicate RPS creation.
+   * Existing RPS will NOT be deleted.
+   */
+
+  const [existingRps] = await conn.query(
+    `
+    SELECT 1
+    FROM manual_rps_sabgrow
+    WHERE lan = ?
+    LIMIT 1
+    `,
+    [lan],
+  );
+
+  if (existingRps.length > 0) {
+    throw new Error(
+      `SabGrow RPS already exists for LAN ${lan}`,
+    );
+  }
+
+  /*
+   * DAILY REPAYMENT CALCULATION
+   */
+
+  const dailyPrincipal =
+    roundSabGrowAmount(
+      principalAmount / repaymentTenure
+    );
+
+  const dailyInterest =
+    roundSabGrowAmount(
+      (principalAmount * annualInterestRate) /
+        100 /
+        365
+    );
+
+  const regularEmi =
+    roundSabGrowAmount(
+      dailyPrincipal + dailyInterest
+    );
+
+  if (
+    !Number.isFinite(regularEmi) ||
+    regularEmi <= 0
+  ) {
+    throw new Error(
+      `Unable to calculate SabGrow daily EMI for LAN ${lan}`
+    );
+  }
+
+  /*
+   * Generate DAILY RPS
+   */
+
+  let openingPrincipal =
+    principalAmount;
+
+  const rpsData = [];
+
+  for (
+    let installment = 1;
+    installment <= repaymentTenure;
+    installment += 1
+  ) {
+
+    /*
+     * Daily due date
+     */
+
+    const dueDate =
+      new Date(disbursementDate);
+
+    dueDate.setDate(
+      dueDate.getDate() + installment
+    );
+
+    /*
+     * Daily principal
+     */
+
+    let principal =
+      dailyPrincipal;
+
+    /*
+     * Final installment adjustment
+     */
+
+    if (
+      installment === repaymentTenure ||
+      principal > openingPrincipal
+    ) {
+      principal =
+        openingPrincipal;
+    }
+
+    principal =
+      roundSabGrowAmount(principal);
+
+    /*
+     * Daily interest
+     * calculated on original loan amount
+     */
+
+    const interest =
+      dailyInterest;
+
+    /*
+     * Daily installment
+     */
+
+    const actualEmi =
+      roundSabGrowAmount(
+        principal + interest
+      );
+
+    /*
+     * Closing principal
+     */
+
+    const closingPrincipal =
+      Math.max(
+        0,
+        roundSabGrowAmount(
+          openingPrincipal -
+            principal
+        )
+      );
+
+    rpsData.push([
+      lan,
+      formatSabGrowDateYMD(
+        dueDate
+      ),
+      actualEmi,
+      interest,
+      principal,
+      principal,
+      interest,
+      actualEmi,
+      openingPrincipal,
+      closingPrincipal,
+      "Pending",
+    ]);
+
+    openingPrincipal =
+      closingPrincipal;
+  }
+
+  /*
+   * Make sure RPS closes
+   */
+
+  if (
+    Math.abs(openingPrincipal) >
+    0.01
+  ) {
+    throw new Error(
+      `SabGrow RPS did not close correctly. Remaining principal: ${openingPrincipal}`
+    );
+  }
+
+  /*
+   * Insert RPS
+   */
+
+  await conn.query(
+    `
+    INSERT INTO ${SABGROW_RPS_TABLE}
+    (
+      lan,
+      due_date,
+      emi,
+      interest,
+      principal,
+      remaining_principal,
+      remaining_interest,
+      remaining_emi,
+      opening,
+      closing,
+      status
+    )
+    VALUES ?
+    `,
+    [rpsData]
+  );
+
+  /*
+   * Update EMI in booking table
+   */
+
+  await conn.query(
+    `
+    UPDATE ${SABGROW_BOOKING_TABLE}
+    SET emi_amount = ?
+    WHERE lan = ?
+    `,
+    [
+      regularEmi,
+      lan,
+    ]
+  );
+
+  return {
+    success: true,
+    rowsInserted: rpsData.length,
+    regularEmi,
+    dailyPrincipal,
+    dailyInterest,
+  };
+}
+
+async function updateSabGrowDisbursementLimit({
+  conn,
+  lan,
+  loanAmount,
+  disbursementDate,
+}) {
+  const {
+    month,
+    year,
+  } = getMonthYear(
+    disbursementDate
+  );
+
+  let partner;
+  let limit;
+
+  try {
+
+    partner =
+      await partnerLimitService
+        .getOrCreatePartner(
+          conn,
+          SABGROW_PARTNER_NAME
+        );
+
+    limit =
+      await partnerLimitService
+        .getPartnerMonthlyLimit(
+          conn,
+          partner.partner_id,
+          month,
+          year
+        );
+
+    if (
+      Number(
+        limit.assigned_limit || 0
+      ) <= 0
+    ) {
+      return {
+        skipped: true,
+        reason:
+          "NO_LIMIT_CONFIGURED",
+      };
+    }
+
+  } catch (err) {
+
+    console.error(
+      "[SabGrow][LIMIT] Skipping partner limit tracking (non-fatal)",
+      {
+        lan,
+        partnerName:
+          SABGROW_PARTNER_NAME,
+        reason: err.message,
+      }
+    );
+
+    return {
+      skipped: true,
+      reason: err.message,
+    };
+  }
+
+  try {
+
+    return await partnerLimitService
+      .updateDisbursedLimit(
+        conn,
+        limit.id,
+        loanAmount,
+        lan
+      );
+
+  } catch (err) {
+
+    if (
+      err.message ===
+      "DISBURSEMENT_LIMIT_EXCEEDED"
+    ) {
+      err.meta = {
+        ...(err.meta || {}),
+        partnerName:
+          SABGROW_PARTNER_NAME,
+        lan,
+        month,
+        year,
+      };
+    }
+
+    throw err;
+  }
+}
+
+async function processSabGrowDisbursement({
+  lan,
+  disbursementUTR,
+  disbursementDate,
+}) {
+  const normalizedLan = String(lan || "")
+    .trim()
+    .toUpperCase();
+
+  console.log("[SabGrow][START] Processing disbursement", {
+    lan: normalizedLan,
+    disbursementUTR,
+    disbursementDate,
+  });
+
+  if (!normalizedLan || !normalizedLan.startsWith("SBR")) {
+    return {
+      skipped: true,
+      reason: "NOT_SABGROW",
+    };
+  }
+
+  if (!disbursementUTR || !disbursementDate) {
+    return {
+      skipped: true,
+      reason: "MISSING_UTR_OR_DATE",
+    };
+  }
+
+  let conn;
+  let transactionCompleted = false;
+
+  try {
+    conn = await db.promise().getConnection();
+
+    await conn.beginTransaction();
+
+    /*
+    |--------------------------------------------------------------------------
+    | Fetch SabGrow loan
+    |--------------------------------------------------------------------------
+    */
+
+    const [[loan]] = await conn.query(
+      `
+      SELECT
+        partner_loan_id,
+        loan_amount,
+        interest AS interest_rate,
+        loan_tenure,
+        emi_amount,
+        processing_fee,
+        net_disbursement,
+        product,
+        lender,
+        status
+      FROM ${SABGROW_BOOKING_TABLE}
+      WHERE lan = ?
+      FOR UPDATE
+      `,
+      [normalizedLan],
+    );
+
+    if (!loan) {
+      throw new Error(
+        `SabGrow loan not found: ${normalizedLan}`,
+      );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Validate loan amount
+    |--------------------------------------------------------------------------
+    */
+
+    const loanAmount = Number(loan.loan_amount);
+
+    if (
+      !Number.isFinite(loanAmount) ||
+      loanAmount <= 0
+    ) {
+      throw new Error(
+        `INVALID_SABGROW_DISBURSEMENT_AMOUNT: ${loan.loan_amount}`,
+      );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Validate net disbursement
+    |--------------------------------------------------------------------------
+    */
+
+    const rawNetDisbursement =
+      loan.net_disbursement;
+
+    const finalDisbursedAmount =
+      Number(rawNetDisbursement);
+
+    if (
+      rawNetDisbursement === null ||
+      rawNetDisbursement === undefined ||
+      String(rawNetDisbursement).trim() === "" ||
+      !Number.isFinite(finalDisbursedAmount) ||
+      finalDisbursedAmount <= 0
+    ) {
+      throw new Error(
+        `INVALID_SABGROW_NET_DISBURSEMENT: ${rawNetDisbursement}`,
+      );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Validate disbursement date
+    |--------------------------------------------------------------------------
+    */
+
+    const effectiveDisbursementDate =
+      new Date(disbursementDate);
+
+    if (
+      Number.isNaN(
+        effectiveDisbursementDate.getTime(),
+      )
+    ) {
+      throw new Error(
+        `Invalid SabGrow disbursement date: ${disbursementDate}`,
+      );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Already disbursed
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+      String(loan.status).toLowerCase() ===
+      "disbursed"
+    ) {
+      const limitResult =
+        await updateSabGrowDisbursementLimit({
+          conn,
+          lan: normalizedLan,
+          loanAmount,
+          disbursementDate:
+            effectiveDisbursementDate,
+        });
+
+      await conn.commit();
+
+      transactionCompleted = true;
+
+      return {
+        skipped: true,
+        reason: "ALREADY_DISBURSED",
+        limitResult,
+      };
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Prevent duplicate UTR
+    |--------------------------------------------------------------------------
+    */
+
+    const [utrExists] =
+      await conn.query(
+        `
+        SELECT 1
+        FROM ev_disbursement_utr
+        WHERE Disbursement_UTR = ?
+        LIMIT 1
+        `,
+        [disbursementUTR],
+      );
+
+    if (utrExists.length > 0) {
+      await conn.rollback();
+
+      transactionCompleted = true;
+
+      return {
+        skipped: true,
+        reason: "DUPLICATE_UTR",
+      };
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Generate SabGrow RPS
+    |--------------------------------------------------------------------------
+    */
+
+    const rpsResult =
+      // await generateSabGrowRepaymentSchedule({
+      //   conn,
+      //   lan: normalizedLan,
+      //   loanAmount,
+      //   disbursementDate,
+      //   interestRate:
+      //     loan.interest_rate,
+      //   tenure:
+      //     loan.loan_tenure,
+      //   emiAmount:
+      //     loan.emi_amount,
+      // });
+      await generateSabGrowRepaymentSchedule({
+        conn,
+        lan: normalizedLan,
+        loanAmount,
+        interestRate: loan.interest_rate,
+        tenure: loan.loan_tenure,
+        disbursementDate,
+      });
+    /*
+    |--------------------------------------------------------------------------
+    | Insert disbursement UTR
+    |--------------------------------------------------------------------------
+    */
+
+    await conn.query(
+      `
+      INSERT INTO ev_disbursement_utr
+      (
+        Disbursement_UTR,
+        Disbursement_Date,
+        LAN
+      )
+      VALUES (?, ?, ?)
+      `,
+      [
+        disbursementUTR,
+        disbursementDate,
+        normalizedLan,
+      ],
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | Update SabGrow loan status
+    |--------------------------------------------------------------------------
+    */
+
+    await conn.query(
+      `
+      UPDATE ${SABGROW_BOOKING_TABLE}
+      SET
+        status = 'Disbursed',
+        stage = 'Disbursed'
+      WHERE lan = ?
+      `,
+      [normalizedLan],
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | Process disbursement limit
+    |--------------------------------------------------------------------------
+    */
+
+    const limitResult =
+      await updateSabGrowDisbursementLimit({
+        conn,
+        lan: normalizedLan,
+        loanAmount,
+        disbursementDate:
+          effectiveDisbursementDate,
+      });
+
+    console.log(
+      "[SabGrow][LIMIT] Disbursement limit processed",
+      {
+        lan: normalizedLan,
+        loanAmount,
+        netDisbursement:
+          finalDisbursedAmount,
+        rpsResult,
+        limitResult,
+      },
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | Commit database changes
+    |--------------------------------------------------------------------------
+    */
+
+    await conn.commit();
+
+    transactionCompleted = true;
+
+    /*
+    |--------------------------------------------------------------------------
+    | Send disbursement webhook AFTER commit
+    |--------------------------------------------------------------------------
+    */
+
+    const sabGrowWebhookPayload = {
+      external_ref_no: String(
+        loan.partner_loan_id || "",
+      ).trim(),
+
+      utr: String(
+        disbursementUTR,
+      ).trim(),
+
+      disbursement_date:
+        effectiveDisbursementDate
+          .toISOString()
+          .split("T")[0],
+
+      reference_number:
+        normalizedLan,
+
+      status:
+        "DISBURSED",
+
+      reject_reason:
+        null,
+    };
+
+    const webhookResult =
+      await sendLoanWebhook(
+        sabGrowWebhookPayload,
+      );
+
+    if (webhookResult) {
+      console.log(
+        "[SabGrow][WEBHOOK] Webhook sent successfully",
+        {
+          lan: normalizedLan,
+          payload:
+            sabGrowWebhookPayload,
+          webhookResult,
+        },
+      );
+    } else {
+      console.error(
+        "[SabGrow][WEBHOOK] Webhook was not sent",
+        {
+          lan: normalizedLan,
+          payload:
+            sabGrowWebhookPayload,
+          webhookResult:
+            webhookResult || {
+              success: false,
+              reason:
+                "EMPTY_WEBHOOK_RESULT",
+            },
+        },
+      );
+    }
+
+    return {
+      success: true,
+      rpsResult,
+      limitResult,
+      webhookResult,
+    };
+
+  } catch (err) {
+
+    if (
+      conn &&
+      !transactionCompleted
+    ) {
+      try {
+        await conn.rollback();
+      } catch (rollbackError) {
+        console.error(
+          "[SabGrow][ROLLBACK] Failed to rollback transaction",
+          {
+            lan: normalizedLan,
+            message:
+              rollbackError.message,
+          },
+        );
+      }
+    }
+
+    console.error(
+      "[SabGrow][ERROR] Disbursement processing failed",
+      {
+        lan: normalizedLan,
+        message: err.message,
+        meta: err.meta || null,
+      },
+    );
+
+    throw err;
+
+  } finally {
+
+    if (conn) {
+      conn.release();
+    }
+  }
+}
+
 module.exports = {
   processEmiClubDisbursement,
   processRapidMoneyDisbursement,
+  processRapidMoneyV2Disbursement,
   processQuickMoneyDisbursement,
   processLoanDigitDisbursement,
   processFinsoDisbursement,
   processCarePayDisbursement,
   processYaMoneyDisbursement,
+  processSabGrowDisbursement,
 };

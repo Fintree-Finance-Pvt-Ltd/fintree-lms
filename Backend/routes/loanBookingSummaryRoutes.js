@@ -25,12 +25,12 @@ const PRODUCT_CONFIG = {
     lanLike: "RML%",
     principalField: "loan_amount",
   },
-   RAPIDMONEY: {
+   RAPIDMONEYNEW: {
     label: "Rapid Money New",
     bookingTable: "loan_booking_rapid_money_v2",
     rpsTable: "manual_rps_rapid_money_v2",
    
-    lanLike: "RML%",
+    lanLike: "RMLN%",
   },
   CAREPAY: {
     label: "CarePay",

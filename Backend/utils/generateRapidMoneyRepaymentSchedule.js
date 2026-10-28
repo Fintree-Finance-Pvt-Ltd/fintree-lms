@@ -149,6 +149,147 @@ const dueDate = dayjs(disbursementDate)
   }
 }
 
+async function generateRapidMoneyV2RepaymentSchedule(
+  conn,
+  lan,
+  loanAmount,
+  annualInterestRate,
+  tenureDays,
+  disbursementDate,
+  repaymentDate
+) {
+  try {
+    if (!lan) {
+      throw new Error("LAN missing");
+    }
+
+    const principal = round2(loanAmount);
+    const roi = Number(annualInterestRate);
+    const days = Number(tenureDays);
+
+    if (!principal || principal <= 0) {
+      throw new Error("Invalid loan amount");
+    }
+
+    if (Number.isNaN(roi) || roi < 0) {
+      throw new Error("Invalid interest rate");
+    }
+
+    if (!days || days <= 0) {
+      throw new Error("Invalid tenure days");
+    }
+
+   
+
+if (!disbursementDate || !dayjs(disbursementDate).isValid()) {
+  throw new Error("Invalid disbursement date");
+}
+
+const dueDate = dayjs(disbursementDate)
+  .add(days - 1, "day")
+  .format("YYYY-MM-DD");
+
+    /*
+      Single-payment short-term loan logic:
+
+      Interest = Principal * Annual ROI * Tenure Days / 36500
+    */
+    // const interest = round2((principal * roi * days) / 36500);
+
+    const interest = Math.round((principal * roi * days) / 36500);   /// ROUND only 
+
+    const emi = round2(principal + interest);
+
+    const [existingRps] = await conn.query(
+      `
+      SELECT id
+      FROM manual_rps_rapid_money_v2
+      WHERE lan = ?
+      LIMIT 1
+      `,
+      [lan]
+    );
+
+    if (existingRps.length > 0) {
+      console.log("[RAPID_RPS][SKIP] RPS already exists", { lan });
+
+      return {
+        skipped: true,
+        reason: "RPS_ALREADY_EXISTS",
+      };
+    }
+
+    await conn.query(
+      `
+      INSERT INTO manual_rps_rapid_money_v2
+      (
+        lan,
+        due_date,
+        status,
+        emi,
+        interest,
+        principal,
+        opening,
+        closing,
+        remaining_emi,
+        remaining_interest,
+        remaining_principal,
+        payment_date,
+        dpd,
+        remaining_amount,
+        extra_paid
+      )
+      VALUES
+      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        lan,
+        dueDate,
+        "Pending",
+        emi,
+        interest,
+        principal,
+        principal,
+        0,
+        emi,
+        interest,
+        principal,
+        null,
+        0,
+        emi,
+        0,
+      ]
+    );
+
+    console.log("[RAPID_RPS][SUCCESS] Single RPS row generated", {
+      lan,
+      dueDate,
+      emi,
+      interest,
+      principal,
+    });
+
+    return {
+      success: true,
+      data: {
+        lan,
+        dueDate,
+        emi,
+        interest,
+        principal,
+      },
+    };
+  } catch (err) {
+    console.error("[RAPID_RPS][ERROR]", {
+      lan,
+      error: err.message,
+      stack: err.stack,
+    });
+
+    throw err;
+  }
+}
 module.exports = {
   generateRapidMoneyRepaymentSchedule,
+  generateRapidMoneyV2RepaymentSchedule,
 };

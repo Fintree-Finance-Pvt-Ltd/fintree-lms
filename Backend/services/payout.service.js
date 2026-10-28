@@ -9,11 +9,13 @@ const partnerLimitService = require("./partnerLimitService");
 const {
   processEmiClubDisbursement,
   processRapidMoneyDisbursement,
+  processRapidMoneyV2Disbursement,
   processQuickMoneyDisbursement,
   processLoanDigitDisbursement,
   processFinsoDisbursement,
   processCarePayDisbursement,
   processYaMoneyDisbursement,
+  processSabGrowDisbursement,
 } = require("../services/processEmiClubDisbursement");
 
 const {
@@ -28,6 +30,7 @@ const {
 const {
   processClaimCureBuddyDisbursement,
 } = require("./processClaimCureBuddyDisbursement");
+const { sendV2DisbursementWebhook } = require("../routes/RapidMoneyV2/rapidMoneyV2LoanWebhook");
 
 // const {
 //   processClaimBuddyDisbursement,
@@ -43,8 +46,10 @@ const ALLOWED_PAYOUT_TABLES = [
   "loan_booking_claim_cure_buddy",
   "pl_partner_applications",
   "loan_booking_quick_money",
+  "loan_booking_rapid_money_v2",
   "loan_booking_ya_money",
   "loan_booking_claim_buddy",
+  "loan_booking_sabgrow",
 ];
 
 // Per-partner maximum single-payout cap. `null` = no limit configured for
@@ -61,7 +66,9 @@ const PARTNER_MAX_PAYOUT_LIMITS = {
   loan_booking_claim_cure_buddy: null,
   pl_partner_applications: null,
   loan_booking_quick_money: 25000,
+  loan_booking_rapid_money_v2: 25000,
   loan_booking_ya_money: null,
+  loan_booking_sabgrow:null,
 };
 
 // Canonical partner_master.partner_name for each product, matching the names
@@ -79,8 +86,10 @@ const TABLE_TO_PARTNER_NAME = {
   loan_booking_claim_cure_buddy: "CLAIM CURE BUDDY",
   pl_partner_applications: "PL PARTNER",
   loan_booking_quick_money: "QUICK MONEY",
+  loan_booking_rapid_money_v2 : "RAPID MONEY V2",
   loan_booking_ya_money: "YAMONEY",
   loan_booking_claim_buddy: "CLAIM-BUDDY",
+  loan_booking_sabgrow: "SBR:",
 };
 
 // manual_rps_* table backing each partner's live POS (principal outstanding),
@@ -97,7 +106,9 @@ const TABLE_TO_POS_TABLE = {
   loan_booking_claim_cure_buddy: null,
   pl_partner_applications: null,
   loan_booking_quick_money: null,
+  loan_booking_rapid_money_v2: null,
   loan_booking_ya_money: null,
+  loan_booking_sabgrow:null,
 };
 
 // Rapid Money and Quick Money already run their own pre-transfer disbursement-
@@ -111,6 +122,7 @@ const TABLE_TO_POS_TABLE = {
 const DISBURSEMENT_GATE_EXEMPT_TABLES = new Set([
   "loan_booking_switch_my_loan",
   "loan_booking_quick_money",
+  "loan_booking_rapid_money_v2",
   "loan_booking_finso",
 ]);
 
@@ -123,8 +135,10 @@ const DISBURSEMENT_RECORD_EXEMPT_TABLES = new Set([
   "loan_booking_emiclub2",
   "loan_booking_switch_my_loan",
   "loan_booking_quick_money",
+  "loan_booking_rapid_money_v2",
   "loan_booking_carepay",
   "loan_booking_ya_money",
+  "loan_booking_sabgrow",
   "loan_booking_finso",
 ]);
 
@@ -350,6 +364,20 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
     LIMIT 1
   `;
     }
+    if (table === "loan_booking_rapid_money_v2") {
+  loanQuery = `
+    SELECT
+      application_id,
+      bank_ac_name AS beneficiary_name,
+      disbursal_amount AS loan_amount,
+      bank_ac_number AS account_number,
+      bank_ifsc_code AS ifsc,
+      tenure AS tenure_days
+    FROM loan_booking_rapid_money_v2
+    WHERE lan = ?
+    LIMIT 1
+  `;
+}
     if (table === "loan_booking_loan_digit") {
       loanQuery = `
         SELECT
@@ -435,6 +463,20 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
     if (table === "loan_booking_ya_money") {
       loanQuery = await buildYaMoneyPayoutQuery();
     }
+
+
+if (table === "loan_booking_sabgrow") {
+  loanQuery = `
+    SELECT
+      customer_name AS beneficiary_name,
+      net_disbursement AS loan_amount,
+      account_number,
+      ifsc
+    FROM loan_booking_sabgrow
+    WHERE lan = ?
+    LIMIT 1
+  `;
+} 
 
     const [[loan]] = await db.promise().query(loanQuery, loanParams);
 
@@ -857,7 +899,32 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
         disbursementUTR: tr.unique_transaction_reference,
         disbursementDate: new Date(tr.transfer_date),
       });
-    } else if (table === "loan_booking_finso") {
+    } else if (table === "loan_booking_rapid_money_v2") {
+        console.log("[RAPID MONEY V2] Payout successful:", {
+    lan,
+    utr: tr.unique_transaction_reference,
+    testMode: isTestMode,
+  });
+      const webhookResult = await sendV2DisbursementWebhook({
+        lan,
+        transactionId: tr.unique_transaction_reference,
+        disbursementDate: tr.transfer_date,
+      });
+
+      console.log("Rapid Money webhook result:", {
+        lan,
+        success: webhookResult?.success,
+        alreadySent: webhookResult?.alreadySent,
+        logId: webhookResult?.logId,
+        message: webhookResult?.message,
+      });
+
+      await processRapidMoneyV2Disbursement({
+        lan,
+        disbursementUTR: tr.unique_transaction_reference,
+        disbursementDate: new Date(tr.transfer_date),
+      });
+    }else if (table === "loan_booking_finso") {
       await processFinsoDisbursement({
         lan,
         disbursementUTR: tr.unique_transaction_reference,
@@ -888,6 +955,13 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
         disbursementUTR: tr.unique_transaction_reference,
         disbursementDate: new Date(tr.transfer_date),
       });
+    }  else if (table === "loan_booking_sabgrow") {
+      await processSabGrowDisbursement({
+        lan,
+        disbursementUTR: tr.unique_transaction_reference,
+        disbursementDate: new Date(tr.transfer_date),
+      });
+    
     } else if (table === "pl_partner_applications") {
       /*
        * FTPL / PLP — pure webhook forwarding bridge.

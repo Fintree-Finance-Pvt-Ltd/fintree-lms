@@ -398,7 +398,7 @@ async function sendRejectionWebhook({ applicationId }) {
 //   return sendWebhookLog(log.id);
 // }
 
-async function sendDisbursementWebhook({
+async function sendV2DisbursementWebhook({
   lan,
   transactionId,
   disbursementDate,
@@ -429,7 +429,7 @@ async function sendDisbursementWebhook({
   );
 
   if (!loan) {
-    throw new Error(`Switch My Loan case not found: ${lan}`);
+    throw new Error(`Rapid Money V2 Loan case not found: ${lan}`);
   }
 
   if (!loan.application_id) {
@@ -506,6 +506,6 @@ async function retryFailedWebhooks() {
 
 module.exports = {
   sendRejectionWebhook,
-  sendDisbursementWebhook,
+  sendV2DisbursementWebhook,
   retryFailedWebhooks,
 };
