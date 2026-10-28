@@ -752,7 +752,7 @@ async function updateCreditStatus(lan, status, updatedBy) {
          stage = ?,
          updated_by = ?
      WHERE lan = ?
-       AND status = 'bre_approved'`,
+       AND status IN ('BRE_APPROVED', 'BRE_REJECTED')`,
     [status, status, updatedBy, lan],
   );
 
