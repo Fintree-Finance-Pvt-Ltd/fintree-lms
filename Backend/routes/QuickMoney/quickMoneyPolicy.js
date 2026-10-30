@@ -915,6 +915,12 @@ function extractOverdueAmount(account) {
       "OverdueAmount",
       "Past_Due_Amount",
       "PastDueAmount",
+      // Actual field name used in the real Experian XML (confirmed against
+      // a live bureau pull) — none of the variants above match it, so
+      // without this, totalOverdueAmount was always 0 regardless of the
+      // real data.
+      "Amount_Past_Due",
+      "AmountPastDue",
     ]),
   );
 
