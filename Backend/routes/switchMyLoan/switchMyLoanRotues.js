@@ -6557,53 +6557,44 @@ router.post("/v1/bre/test-eligibility", async (req, res) => {
 // ============================================================
 // BUREAU OVERDUE CHECK BY LAN (single or multiple)
 //
-// Reads the stored bureau XML for each LAN from loan_cibil_reports,
-// parses it with the exact same parseBureauReport() logic runBre.js
-// uses, and returns the total overdue amount per LAN. A LAN with no
-// stored XML, or an XML that fails to parse, is reported separately —
-// it never aborts the whole request.
+// Pulls every LAN currently sitting in status = 'BRE_APPROVED' on
+// loan_booking_switch_my_loan, reads each one's stored bureau XML from
+// loan_cibil_reports, parses it with the exact same parseBureauReport()
+// logic runBre.js uses, and returns the total overdue amount per LAN.
+// A LAN with no stored XML, or an XML that fails to parse, is reported
+// separately — it never aborts the whole request.
 // ============================================================
 
 router.post("/v1/bre/overdue-check", verifyApiKey, async (req, res) => {
   try {
-    const inputLans = req.body?.lans ?? req.body?.lan;
-
-    const lans = Array.isArray(inputLans)
-      ? inputLans
-      : typeof inputLans === "string"
-        ? [inputLans]
-        : null;
-
-    if (!lans || lans.length === 0) {
-      return res.status(400).json({
-        is_success: false,
-        error: {
-          message:
-            "Provide lans as an array of strings, or lan as a single string",
-          code: "request_validation_error",
-        },
-      });
-    }
-
-    const MAX_LANS_PER_REQUEST = 200;
-
-    if (lans.length > MAX_LANS_PER_REQUEST) {
-      return res.status(400).json({
-        is_success: false,
-        error: {
-          message: `Too many LANs in one request. Maximum ${MAX_LANS_PER_REQUEST} per call.`,
-          code: "too_many_lans",
-        },
-      });
-    }
+    let [breApprovedRows] = await db.promise().query(
+      `SELECT lan
+       FROM loan_booking_switch_my_loan
+       WHERE status = 'BRE_APPROVED'`,
+    );
 
     const normalizedLans = [
       ...new Set(
-        lans
-          .map((value) => String(value || "").trim().toUpperCase())
+        breApprovedRows
+          .map((row) => String(row.lan || "").trim().toUpperCase())
           .filter(Boolean),
       ),
     ];
+
+    if (normalizedLans.length === 0) {
+      return res.status(200).json({
+        is_success: true,
+        data: {
+          total_requested: 0,
+          total_found: 0,
+          missing_count: 0,
+          missing_lans: [],
+          parse_failed_count: 0,
+          parse_failed: [],
+          results: [],
+        },
+      });
+    }
 
     const results = [];
     const missingLans = [];
@@ -6658,12 +6649,16 @@ router.post("/v1/bre/overdue-check", verifyApiKey, async (req, res) => {
         continue;
       }
 
+      const overdueFailed =
+        Number(parsed.totalOverdueAmount || 0) >= POLICY.OVERDUE_REJECT_FROM;
+
       results.push({
         lan,
         totalOverdueAmount: parsed.totalOverdueAmount,
         score: parsed.score,
         totalTradelines: parsed.totalTradelines,
         reportDate: parsed.reportDate,
+        breResult: overdueFailed ? "REJECTED" : "APPROVED",
       });
     }
 
