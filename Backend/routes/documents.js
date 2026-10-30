@@ -3125,6 +3125,11 @@ router.post("/generate-soa", async (req, res) => {
     rpsTable = "manual_rps_circle_pe_houser";
     paymentsTable = "repayments_upload";
     chargesTable = "loan_charges";
+  }else if (lan.startsWith("LDF")) {
+    loanTable = "loan_booking_loan_digit";
+    rpsTable = "manual_rps_loan_digit";
+    paymentsTable = "repayments_upload";
+    chargesTable = "loan_charges";
   }
    else if ( lan.startsWith("STF")||
   lan.startsWith("DXF") || lan.startsWith("MXF")) {
@@ -3560,6 +3565,7 @@ const [[overdueAgg]] = await db.promise().query(
         loan_bookings_wctl: "partner_loan_id",
         loan_bookings: "partner_loan_id",
         loan_booking_circle_pe_houser: "partner_loan_id",
+        loan_booking_loan_digit: "partner_loan_id",
       };
       const field = FIELD_MAP[loanTable];
       return field && loan[field] ? loan[field] : loan.lan || "-";
