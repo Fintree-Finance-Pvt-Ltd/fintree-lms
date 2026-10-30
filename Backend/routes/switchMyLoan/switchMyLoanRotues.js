@@ -3,7 +3,7 @@ const db = require("../../config/db");
 const verifyApiKey = require("../../middleware/apiKeyAuth");
 const crypto = require("crypto");
 const runBRE = require("./runBre");
-const { POLICY } = require("./rapidMoneyPolicy");
+const { POLICY, parseBureauReport } = require("./rapidMoneyPolicy");
 const { allocateRepaymentByLAN } = require("../../utils/allocate");
 const { excelSerialDateToJS, queryDB } = require("../../utils/helpers");
 const {
@@ -6549,6 +6549,147 @@ router.post("/v1/bre/test-eligibility", async (req, res) => {
       error: {
         message: error.message || "BRE test execution failed",
         code: "bre_test_execution_failed",
+      },
+    });
+  }
+});
+
+// ============================================================
+// BUREAU OVERDUE CHECK BY LAN (single or multiple)
+//
+// Reads the stored bureau XML for each LAN from loan_cibil_reports,
+// parses it with the exact same parseBureauReport() logic runBre.js
+// uses, and returns the total overdue amount per LAN. A LAN with no
+// stored XML, or an XML that fails to parse, is reported separately —
+// it never aborts the whole request.
+// ============================================================
+
+router.post("/v1/bre/overdue-check", verifyApiKey, async (req, res) => {
+  try {
+    const inputLans = req.body?.lans ?? req.body?.lan;
+
+    const lans = Array.isArray(inputLans)
+      ? inputLans
+      : typeof inputLans === "string"
+        ? [inputLans]
+        : null;
+
+    if (!lans || lans.length === 0) {
+      return res.status(400).json({
+        is_success: false,
+        error: {
+          message:
+            "Provide lans as an array of strings, or lan as a single string",
+          code: "request_validation_error",
+        },
+      });
+    }
+
+    const MAX_LANS_PER_REQUEST = 200;
+
+    if (lans.length > MAX_LANS_PER_REQUEST) {
+      return res.status(400).json({
+        is_success: false,
+        error: {
+          message: `Too many LANs in one request. Maximum ${MAX_LANS_PER_REQUEST} per call.`,
+          code: "too_many_lans",
+        },
+      });
+    }
+
+    const normalizedLans = [
+      ...new Set(
+        lans
+          .map((value) => String(value || "").trim().toUpperCase())
+          .filter(Boolean),
+      ),
+    ];
+
+    const results = [];
+    const missingLans = [];
+    const parseFailed = [];
+
+    for (const lan of normalizedLans) {
+      let row;
+
+      try {
+        [[row]] = await db.promise().query(
+          `SELECT report_xml
+           FROM loan_cibil_reports
+           WHERE lan = ?
+           ORDER BY created_at DESC
+           LIMIT 1`,
+          [lan],
+        );
+      } catch (dbError) {
+        parseFailed.push({
+          lan,
+          error: `DB_ERROR: ${dbError.message}`,
+        });
+        continue;
+      }
+
+      if (!row || !row.report_xml) {
+        missingLans.push(lan);
+        continue;
+      }
+
+      let parsed;
+
+      try {
+        parsed = parseBureauReport(
+          row.report_xml,
+          null,
+          "ADHOC_OVERDUE_CHECK",
+        );
+      } catch (parseError) {
+        parseFailed.push({ lan, error: parseError.message });
+        continue;
+      }
+
+      if (!parsed || parsed.ok === false) {
+        parseFailed.push({
+          lan,
+          error:
+            parsed?.safeMessage ||
+            parsed?.error ||
+            "Unknown bureau parse failure",
+        });
+        continue;
+      }
+
+      results.push({
+        lan,
+        totalOverdueAmount: parsed.totalOverdueAmount,
+        score: parsed.score,
+        totalTradelines: parsed.totalTradelines,
+        reportDate: parsed.reportDate,
+      });
+    }
+
+    return res.status(200).json({
+      is_success: true,
+      data: {
+        total_requested: normalizedLans.length,
+        total_found: results.length,
+        missing_count: missingLans.length,
+        missing_lans: missingLans,
+        parse_failed_count: parseFailed.length,
+        parse_failed: parseFailed,
+        results,
+      },
+    });
+  } catch (error) {
+    console.error("[RapidMoney Overdue Check] failed", {
+      message: error.message,
+      stack: error.stack,
+    });
+
+    return res.status(500).json({
+      is_success: false,
+      error: {
+        message: error.message || "Overdue check failed",
+        code: "overdue_check_failed",
       },
     });
   }
