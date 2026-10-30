@@ -4,7 +4,7 @@ import api from "../../api/api";
 import YaMoneyTable from "./YaMoneyTable";
 import { useYaMoneyLoans, YA_MONEY_ENDPOINTS } from "./yaMoneyData";
 
-const CREDIT_READY_STATUS = ["bre_approved","bre_rejected"];
+const CREDIT_READY_STATUS = ["bre_approved","login"];
 
 const YaMoneyCreditTeamScreen = () => {
   const { rows, totalRows, loading, error, setError, refresh } = useYaMoneyLoans({
