@@ -838,7 +838,9 @@ router.post("/trigger", authenticateUser, async (req, res) => {
                 ["loan digit", "loandigit", "ldf"].includes(lenderClean)
               ) {
                 targetTable = "loan_booking_loan_digit";
-              }
+              } else if (
+                ["carepay education","carepayeducation", "carepay edu", "caredu" ].includes(lenderClean)
+                ) { targetTable = "loan_booking_carepay_education"; }
 
               const exportedLans = [
                 ...new Set(

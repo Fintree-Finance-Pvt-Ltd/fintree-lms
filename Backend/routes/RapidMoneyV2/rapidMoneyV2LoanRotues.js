@@ -8,7 +8,7 @@ const { allocateRepaymentByLAN } = require("../../utils/allocate");
 const { excelSerialDateToJS, queryDB } = require("../../utils/helpers");
 const {
   sendRejectionWebhook,
-  sendDisbursementWebhook,
+  sendV2DisbursementWebhook,
 } = require("./rapidMoneyV2LoanWebhook");
 const { approveAndInitiatePayout } = require("../../services/payout.service");
 const { verifyBank } = require("../../services/enachService");

@@ -4,7 +4,7 @@ import api from "../../api/api";
 import YaMoneyTable from "./YaMoneyTable";
 import { useYaMoneyLoans, YA_MONEY_ENDPOINTS } from "./yaMoneyData";
 
-const CREDIT_READY_STATUS = ["bre_approved"];
+const CREDIT_READY_STATUS = ["bre_approved","bre_rejected"];
 
 const YaMoneyCreditTeamScreen = () => {
   const { rows, totalRows, loading, error, setError, refresh } = useYaMoneyLoans({
@@ -26,9 +26,16 @@ const YaMoneyCreditTeamScreen = () => {
       setError("");
 
       try {
-        await api.patch(`/loan-booking/yaMoney/${row.lan}/credit-decision`, {
-          decision,
-        });
+        if (decision === "approve" && row.status === "bre_rejected") {
+          await api.post(`/loan-booking/yaMoney/${row.lan}/credit-approve`);
+        } else {
+          await api.patch(
+            `/loan-booking/yaMoney/${row.lan}/credit-decision`,
+            {
+              decision,
+            },
+           );
+        }
         await refresh();
       } catch (err) {
         setError(
