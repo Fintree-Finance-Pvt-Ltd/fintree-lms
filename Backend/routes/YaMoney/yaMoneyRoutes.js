@@ -552,8 +552,8 @@ function buildAmlBlockReason(amlResult) {
 function getLoginDecision(breResult, amlResult) {
   if (!breResult.eligible) {
     return {
-      status: "bre_rejected",
-      reason: breResult.reason || "BRE_REJECTED",
+      status: "login",
+      reason: breResult.reason || "login",
     };
   }
 
@@ -752,7 +752,7 @@ async function updateCreditStatus(lan, status, updatedBy) {
          stage = ?,
          updated_by = ?
      WHERE lan = ?
-       AND status IN ('BRE_APPROVED', 'BRE_REJECTED')`,
+       AND status IN ('BRE_APPROVED', 'login')`,
     [status, status, updatedBy, lan],
   );
 
@@ -1206,7 +1206,7 @@ router.get("/all-loans", authenticateUser, (req, res) =>
 );
 
 router.get("/credit-screen-loans", authenticateUser, (req, res) =>
-  fetchYaMoneyLoans(req, res, ["bre_approved" ,"bre_rejected"]),
+  fetchYaMoneyLoans(req, res, ["bre_approved" ,"login"]),
 );
 
 router.get("/ops-maker-loans", authenticateUser, (req, res) =>
@@ -1790,8 +1790,8 @@ router.post("/:lan/credit-approve", async (req, res) => {
 
     // Only BRE_REJECTED cases can be manually approved
     if (
-      String(loan.status || "").toUpperCase() !== "BRE_REJECTED" ||
-      String(loan.stage || "").toUpperCase() !== "BRE_REJECTED"
+      String(loan.status || "").toUpperCase() !== "login" ||
+      String(loan.stage || "").toUpperCase() !== "login"
     ) {
       return res.status(400).json({
         success: false,
@@ -1810,8 +1810,8 @@ router.post("/:lan/credit-approve", async (req, res) => {
         stage = ?,
         updated_at = CURRENT_TIMESTAMP
       WHERE lan = ?
-        AND status = 'BRE_REJECTED'
-        AND stage = 'BRE_REJECTED'
+        AND status = 'login'
+        AND stage = 'login'
       `,
       [
         "BRE_APPROVED",
@@ -1981,3 +1981,9 @@ function bankNamesMatch(customerName, accountName) {
 }
 
 module.exports = router;
+
+
+
+
+
+
