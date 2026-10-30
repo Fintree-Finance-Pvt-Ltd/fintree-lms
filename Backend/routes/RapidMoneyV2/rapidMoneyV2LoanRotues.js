@@ -1299,6 +1299,12 @@ const normalizeCreateUpdatePayload = (data) => {
     salary_mode: data.salary_mode ?? null,
     nature_of_business: data.nature_of_business ?? null,
     aquisition_fees_txn_id: data.aquisition_fees_txn_id ?? null,
+    assessment_fee_amount: data.assessment_fee_amount ?? null,
+    assessment_fee_payment_date: data.assessment_fee_payment_date
+      ? normalizeDate(data.assessment_fee_payment_date)
+      : null,
+    assessment_fee_payment_id: data.assessment_fee_payment_id ?? null,
+    assessment_fee_status: data.assessment_fee_status ?? null,
     industry_type: data.industry_type ?? null,
     monthly_income: data.monthly_income ?? null,
 
@@ -1816,6 +1822,10 @@ router.post("/v2/create", verifyApiKey, async (req, res) => {
     salary_mode,
     nature_of_business,
     aquisition_fees_txn_id,
+    assessment_fee_amount,
+    assessment_fee_payment_date,
+    assessment_fee_payment_id,
+    assessment_fee_status,
     industry_type,
     monthly_income,
     address_line_1,
@@ -1864,6 +1874,7 @@ router.post("/v2/create", verifyApiKey, async (req, res) => {
     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+    ?, ?, ?, ?,
     NOW(), NOW()
   )
   `,
@@ -1891,6 +1902,10 @@ router.post("/v2/create", verifyApiKey, async (req, res) => {
         payload.salary_mode,
         payload.nature_of_business,
         payload.aquisition_fees_txn_id,
+        payload.assessment_fee_amount,
+        payload.assessment_fee_payment_date,
+        payload.assessment_fee_payment_id,
+        payload.assessment_fee_status,
         payload.industry_type,
         payload.monthly_income,
         payload.address_line_1,
@@ -3477,8 +3492,7 @@ function bankNamesMatch(
 // UPDATE DETAILS API
 // ============================================================
 
-router.put(
-  "/v2/update-details",
+router.put( "/v2/update-details",
   verifyApiKey,
   async (req, res) => {
     let connection;
@@ -5262,8 +5276,7 @@ router.put(
 
 
 ////////////////////////////////
-router.post(
-  "/v2/loan/:application_id/consent",
+router.post( "/v2/loan/:application_id/consent",
   verifyApiKey,
   async (req, res) => {
     let connection;
