@@ -368,6 +368,9 @@ import ZebrsDisburseInitiate from "./components/Zebrs/ZebrsDisburseInitiate";
 import ZebrsApproved from "./components/Zebrs/ZebrsApproved";
 import ZebrsOperationApproval from "./components/Zebrs/ZebrsOperationApproval";
 import ZebrsBRERejectedLoans from "./components/Zebrs/ZebrsBRERejectedLoans.jsx";
+import CarePayEducationAllLoans from "./components/CarePayEducation/CarePayEduAllLoans.jsx";
+import CarePayEduDisburseInitiate from "./components/CarePayEducation/CarePayEduDisburseInitiate.jsx";
+import CarePayEduDisbursedLoans from "./components/CarePayEducation/CarePayEduDisbursedLoans.jsx";
 
 function App() {
   return (
@@ -1264,6 +1267,36 @@ function App() {
               </PermissionRoute>
             }
           />
+                        {/* CAREPAY EDUCATION */}
+           <Route
+            path="/carepay-education-loans/all"
+            element={
+              <PermissionRoute pageName="CarePay Education All Loans">
+                <CarePayEducationAllLoans />
+              </PermissionRoute>
+            }
+          />
+
+           
+          <Route
+            path="/carepay-education-loans/disburse-initiate"
+            element={
+              <PermissionRoute pageName="CarePay Education Disburse Initiated">
+                <CarePayEduDisburseInitiate />
+              </PermissionRoute>
+            }
+          />
+
+            <Route
+            path="/carepay-education-loans/disbursed"
+            element={
+              <PermissionRoute pageName="CarePay Education Disbursed Loans">
+                <CarePayEduDisbursedLoans />
+              </PermissionRoute>
+            }
+          />
+
+
           <Route
             path="/sterlion-loans/approved"
             element={

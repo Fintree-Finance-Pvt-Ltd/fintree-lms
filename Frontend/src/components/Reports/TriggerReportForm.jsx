@@ -517,7 +517,9 @@ const productOptions = [
   { label: "SRBH", value: "SRBH" },
   { label: "CAREPAY", value: "CAREPAY" },
   { label: "Sterlion UBL", value: "Sterlion UBL" },
-  { label: "Sterlion Mexon Dexon", value: "Sterlion" },
+  { label: "Sterlion ", value: "Sterlion" },
+  { label: "Mexon", value: "Mexon" },
+{ label: "Dexon", value: "Dexon" },
   { label: "FFPL", value: "FFPL" },
   { label: "KITE", value: "KITE" },
   { label: "Muthoot", value: "Muthoot" },
@@ -527,7 +529,8 @@ const productOptions = [
   { label: "Seven Fincorp", value: "Seven Fincorp" },
   { label: "Fintree PL", value: "FFPL10011" },
   {label: "Ya Money", value: "Ya Money" },
-  {label: "Quick Money", value: "Quick Money" }
+  {label: "Quick Money", value: "Quick Money" },
+  {label: "Carepay Education", value: "Carepay Education" }
 
 
 ];
