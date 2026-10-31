@@ -650,56 +650,24 @@ const recastWctlFfplFutureRps = async (
       closing = 0;
     }
 
-    await queryDB(
-      `
-      UPDATE manual_rps_wctl_ffpl
-      SET
-        opening = ?,
-        emi = ?,
-        interest = ?,
-        principal = ?,
-        closing = ?,
-
-        remaining_emi = ?,
-        remaining_interest = ?,
-        remaining_principal = ?,
-        remaining_amount = ?,
-
-        status = 'Pending'
-      WHERE id = ?
-      `,
-      [
-        // opening
-        principalBalance,
-
-        // scheduled EMI
-        emi,
-
-        // interest
-        monthlyInterest,
-
-        // principal
-        principal,
-
-        // closing
-        closing,
-
-        // remaining EMI
-        emi,
-
-        // remaining interest
-        monthlyInterest,
-
-        // remaining principal
-        principal,
-
-        // remaining amount
-        emi,
-
-        // row id
-        row.id,
-      ]
-    );
+  await queryDB(
+  `
+  UPDATE manual_rps_wctl_ffpl
+  SET
+    remaining_emi = ?,
+    remaining_interest = ?,
+    remaining_principal = ?,
+    remaining_amount = ?
+  WHERE id = ?
+  `,
+  [
+    emi,
+    monthlyInterest,
+    principal,
+    emi,
+    row.id
+  ]
+);
   }
 
   console.log(
