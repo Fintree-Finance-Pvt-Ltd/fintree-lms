@@ -218,6 +218,7 @@ const Sidebar = () => {
       "CirclePe Loans": <Repeat size={iconSize} />,
       "CirclePe Houser Loans": <Repeat size={iconSize} />,
       "CarePay Loans": <Car size={iconSize} />,
+      "CarePay Educations Loans": <Car size={iconSize} />,
       "Sterlion Loans": <Briefcase size={iconSize} />,
       "Sterlion UBL Loans": <Briefcase size={iconSize} />,
       "Elysium Loans": <Layers size={iconSize} />,
@@ -299,6 +300,7 @@ const Sidebar = () => {
           "/aldun-loans",
           "/mis-reports",
           "/carepay-loans",
+          "/carepay-education-loans",
           "/sterlion-loans",
           "/srbh",
           "/sterlion-ubl-loans",
@@ -350,6 +352,9 @@ const Sidebar = () => {
     ),
     "CarePay Loans": allowedPages.filter((p) =>
       p.path.includes("/carepay-loans"),
+    ),
+    "CarePay Educations Loans": allowedPages.filter((p) =>
+      p.path.includes("/carepay-education-loans"),
     ),
     "Sterlion Loans": allowedPages.filter((p) =>
       p.path.includes("/sterlion-loans"),

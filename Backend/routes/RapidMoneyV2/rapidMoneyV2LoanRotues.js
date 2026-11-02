@@ -1299,6 +1299,12 @@ const normalizeCreateUpdatePayload = (data) => {
     salary_mode: data.salary_mode ?? null,
     nature_of_business: data.nature_of_business ?? null,
     aquisition_fees_txn_id: data.aquisition_fees_txn_id ?? null,
+    assessment_fee_amount: data.assessment_fee_amount ?? null,
+    assessment_fee_payment_date: data.assessment_fee_payment_date
+      ? normalizeDate(data.assessment_fee_payment_date)
+      : null,
+    assessment_fee_payment_id: data.assessment_fee_payment_id ?? null,
+    assessment_fee_status: data.assessment_fee_status ?? null,
     industry_type: data.industry_type ?? null,
     monthly_income: data.monthly_income ?? null,
 
@@ -1816,6 +1822,10 @@ router.post("/v2/create", verifyApiKey, async (req, res) => {
     salary_mode,
     nature_of_business,
     aquisition_fees_txn_id,
+    assessment_fee_amount,
+    assessment_fee_payment_date,
+    assessment_fee_payment_id,
+    assessment_fee_status,
     industry_type,
     monthly_income,
     address_line_1,
@@ -1864,6 +1874,7 @@ router.post("/v2/create", verifyApiKey, async (req, res) => {
     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+    ?, ?, ?, ?,
     NOW(), NOW()
   )
   `,
@@ -1891,6 +1902,10 @@ router.post("/v2/create", verifyApiKey, async (req, res) => {
         payload.salary_mode,
         payload.nature_of_business,
         payload.aquisition_fees_txn_id,
+        payload.assessment_fee_amount,
+        payload.assessment_fee_payment_date,
+        payload.assessment_fee_payment_id,
+        payload.assessment_fee_status,
         payload.industry_type,
         payload.monthly_income,
         payload.address_line_1,
@@ -3477,8 +3492,7 @@ function bankNamesMatch(
 // UPDATE DETAILS API
 // ============================================================
 
-router.put(
-  "/v2/update-details",
+router.put( "/v2/update-details",
   verifyApiKey,
   async (req, res) => {
     let connection;
@@ -3506,11 +3520,11 @@ router.put(
      * previous loan exists for the same
      * customer name and address.
      */
-    let previousLoanUnpaidDetected =
-      false;
+    // let previousLoanUnpaidDetected =
+    //   false;
 
-    let previousLoanUnpaidReason =
-      "";
+    // let previousLoanUnpaidReason =
+    //   "";
 
     try {
       connection =
@@ -3908,134 +3922,7 @@ router.put(
         data.current_address_state,
       );
 
-      // ======================================================
-      // PREVIOUS UNPAID LOAN CHECK (BY ADDRESS ONLY)
-      // ======================================================
-
-      /*
-       * When address is provided in the payload, verify whether
-       * another application already exists for the same address.
-       * If previous cases exist, ensure they are fully paid or closed.
-       * If any previous case at this address is still in an active/disbursed
-       * stage, reject this new case regardless of customer name.
-       *
-       * The rejection is recorded internally and notified to the partner
-       * via the rejection webhook after commit, while this update call
-       * responds with success.
-       */
-      const incomingAddresses = [
-        data.address_line_1,
-        data.address,
-        data.current_address_line_1,
-        data.current_address,
-      ]
-        .filter(
-          (a) =>
-            a !== null &&
-            a !== undefined &&
-            typeof a === "string" &&
-            a.trim().length > 0,
-        )
-        .map((a) => a.trim());
-
-      const hasAddressUpdate = incomingAddresses.length > 0;
-
-      if (hasAddressUpdate) {
-        const normIncomingAddresses = incomingAddresses
-          .map((a) => normalizeAddress(a))
-          .filter((a) => a.length >= 5);
-
-        if (normIncomingAddresses.length > 0) {
-          const incomingPincode = String(
-            data.address_pincode !== undefined && data.address_pincode !== null
-              ? data.address_pincode
-              : data.pincode !== undefined && data.pincode !== null
-                ? data.pincode
-                : row.address_pincode || row.pincode || "",
-          ).trim();
-
-          const hasPincode = incomingPincode.length >= 6;
-
-          const querySql = hasPincode
-            ? `SELECT id, partner_loan_id, lan, application_id, customer_name, address_line_1, current_address_line_1, status
-               FROM loan_booking_rapid_money_v2
-               WHERE partner_loan_id != ?
-                 AND status IN ('DISBURSED', 'DISBURSE_INITIATED', 'APPROVED')
-                 AND (
-                   address_pincode = ?
-                   OR address_line_1 IN (?)
-                   OR current_address_line_1 IN (?)
-                 )`
-            : `SELECT id, partner_loan_id, lan, application_id, customer_name, address_line_1, current_address_line_1, status
-               FROM loan_booking_rapid_money_v2
-               WHERE partner_loan_id != ?
-                 AND status IN ('DISBURSED', 'DISBURSE_INITIATED', 'APPROVED')
-                 AND (
-                   address_line_1 IN (?)
-                   OR current_address_line_1 IN (?)
-                 )`;
-
-          const queryParams = hasPincode
-            ? [
-                data.partner_loan_id,
-                incomingPincode,
-                incomingAddresses,
-                incomingAddresses,
-              ]
-            : [
-                data.partner_loan_id,
-                incomingAddresses,
-                incomingAddresses,
-              ];
-
-          const [previousCases] = await connection.query(
-            querySql,
-            queryParams,
-          );
-
-          const unpaidMatchingCase = (previousCases || []).find((prev) => {
-            const prevAddr1Norm = normalizeAddress(prev.address_line_1);
-            const prevCurrAddr1Norm = normalizeAddress(
-              prev.current_address_line_1,
-            );
-
-            return normIncomingAddresses.some(
-              (incomingNorm) =>
-                (prevAddr1Norm && prevAddr1Norm === incomingNorm) ||
-                (prevCurrAddr1Norm && prevCurrAddr1Norm === incomingNorm),
-            );
-          });
-
-          if (unpaidMatchingCase) {
-            previousLoanUnpaidDetected = true;
-            previousLoanUnpaidReason = `ACTIVE_LOAN_EXISTS: Address matches active/unpaid loan (LAN: ${
-              unpaidMatchingCase.lan ||
-              unpaidMatchingCase.application_id ||
-              "N/A"
-            }, Status: ${unpaidMatchingCase.status})`;
-
-            console.warn(
-              "SML loan marked for rejection due to active/unpaid case with same address:",
-              {
-                partnerLoanId: data.partner_loan_id,
-                applicationId,
-                lan,
-                incomingAddresses,
-                unpaidPreviousCase: {
-                  id: unpaidMatchingCase.id,
-                  partner_loan_id: unpaidMatchingCase.partner_loan_id,
-                  lan: unpaidMatchingCase.lan,
-                  application_id: unpaidMatchingCase.application_id,
-                  customer_name: unpaidMatchingCase.customer_name,
-                  status: unpaidMatchingCase.status,
-                },
-              },
-            );
-          }
-        }
-      }
-
-
+     
       // ======================================================
       // LOAN DETAILS
       // ======================================================
@@ -5049,24 +4936,26 @@ router.put(
           "sml_bre_reason",
           "BANK_ACCOUNT_NAME_MISMATCH",
         );
-      } else if (
-        previousLoanUnpaidDetected
-      ) {
-        addField(
-          "status",
-          "REJECTED",
-        );
+      } 
+      // else if (
+      //   previousLoanUnpaidDetected
+      // ) {
+      //   addField(
+      //     "status",
+      //     "REJECTED",
+      //   );
 
-        addField(
-          "sml_bre_status",
-          "REJECTED",
-        );
+      //   addField(
+      //     "sml_bre_status",
+      //     "REJECTED",
+      //   );
 
-        addField(
-          "sml_bre_reason",
-          previousLoanUnpaidReason,
-        );
-      } else if (
+      //   addField(
+      //     "sml_bre_reason",
+      //     previousLoanUnpaidReason,
+      //   );
+      // }
+       else if (
         String(
           row.status || "",
         ).toUpperCase() !==
@@ -5129,8 +5018,8 @@ router.put(
        */
 
       if (
-        bankVerificationJob &&
-        !previousLoanUnpaidDetected
+        bankVerificationJob 
+        // && !previousLoanUnpaidDetected
       ) {
         try {
           await verifySmlBankAndStoreResult(
@@ -5176,8 +5065,8 @@ router.put(
        */
 
       if (
-        bankNameMismatchDetected ||
-        previousLoanUnpaidDetected
+        bankNameMismatchDetected 
+        // || previousLoanUnpaidDetected
       ) {
         try {
           await sendRejectionWebhook({
@@ -5191,9 +5080,8 @@ router.put(
             {
               applicationId,
               lan,
-              reason: bankNameMismatchDetected
-                ? "BANK_ACCOUNT_NAME_MISMATCH"
-                : previousLoanUnpaidReason,
+              reason:
+                "BANK_ACCOUNT_NAME_MISMATCH",
               message:
                 rejectionWebhookError.message,
             },
@@ -5262,8 +5150,7 @@ router.put(
 
 
 ////////////////////////////////
-router.post(
-  "/v2/loan/:application_id/consent",
+router.post( "/v2/loan/:application_id/consent",
   verifyApiKey,
   async (req, res) => {
     let connection;
@@ -7496,4 +7383,95 @@ router.post("/v2/bre/test-eligibility", async (req, res) => {
   }
 });
 
+
+router.post(
+  "/v2/loan/:application_id/test-disbursement-webhook",
+  verifyApiKey,
+  async (req, res) => {
+    try {
+      if (
+        process.env.RAPIDMONEYV2_DEPLOYMENT_ENV !== "uat"
+      ) {
+        return res.status(403).json({
+          is_success: false,
+          message: "This API is available only in UAT",
+        });
+      }
+
+      const { application_id } = req.params;
+
+      const [[loan]] = await db.promise().query(
+        `
+        SELECT
+          lan,
+          status
+        FROM loan_booking_rapid_money_v2
+        WHERE application_id = ?
+        LIMIT 1
+        `,
+        [application_id]
+      );
+
+      if (!loan) {
+        return res.status(404).json({
+          is_success: false,
+          message: "Loan not found",
+        });
+      }
+
+      if (loan.status !== "DISBURSED") {
+        return res.status(400).json({
+          is_success: false,
+          message: "Loan is not disbursed",
+        });
+      }
+
+      const [[transfer]] = await db.promise().query(
+        `
+        SELECT
+        Disbursement_UTR,
+         Disbursement_Date 
+        FROM ev_disbursement_utr
+        WHERE lan = ?
+        ORDER BY id DESC
+        LIMIT 1
+        `,
+        [loan.lan]
+      );
+
+      if (!transfer?.Disbursement_UTR || !transfer?.Disbursement_Date) {
+        return res.status(400).json({
+          is_success: false,
+          message: "Successful payout UTR/date not found",
+        });
+      }
+
+      const webhookResult =
+        await sendV2DisbursementWebhook({
+          lan: loan.lan,
+          transactionId: transfer.Disbursement_UTR,
+          disbursementDate: transfer.Disbursement_Date,
+        });
+
+      return res.status(webhookResult.success ? 200 : 502).json({
+        is_success: webhookResult.success,
+        data: {
+          lan: loan.lan,
+          transaction_id: transfer.Disbursement_UTR,
+          webhook_result: webhookResult,
+        },
+      });
+    } catch (error) {
+      console.error(
+        "Rapid Money V2 test disbursement webhook error:",
+        error
+      );
+
+      return res.status(500).json({
+        is_success: false,
+        message: "Webhook trigger failed",
+      });
+    }
+  }
+);
 module.exports = router;
