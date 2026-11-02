@@ -28,6 +28,15 @@ const DEPLOYMENT_ENV = String(
   .trim()
   .toLowerCase();
 
+// loan.tenure is stored in DAYS (POLICY.MIN/MAX_TENURE_DAYS, 30-45), but
+// Experian's DurationOfAgreement field expects whole months — passing the
+// raw day count made a 30-45 day loan look like a 30-45 MONTH agreement.
+function tenureDaysToMonths(tenureDays) {
+  const days = Number(tenureDays);
+  if (!Number.isFinite(days) || days <= 0) return days;
+  return Math.max(1, Math.round(days / 30));
+}
+
 const AML_MODE = String(process.env.RAPIDMONEYV2_AML_MODE || "")
   .trim()
   .toLowerCase();
@@ -777,7 +786,7 @@ async function runOrReuseBureau(loan) {
       mobile_number: loan.mobile,
       pan_number: loan.pan_number,
       loan_amount: loan.loan_amount,
-      loan_tenure: loan.tenure,
+      loan_tenure: tenureDaysToMonths(loan.tenure),
     });
 
     const responseToStore = serializeBureauResponse(bureauResult?.response);

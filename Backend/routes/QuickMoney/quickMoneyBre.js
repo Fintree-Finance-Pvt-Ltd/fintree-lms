@@ -37,6 +37,15 @@ const {
 const QUICK_MONEY_TABLE =
   "loan_booking_quick_money";
 
+// loan.tenure is stored in DAYS (POLICY.MIN/MAX_TENURE_DAYS, 30-45), but
+// Experian's DurationOfAgreement field expects whole months — passing the
+// raw day count made a 30-45 day loan look like a 30-45 MONTH agreement.
+function tenureDaysToMonths(tenureDays) {
+  const days = Number(tenureDays);
+  if (!Number.isFinite(days) || days <= 0) return days;
+  return Math.max(1, Math.round(days / 30));
+}
+
 /*
  * IMPORTANT:
  *
@@ -1635,7 +1644,7 @@ async function runOrReuseBureau(
           loan.loan_amount,
 
         loan_tenure:
-          loan.tenure,
+          tenureDaysToMonths(loan.tenure),
       });
 
 
