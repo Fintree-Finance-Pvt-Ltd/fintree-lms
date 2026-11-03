@@ -1357,6 +1357,12 @@ router.post("/login", verifyApiKey, async (req, res) => {
       business_city: nullIfEmpty(body.business_city),
       business_state: nullIfEmpty(body.business_state),
     };
+    if (!data.gender) {
+      return res.status(400).json({
+        success: false,
+        message: "gender is required",
+      });
+    }
     const validationError = validateLoginData(data);
 
     if (validationError) {
