@@ -31,7 +31,9 @@ const {
 const {
   processClaimCureBuddyDisbursement,
 } = require("./processClaimCureBuddyDisbursement");
-const { sendV2DisbursementWebhook } = require("../routes/RapidMoneyV2/rapidMoneyV2LoanWebhook");
+const {
+  sendV2DisbursementWebhook,
+} = require("../routes/RapidMoneyV2/rapidMoneyV2LoanWebhook");
 
 // const {
 //   processClaimBuddyDisbursement,
@@ -89,7 +91,7 @@ const TABLE_TO_PARTNER_NAME = {
   loan_booking_claim_cure_buddy: "CLAIM CURE BUDDY",
   pl_partner_applications: "PL PARTNER",
   loan_booking_quick_money: "QUICK MONEY",
-  loan_booking_rapid_money_v2 : "RAPID MONEY V2",
+  loan_booking_rapid_money_v2: "RAPID MONEY V2",
   loan_booking_ya_money: "YAMONEY",
   loan_booking_claim_buddy: "CLAIM-BUDDY",
   loan_booking_sabgrow: "SBR:",
@@ -482,16 +484,6 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
       ifsc
     FROM loan_booking_niyara
     WHERE lan = ?
-      AND status = 'ops_checker_approved'
-      AND stage = 'disbursement_pending'
-      AND ops_maker_decision = 'APPROVED'
-      AND ops_checker_decision = 'APPROVED'
-      AND ops_maker_decision_by IS NOT NULL
-      AND ops_checker_decision_by IS NOT NULL
-      AND ops_maker_decision_by <> ops_checker_decision_by
-      AND sanction_esign_status = 'SIGNED'
-      AND agreement_esign_status = 'SIGNED'
-      AND bank_status = 'MANDATE_CREATED'
     LIMIT 1
   `;
     }
@@ -672,7 +664,10 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
         },
       };
     } else {
-      console.log("💸 Initiating real payout via Easebuzz API easebuzz key: ", process.env.EASEBUZZ_KEY);
+      console.log(
+        "💸 Initiating real payout via Easebuzz API easebuzz key: ",
+        process.env.EASEBUZZ_KEY,
+      );
       response = await axios.post(
         "https://wire.easebuzz.in/api/v1/quick_transfers/initiate/",
         {
@@ -1014,13 +1009,12 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
         disbursementUTR: tr.unique_transaction_reference,
         disbursementDate: new Date(tr.transfer_date),
       });
-    }  else if (table === "loan_booking_sabgrow") {
+    } else if (table === "loan_booking_sabgrow") {
       await processSabGrowDisbursement({
         lan,
         disbursementUTR: tr.unique_transaction_reference,
         disbursementDate: new Date(tr.transfer_date),
       });
-    
     } else if (table === "pl_partner_applications") {
       /*
        * FTPL / PLP — pure webhook forwarding bridge.

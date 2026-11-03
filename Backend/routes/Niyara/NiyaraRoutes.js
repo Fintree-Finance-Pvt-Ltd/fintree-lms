@@ -439,8 +439,17 @@ async function fetchNiyaraLoans(
 }
 // POST /api/niyara/login
 
+
 router.post("/login", verifyApiKey, verifyNiyaraPartner, async (req, res) => {
   let connection;
+  let transactionStarted = false;
+  let bookingCommitted = false;
+  let verificationLocked = false;
+  let lockName = null;
+
+  let insertId = null;
+  let ids = null;
+  let data = null;
 
   try {
     const body = req.body;
@@ -452,9 +461,13 @@ router.post("/login", verifyApiKey, verifyNiyaraPartner, async (req, res) => {
       });
     }
 
-    const dob = clean(body.borrower_dob ?? body.dob ?? body.date_of_birth);
+    const dob = clean(
+      body.borrower_dob ?? body.dob ?? body.date_of_birth
+    );
 
-    const aadhaarInput = clean(body.aadhaar_number ?? body.aadhar_number);
+    const aadhaarInput = clean(
+      body.aadhaar_number ?? body.aadhar_number
+    );
 
     if (aadhaarInput && !/^\d{12}$/.test(aadhaarInput)) {
       return res.status(400).json({
@@ -463,7 +476,7 @@ router.post("/login", verifyApiKey, verifyNiyaraPartner, async (req, res) => {
       });
     }
 
-    const data = {
+    data = {
       partner_loan_id: clean(body.partner_loan_id),
 
       login_date: todayDate(),
@@ -477,8 +490,10 @@ router.post("/login", verifyApiKey, verifyNiyaraPartner, async (req, res) => {
       email: nullIfEmpty(body.email)?.toLowerCase() || null,
       pan_number: upperOrNull(body.pan_number),
 
-      // Store only a masked Aadhaar reference.
-      aadhaar_number: aadhaarInput ? `XXXXXXXX${aadhaarInput.slice(-4)}` : null,
+      // Store masked Aadhaar only.
+      aadhaar_number: aadhaarInput
+        ? `XXXXXXXX${aadhaarInput.slice(-4)}`
+        : null,
 
       gender: nullIfEmpty(body.gender),
 
@@ -487,7 +502,9 @@ router.post("/login", verifyApiKey, verifyNiyaraPartner, async (req, res) => {
       customer_city: nullIfEmpty(body.customer_city),
       customer_state: nullIfEmpty(body.customer_state),
 
-      requested_amount: readNumber(body.requested_amount ?? body.loan_amount),
+      requested_amount: readNumber(
+        body.requested_amount ?? body.loan_amount
+      ),
 
       business_name: nullIfEmpty(body.business_name),
       business_type: nullIfEmpty(body.business_type),
@@ -511,38 +528,476 @@ router.post("/login", verifyApiKey, verifyNiyaraPartner, async (req, res) => {
       });
     }
 
+    // Preliminary BRE uses existing policy.
+    // Without a verified score, final BRE cannot be approved.
+    const preliminaryBre = runBRE({
+      requested_amount: data.requested_amount,
+      age: data.age,
+      annual_income: data.annual_income,
+      bureau_score: null,
+    });
+
+    // ----------------------------------------------------
+    // STEP 1: CREATE LOAN BOOKING
+    // ----------------------------------------------------
+
     connection = await db.promise().getConnection();
+
     await connection.beginTransaction();
+    transactionStarted = true;
 
-    // Generate Niyara LAN
-    const ids = await generateLoanIds(connection);
+    ids = await generateLoanIds(connection);
 
-    const createdBy = req.partner.name;
-
-    // Insert Loan
-    const insertId = await insertLogin(connection, data, ids, createdBy);
+    insertId = await insertLogin(
+      connection,
+      data,
+      ids,
+      req.partner.name
+    );
 
     await connection.commit();
+    transactionStarted = false;
+    bookingCommitted = true;
+
+    const lan = ids.lan;
+
+    // ----------------------------------------------------
+    // STEP 2: CHECK VERIFIED CUSTOMER BUREAU CONSENT
+    // ----------------------------------------------------
+    // Consent must come from a trusted customer consent
+    // process. Do not accept a simple consent:true flag
+    // in the partner request as verification.
+
+    const [[consent]] = await connection.query(
+      `
+      SELECT id
+      FROM loan_documents
+      WHERE lan = ?
+        AND doc_name = 'NIYARA_BUREAU_CONSENT_VERIFIED'
+      LIMIT 1
+      `,
+      [lan]
+    );
+
+    if (!consent) {
+      return res.status(201).json({
+        success: true,
+        message: "Niyara loan login created successfully",
+        data: {
+          id: insertId,
+          partner_loan_id: data.partner_loan_id,
+          lan,
+          status: "Login",
+          stage: "Login",
+          preliminary_bre: preliminaryBre.decision,
+          verification: {
+            completed: false,
+            code: "CONSENT_REQUIRED",
+            bureau_status: "NOT_INITIATED",
+            bre_status: "PENDING",
+            aml_status: "NOT_INITIATED",
+          },
+          next_step: "BORROWER_BUREAU_CONSENT_PENDING",
+        },
+      });
+    }
+
+    // ----------------------------------------------------
+    // STEP 3: PREVENT CONCURRENT VERIFICATION
+    // ----------------------------------------------------
+
+    lockName = `niyara-verify:${lan}`;
+
+    const [[lock]] = await connection.query(
+      "SELECT GET_LOCK(?, 0) AS acquired",
+      [lockName]
+    );
+
+    if (Number(lock.acquired) !== 1) {
+      throw new Error("Verification already in progress");
+    }
+
+    verificationLocked = true;
+
+    // Reload trusted data from DB instead of using
+    // the request body for provider verification.
+
+    const [[loan]] = await connection.query(
+      `
+      SELECT
+        lan,
+        status,
+        stage,
+        customer_name,
+        DATE_FORMAT(borrower_dob, '%Y-%m-%d') AS dob,
+        age,
+        gender,
+        annual_income,
+        pan_number,
+        mobile_number,
+        customer_address,
+        customer_city,
+        customer_state,
+        customer_pincode,
+        requested_amount,
+        cibil_score
+      FROM loan_booking_niyara
+      WHERE lan = ?
+      LIMIT 1
+      `,
+      [lan]
+    );
+
+    if (
+      !loan ||
+      loan.status !== "Login" ||
+      loan.stage !== "Login"
+    ) {
+      throw new Error("Loan is not eligible for verification");
+    }
+
+    // ----------------------------------------------------
+    // STEP 4: EXPERIAN BUREAU
+    // ----------------------------------------------------
+
+    const [[savedReport]] = await connection.query(
+      `
+      SELECT pan_number, score, report_xml
+      FROM loan_cibil_reports
+      WHERE lan = ?
+      ORDER BY id DESC
+      LIMIT 1
+      `,
+      [lan]
+    );
+
+    let score;
+
+    if (savedReport) {
+      const [[kyc]] = await connection.query(
+        `
+        SELECT bureau_status
+        FROM kyc_verification_status
+        WHERE lan = ?
+          AND bureau_status = 'VERIFIED'
+        LIMIT 1
+        `,
+        [lan]
+      );
+
+      score = Number(savedReport.score);
+
+      if (
+        !kyc ||
+        savedReport.pan_number !== loan.pan_number ||
+        loan.cibil_score == null ||
+        Number(loan.cibil_score) !== score ||
+        !Number.isInteger(score) ||
+        score < 300 ||
+        score > 900 ||
+        typeof savedReport.report_xml !== "string" ||
+        !savedReport.report_xml.includes("<INProfileResponse")
+      ) {
+        throw new Error("Existing Bureau record needs verification");
+      }
+    } else {
+      if (loan.cibil_score != null) {
+        throw new Error("Bureau score exists without a report");
+      }
+
+      const parts = clean(loan.customer_name)
+        .split(/\s+/)
+        .filter(Boolean);
+
+      const firstName = parts[0] || "";
+      const lastName = parts[parts.length - 1] || "";
+      const middleName = parts.slice(1, -1).join(" ");
+
+      const stateAliases = {
+        HARYANA: "HARAYANA",
+        GUJARAT: "GUJRAT",
+        ODISHA: "ORRISA",
+        UTTARAKHAND: "UTTRANCHAL",
+        PUDUCHERRY: "PONDICHERRY",
+      };
+
+      const state = clean(loan.customer_state).toUpperCase();
+      const bureauState = stateAliases[state] || state;
+
+      const supportedStates = new Set(
+        "JAMMU AND KASHMIR|HIMACHAL PRADESH|PUNJAB|CHANDIGARH|UTTRANCHAL|HARAYANA|DELHI|RAJASTHAN|UTTAR PRADESH|BIHAR|SIKKIM|ARUNACHAL PRADESH|NAGALAND|MANIPUR|MIZORAM|TRIPURA|MEGHALAYA|ASSAM|WEST BENGAL|JHARKHAND|ORRISA|CHHATTISGARH|MADHYA PRADESH|GUJRAT|MAHARASHTRA|ANDHRA PRADESH|KARNATAKA|GOA|LAKSHADWEEP|KERALA|TAMIL NADU|PONDICHERRY|TELANGANA".split(
+          "|"
+        )
+      );
+
+      const amount = Number(loan.requested_amount);
+
+      if (
+        !firstName ||
+        !loan.dob ||
+        !loan.pan_number ||
+        !loan.mobile_number ||
+        !loan.customer_address ||
+        !loan.customer_city ||
+        !loan.customer_pincode ||
+        !supportedStates.has(bureauState) ||
+        !Number.isFinite(amount) ||
+        amount <= 0
+      ) {
+        throw new Error("Incomplete or invalid Bureau inputs");
+      }
+
+      const xmlFields = [
+        firstName,
+        middleName,
+        lastName,
+        loan.customer_address,
+        loan.customer_city,
+      ];
+
+      if (
+        xmlFields.some((value) =>
+          /[<&\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(
+            String(value)
+          )
+        )
+      ) {
+        throw new Error("Unsupported characters in Bureau inputs");
+      }
+
+      const genderInput = clean(loan.gender).toLowerCase();
+
+      const bureauGender =
+        genderInput === "f"
+          ? "female"
+          : genderInput === "m"
+            ? "male"
+            : genderInput;
+
+      const bureau = await runBureau({
+        first_name: firstName,
+        middle_name: middleName,
+        last_name: lastName,
+        dob: loan.dob,
+        gender: bureauGender,
+        pan_number: loan.pan_number,
+        mobile_number: loan.mobile_number,
+        current_address: loan.customer_address,
+        current_village_city: loan.customer_city,
+        current_state: bureauState,
+        current_pincode: loan.customer_pincode,
+        loan_amount: amount,
+        loan_tenure: 0,
+        enquiry_reason: "05",
+        finance_purpose: 99,
+      });
+
+      score = Number(bureau?.score);
+
+      if (
+        bureau?.success !== true ||
+        bureau.score == null ||
+        !Number.isInteger(score) ||
+        score < 300 ||
+        score > 900 ||
+        typeof bureau.response !== "string" ||
+        !bureau.response.includes("<INProfileResponse")
+      ) {
+        throw new Error("Valid Experian Bureau report unavailable");
+      }
+
+      // Save verified Bureau report transactionally.
+      await connection.beginTransaction();
+      transactionStarted = true;
+
+      await connection.query(
+        `
+        INSERT INTO loan_cibil_reports
+          (lan, pan_number, score, report_xml, created_at)
+        VALUES (?, ?, ?, ?, NOW())
+        `,
+        [lan, loan.pan_number, score, bureau.response]
+      );
+
+      await connection.query(
+        `
+        INSERT IGNORE INTO kyc_verification_status (lan)
+        VALUES (?)
+        `,
+        [lan]
+      );
+
+      await connection.query(
+        `
+        UPDATE kyc_verification_status
+        SET bureau_status = 'VERIFIED',
+            bureau_api_response = ?
+        WHERE lan = ?
+        `,
+        [bureau.response, lan]
+      );
+
+      const [updated] = await connection.query(
+        `
+        UPDATE loan_booking_niyara
+        SET cibil_score = ?,
+            updated_at = NOW()
+        WHERE lan = ?
+          AND status = 'Login'
+          AND stage = 'Login'
+          AND cibil_score IS NULL
+        `,
+        [score, lan]
+      );
+
+      if (updated.affectedRows !== 1) {
+        throw new Error("Loan state changed during Bureau verification");
+      }
+
+      await connection.commit();
+      transactionStarted = false;
+    }
+
+    // ----------------------------------------------------
+    // STEP 5: RUN FINAL NIYARA BRE
+    // ----------------------------------------------------
+
+    const bre = runBRE({
+      requested_amount: loan.requested_amount,
+      age: loan.age,
+      annual_income: loan.annual_income,
+      bureau_score: score,
+    });
+
+    if (bre.decision === "PENDING") {
+      throw new Error("BRE inputs incomplete");
+    }
+
+    // ----------------------------------------------------
+    // STEP 6: RUN TRACKWIZZ AML
+    // ----------------------------------------------------
+
+    const aml = await screenLoanBooking("niyara", lan);
+
+    const amlStatus = clean(
+      aml.amlStatus || aml.decision
+    ).toUpperCase();
+
+    const [[screening]] = await connection.query(
+      `
+      SELECT status
+      FROM screening_requests
+      WHERE id = ?
+        AND partner_key = 'niyara'
+        AND lan = ?
+      LIMIT 1
+      `,
+      [aml.screeningRequestId || 0, lan]
+    );
+
+    const amlCompleted =
+      aml.degraded !== true &&
+      screening?.status === "COMPLETED";
+
+    const amlApproved =
+      amlCompleted &&
+      amlStatus === "PROCEED";
+
+    // ----------------------------------------------------
+    // STEP 7: SET FINAL STATUS / STAGE
+    // ----------------------------------------------------
+
+    let status = "Login";
+    let stage = "Login";
+
+    if (bre.decision === "REJECTED") {
+      status = "bre_rejected";
+      stage = "bre_rejected";
+    } else if (bre.decision === "APPROVED" && amlApproved) {
+      status = "bre_approved";
+      stage = "partner_credit_pending";
+    } else if (amlCompleted && amlStatus === "STOP") {
+      status = "aml_rejected";
+      stage = "aml_rejected";
+    }
+
+    const [updated] = await connection.query(
+      `
+      UPDATE loan_booking_niyara
+      SET niyara_bre_status = ?,
+          niyara_bre_reason = ?,
+          niyara_bre_checked_at = NOW(),
+          status = ?,
+          stage = ?,
+          updated_at = NOW()
+      WHERE lan = ?
+        AND status = 'Login'
+        AND stage = 'Login'
+        AND (
+          niyara_bre_status IS NULL
+          OR niyara_bre_status IN ('APPROVED', 'PENDING')
+        )
+      `,
+      [bre.decision, bre.reason, status, stage, lan]
+    );
+
+    if (updated.affectedRows !== 1) {
+      throw new Error("Loan verification state changed");
+    }
 
     return res.status(201).json({
       success: true,
-      message: "Niyara loan login created successfully",
+      message: "Niyara loan created and verification processed",
       data: {
         id: insertId,
         partner_loan_id: data.partner_loan_id,
-        lan: ids.lan,
-        status: "Login",
-        stage: "Login",
-        next_step: "BUREAU_BRE_AML_PENDING",
+        lan,
+        status,
+        stage,
+        verification: {
+          completed: true,
+          bre_status: bre.decision,
+          aml_status: amlStatus,
+          bureau_checked: true,
+        },
+        next_step:
+          status === "bre_approved"
+            ? "PARTNER_CREDIT"
+            : null,
       },
     });
   } catch (error) {
-    if (connection) {
+    if (connection && transactionStarted) {
       try {
         await connection.rollback();
+        transactionStarted = false;
       } catch (rollbackError) {
         console.error("[NIYARA] Rollback error:", rollbackError);
       }
+    }
+
+    console.error("[NIYARA] Login error:", error);
+
+    // Booking has already been committed.
+    // Never return "booking failed" for a completed insert.
+    if (bookingCommitted) {
+      return res.status(201).json({
+        success: true,
+        message:
+          "Niyara loan created; automatic verification is pending",
+        data: {
+          id: insertId,
+          partner_loan_id: data?.partner_loan_id,
+          lan: ids.lan,
+          status: "Login",
+          stage: "Login",
+          verification: {
+            completed: false,
+            code: "VERIFICATION_PENDING_RETRY",
+          },
+          next_step: "RETRY_VERIFICATION",
+        },
+      });
     }
 
     if (error.code === "ER_DUP_ENTRY") {
@@ -551,8 +1006,6 @@ router.post("/login", verifyApiKey, verifyNiyaraPartner, async (req, res) => {
         message: "Duplicate partner_loan_id or LAN",
       });
     }
-
-    console.error("[NIYARA] Login error:", error);
 
     return res.status(500).json({
       success: false,
@@ -563,6 +1016,17 @@ router.post("/login", verifyApiKey, verifyNiyaraPartner, async (req, res) => {
     });
   } finally {
     if (connection) {
+      if (verificationLocked && lockName) {
+        try {
+          await connection.query(
+            "SELECT RELEASE_LOCK(?)",
+            [lockName]
+          );
+        } catch (lockError) {
+          console.error("[NIYARA] Lock release error:", lockError);
+        }
+      }
+
       connection.release();
     }
   }
