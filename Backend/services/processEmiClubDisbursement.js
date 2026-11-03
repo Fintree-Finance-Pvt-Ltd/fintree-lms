@@ -2912,6 +2912,318 @@ async function processSabGrowDisbursement({
   }
 }
 
+
+
+async function processNiyaraDisbursement({
+  lan,
+  disbursementUTR,
+  disbursementDate,
+}) {
+  const normalizedLan = String(lan || "").trim().toUpperCase();
+  const utr = String(disbursementUTR || "").trim();
+
+  const dateText =
+    disbursementDate instanceof Date
+      ? disbursementDate.toISOString().slice(0, 10)
+      : String(disbursementDate || "").slice(0, 10);
+
+  // 1. Validate Niyara LAN
+  if (!/^NYRA\d+$/.test(normalizedLan)) {
+    throw new Error("Invalid Niyara LAN");
+  }
+
+  // 2. Validate real UTR
+  if (!utr || /^TEST/i.test(utr)) {
+    throw new Error("Valid real disbursement UTR required");
+  }
+
+  // 3. Validate disbursement date
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateText)) {
+    throw new Error("Invalid Niyara disbursement date");
+  }
+
+  const parsedDate = new Date(`${dateText}T00:00:00Z`);
+
+  if (
+    Number.isNaN(parsedDate.getTime()) ||
+    parsedDate.toISOString().slice(0, 10) !== dateText
+  ) {
+    throw new Error("Invalid Niyara disbursement date");
+  }
+
+  // 4. Never mark simulated payouts as real disbursements
+  if (process.env.ENABLE_REAL_PAYOUT !== "true") {
+    throw new Error("Niyara real payout processing is disabled");
+  }
+
+  const toCents = (value) =>
+    Math.round(Number(value) * 100);
+
+  let conn;
+  let committed = false;
+
+  try {
+    conn = await db.promise().getConnection();
+    await conn.beginTransaction();
+
+    // 5. Lock Niyara loan booking
+    const [[loan]] = await conn.query(
+      `
+      SELECT
+        loan_amount,
+        net_disbursement,
+        interest,
+        loan_tenure,
+        emi_amount,
+        repayment_frequency,
+        tenure_unit,
+        status,
+        stage
+      FROM loan_booking_niyara
+      WHERE lan = ?
+      FOR UPDATE
+      `,
+      [normalizedLan]
+    );
+
+    if (!loan) {
+      throw new Error(`Niyara loan not found: ${normalizedLan}`);
+    }
+
+    // 6. Prevent duplicate disbursement
+    if (String(loan.status).toLowerCase() === "disbursed") {
+      await conn.rollback();
+
+      return {
+        skipped: true,
+        reason: "ALREADY_DISBURSED",
+      };
+    }
+
+    // 7. Ops Checker approval required
+    if (
+      loan.status !== "ops_checker_approved" ||
+      loan.stage !== "disbursement_pending"
+    ) {
+      throw new Error(
+        "Niyara loan not approved for disbursement"
+      );
+    }
+
+    // 8. Verify confirmed payout record
+    const [[transfer]] = await conn.query(
+      `
+      SELECT
+        amount,
+        status,
+        payout_status
+      FROM quick_transfers
+      WHERE lan = ?
+        AND utr = ?
+      ORDER BY id DESC
+      LIMIT 1
+      `,
+      [normalizedLan, utr]
+    );
+
+    const payoutStatus = String(
+      transfer?.payout_status || transfer?.status || ""
+    ).trim().toLowerCase();
+
+    if (
+      !transfer ||
+      !["success", "completed", "processed"].includes(payoutStatus)
+    ) {
+      throw new Error("Confirmed payout transaction not found");
+    }
+
+    // 9. Validate Niyara loan financial details
+    const loanAmount = Number(loan.loan_amount);
+    const netDisbursement = Number(loan.net_disbursement);
+    const interestRate = Number(loan.interest);
+    const tenure = Number(loan.loan_tenure);
+    const emiAmount = Number(loan.emi_amount);
+
+    if (
+      loan.loan_amount == null ||
+      loan.net_disbursement == null ||
+      loan.interest == null ||
+      loan.emi_amount == null ||
+      !Number.isFinite(loanAmount) ||
+      loanAmount <= 0 ||
+      !Number.isFinite(netDisbursement) ||
+      netDisbursement <= 0 ||
+      !Number.isFinite(interestRate) ||
+      interestRate < 0 ||
+      !Number.isInteger(tenure) ||
+      tenure <= 0 ||
+      !Number.isFinite(emiAmount) ||
+      emiAmount <= 0
+    ) {
+      throw new Error("Invalid Niyara loan financial details");
+    }
+
+    // 10. Payout amount must match net disbursement
+    if (
+      !Number.isFinite(Number(transfer.amount)) ||
+      toCents(transfer.amount) !== toCents(netDisbursement)
+    ) {
+      throw new Error(
+        "Payout amount does not match net disbursement"
+      );
+    }
+
+    // 11. Validate repayment frequency
+    const frequency = String(
+      loan.repayment_frequency || ""
+    ).trim().toUpperCase();
+
+    const tenureUnit = String(
+      loan.tenure_unit || ""
+    ).trim().toUpperCase();
+
+    if (
+      !["MONTHLY", "MONTH"].includes(frequency) ||
+      !["MONTH", "MONTHS"].includes(tenureUnit)
+    ) {
+      throw new Error(
+        "Unsupported Niyara repayment frequency"
+      );
+    }
+
+    // 12. Prevent duplicate UTR
+    const [[existingUtr]] = await conn.query(
+      `
+      SELECT 1
+      FROM ev_disbursement_utr
+      WHERE Disbursement_UTR = ?
+      LIMIT 1
+      `,
+      [utr]
+    );
+
+    if (existingUtr) {
+      throw new Error("DUPLICATE_DISBURSEMENT_UTR");
+    }
+
+    // 13. Prevent duplicate RPS
+    const [[existingRps]] = await conn.query(
+      `
+      SELECT 1
+      FROM manual_rps_niyara
+      WHERE lan = ?
+      LIMIT 1
+      `,
+      [normalizedLan]
+    );
+
+    if (existingRps) {
+      throw new Error("NIYARA_RPS_ALREADY_EXISTS");
+    }
+
+    // 14. Generate Niyara RPS using shared generator
+    // This uses the SAME database transaction.
+    const rpsResult = await generateNiyaraRepaymentSchedule({
+      conn,
+      lan: normalizedLan,
+      loanAmount,
+      interestRate,
+      tenure,
+      disbursementDate: dateText,
+      emiAmount,
+    });
+
+    if (
+      !rpsResult?.success ||
+      rpsResult.rowsInserted !== tenure
+    ) {
+      throw new Error("Niyara RPS generation failed");
+    }
+
+    // 15. Save confirmed disbursement UTR
+    await conn.query(
+      `
+      INSERT INTO ev_disbursement_utr
+      (
+        Disbursement_UTR,
+        Disbursement_Date,
+        LAN
+      )
+      VALUES (?, ?, ?)
+      `,
+      [utr, dateText, normalizedLan]
+    );
+
+    // 16. Update Niyara loan status
+    const [result] = await conn.query(
+      `
+      UPDATE loan_booking_niyara
+      SET
+        status = 'Disbursed',
+        stage = 'Disbursed',
+        updated_at = NOW()
+      WHERE lan = ?
+        AND status = 'ops_checker_approved'
+        AND stage = 'disbursement_pending'
+      `,
+      [normalizedLan]
+    );
+
+    if (result.affectedRows !== 1) {
+      throw new Error(
+        "Niyara status changed during disbursement"
+      );
+    }
+
+    // 17. Commit RPS + UTR + Status together
+    await conn.commit();
+    committed = true;
+
+    console.log("[NIYARA] Disbursement completed", {
+      lan: normalizedLan,
+      utr,
+      rpsRows: rpsResult.rowsInserted,
+    });
+
+    return {
+      success: true,
+      lan: normalizedLan,
+      status: "Disbursed",
+      stage: "Disbursed",
+      utr,
+      disbursementDate: dateText,
+      rpsRows: rpsResult.rowsInserted,
+      rpsResult,
+    };
+  } catch (error) {
+    if (conn && !committed) {
+      try {
+        await conn.rollback();
+      } catch (rollbackError) {
+        console.error(
+          "[NIYARA] Rollback failed:",
+          rollbackError.message
+        );
+      }
+    }
+
+    console.error(
+      "[NIYARA] Disbursement processing failed:",
+      {
+        lan: normalizedLan,
+        message: error.message,
+      }
+    );
+
+    throw error;
+  } finally {
+    if (conn) {
+      conn.release();
+    }
+  }
+}
+
+
 module.exports = {
   processEmiClubDisbursement,
   processRapidMoneyDisbursement,
@@ -2922,4 +3234,5 @@ module.exports = {
   processCarePayDisbursement,
   processYaMoneyDisbursement,
   processSabGrowDisbursement,
+  processNiyaraDisbursement,
 };

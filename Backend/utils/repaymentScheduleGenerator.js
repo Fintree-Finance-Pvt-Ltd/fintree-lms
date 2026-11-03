@@ -1900,21 +1900,21 @@ const generateRepaymentScheduleCarepay = async (
     regularEmi = round2(numericLoanAmount + oneMonthInterest);
   } else if (isNoCostEmi || monthlyRate === 0) {
 
-  /*
-   * No-Cost EMI:
-   *
-   * Equal principal installments.
-   * Last installment clears any rounding
-   * difference.
-   */
+    /*
+     * No-Cost EMI:
+     *
+     * Equal principal installments.
+     * Last installment clears any rounding
+     * difference.
+     */
     regularEmi = Math.round(numericLoanAmount / repaymentTenure);
   } else if (isStandardEmi || isLowCostEmi) {
 
-  /*
-   * Standard EMI and Low-Cost EMI:
-   *
-   * Reducing-balance PMT calculation.
-   */
+    /*
+     * Standard EMI and Low-Cost EMI:
+     *
+     * Reducing-balance PMT calculation.
+     */
     const rateFactor = Math.pow(1 + monthlyRate, repaymentTenure);
 
     regularEmi = Math.round(
@@ -1997,12 +1997,12 @@ const generateRepaymentScheduleCarepay = async (
       principal = openingPrincipal;
     } else if (isNoCostEmi || monthlyRate === 0) {
 
-    /*
-     * No-Cost EMI:
-     *
-     * No normal borrower interest.
-     * Processing fee is charged only in EMI 1.
-     */
+      /*
+       * No-Cost EMI:
+       *
+       * No normal borrower interest.
+       * Processing fee is charged only in EMI 1.
+       */
       normalInterest = 0;
 
       principal =
@@ -2011,13 +2011,13 @@ const generateRepaymentScheduleCarepay = async (
           : Math.min(regularEmi, openingPrincipal);
     } else {
 
-    /*
-     * Standard EMI and Low-Cost EMI:
-     *
-     * Calculate normal interest first.
-     * Calculate principal without considering
-     * the processing fee.
-     */
+      /*
+       * Standard EMI and Low-Cost EMI:
+       *
+       * Calculate normal interest first.
+       * Calculate principal without considering
+       * the processing fee.
+       */
       normalInterest = Math.round(openingPrincipal * monthlyRate);
 
       principal = regularEmi - normalInterest;
@@ -8074,14 +8074,14 @@ const generateRepaymentScheduleClaimBuddy = async (
 
     const [[existingRps]] =
       await conn.query(
-        `
+      `
         SELECT id
         FROM manual_rps_claim_buddy
         WHERE lan = ?
         LIMIT 1
         `,
-        [lan],
-      );
+      [lan],
+    );
 
     if (existingRps) {
       throw new Error(
@@ -9227,7 +9227,7 @@ async function generateYaMoneyRepaymentSchedule({
   interestRate,
   tenure,
   disbursementDate,
-    product,
+  product,
   lender,
   emiAmount,
 }) {
@@ -11298,30 +11298,38 @@ const generateRepaymentSchedule = async (
       lender,
     );
   }else if (lan.startsWith("YAM")) {
-  return generateYaMoneyRepaymentSchedule({
-    conn,
-    lan,
-    loanAmount,
-    interestRate,
-    tenure,
-    disbursementDate,
-    product,
-    lender,
-    emiAmount: null,
-  });
-}
-else if (lan.startsWith("CCB")) {
-  return generateRepaymentClaimCureBuddy(
-    conn,
-    lan,
-    loanAmount,
-    interestRate,
-    tenure,
-    disbursementDate,
-    product,
+    return generateYaMoneyRepaymentSchedule({
+      conn,
+      lan,
+      loanAmount,
+      interestRate,
+      tenure,
+      disbursementDate,
+      product,
+      lender,
+      emiAmount: null,
+    });
+  } else if (lan.startsWith("NYRA")) {
+    return generateNiyaraRepaymentSchedule({
+      conn,
+      lan,
+      loanAmount,
+      interestRate,
+      tenure,
+      disbursementDate,
+    });
+  } else if (lan.startsWith("CCB")) {
+    return generateRepaymentClaimCureBuddy(
+      conn,
+      lan,
+      loanAmount,
+      interestRate,
+      tenure,
+      disbursementDate,
+      product,
     lender
-  );
-} else if (lan.startsWith("SW")) {
+    );
+  } else if (lan.startsWith("SW")) {
     console.log("[SASWAT RPS GENERATION START]", {
       lan,
       loanAmount,
@@ -12240,15 +12248,15 @@ const generateRepaymentScheduleZebrs = async (
   loanAmount,
   interestRate,
   tenure,
-  disbursementDate
+  disbursementDate,
 ) => {
   try {
     const annualRate = interestRate / 100;
     let remainingPrincipal = Number(loanAmount);
-    
+
     const disbDate = new Date(disbursementDate);
     const rpsData = [];
-    
+
     let emi = 0;
     if (annualRate > 0) {
       emi = Math.round(
@@ -12261,39 +12269,39 @@ const generateRepaymentScheduleZebrs = async (
 
     for (let i = 1; i <= tenure; i++) {
         const dueDate = new Date(disbDate.getFullYear(), disbDate.getMonth() + i, disbDate.getDate());
-        
-        let interest = 0;
-        if (annualRate > 0) {
-            interest = Math.ceil((remainingPrincipal * annualRate * 30) / 360);
-        }
-        let principal = emi - interest;
 
-        if (i === tenure) {
-           principal = remainingPrincipal; 
-           emi = principal + interest;
-        }
+      let interest = 0;
+      if (annualRate > 0) {
+        interest = Math.ceil((remainingPrincipal * annualRate * 30) / 360);
+      }
+      let principal = emi - interest;
 
-        const remainingPrincipalAfter = remainingPrincipal - principal;
+      if (i === tenure) {
+        principal = remainingPrincipal;
+        emi = principal + interest;
+      }
 
-        rpsData.push([
-            lan,
-            dueDate.toISOString().split("T")[0],
-            emi,
-            interest,
-            principal,
-            principal, 
-            interest, 
-            emi, 
-            remainingPrincipal, 
-            remainingPrincipalAfter, 
-            "Pending"
-        ]);
+      const remainingPrincipalAfter = remainingPrincipal - principal;
 
-        remainingPrincipal = remainingPrincipalAfter;
+      rpsData.push([
+        lan,
+        dueDate.toISOString().split("T")[0],
+        emi,
+        interest,
+        principal,
+        principal,
+        interest,
+        emi,
+        remainingPrincipal,
+        remainingPrincipalAfter,
+        "Pending",
+      ]);
+
+      remainingPrincipal = remainingPrincipalAfter;
     }
 
     await conn.query(
-        `INSERT INTO manual_rps_zebrs
+      `INSERT INTO manual_rps_zebrs
         (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, opening, closing, status)
         VALUES ?`,
         [rpsData]
@@ -12305,6 +12313,175 @@ const generateRepaymentScheduleZebrs = async (
     throw err;
   }
 };
+
+async function generateNiyaraRepaymentSchedule({
+  conn,
+  lan,
+  loanAmount,
+  interestRate,
+  tenure,
+  disbursementDate,
+  emiAmount = null,
+}) {
+  const normalizedLan = String(lan || "")
+    .trim()
+    .toUpperCase();
+
+  if (!/^NYRA\d+$/.test(normalizedLan)) {
+    throw new Error("Invalid Niyara LAN");
+  }
+
+  if (!conn) {
+    throw new Error("Database transaction connection required");
+  }
+
+  const dueDay = Number(process.env.NIYARA_EMI_DUE_DAY);
+  const cutoffDay = Number(process.env.NIYARA_EMI_CUTOFF_DAY);
+
+  if (
+    !Number.isInteger(dueDay) ||
+    dueDay < 1 ||
+    dueDay > 28 ||
+    !Number.isInteger(cutoffDay) ||
+    cutoffDay < 1 ||
+    cutoffDay > 31
+  ) {
+    throw new Error("Niyara EMI due-date policy not configured");
+  }
+
+  const principal = Math.round(Number(loanAmount) * 100);
+  const months = Number(tenure);
+  const annualRate = Number(interestRate);
+  const monthlyRate = annualRate / 1200;
+
+  if (
+    !Number.isSafeInteger(principal) ||
+    principal <= 0 ||
+    !Number.isInteger(months) ||
+    months <= 0 ||
+    !Number.isFinite(annualRate) ||
+    annualRate < 0
+  ) {
+    throw new Error("Invalid Niyara repayment terms");
+  }
+
+  const dateText =
+    disbursementDate instanceof Date
+      ? disbursementDate.toISOString().slice(0, 10)
+      : String(disbursementDate || "").slice(0, 10);
+
+  const date = new Date(`${dateText}T00:00:00Z`);
+
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(dateText) ||
+    Number.isNaN(date.getTime()) ||
+    date.toISOString().slice(0, 10) !== dateText
+  ) {
+    throw new Error("Invalid Niyara disbursement date");
+  }
+
+  // No existing RPS should be overwritten.
+  const [[existing]] = await conn.query(
+    `SELECT id FROM manual_rps_niyara
+     WHERE lan = ? LIMIT 1`,
+    [normalizedLan],
+  );
+
+  if (existing) {
+    throw new Error("NIYARA_RPS_ALREADY_EXISTS");
+  }
+
+  const multiplier = Math.pow(1 + monthlyRate, months);
+
+  const calculatedEmi =
+    monthlyRate === 0
+      ? principal / months
+      : (principal * monthlyRate * multiplier) / (multiplier - 1);
+
+  const regularEmi =
+    emiAmount == null
+      ? Math.round(calculatedEmi)
+      : Math.round(Number(emiAmount) * 100);
+
+  if (
+    !Number.isSafeInteger(regularEmi) ||
+    regularEmi <= 0 ||
+    Math.abs(regularEmi - Math.round(calculatedEmi)) > 100
+  ) {
+    throw new Error("Niyara EMI does not match loan terms");
+  }
+
+  const [year, month, day] = dateText.split("-").map(Number);
+  const firstMonthGap = day <= cutoffDay ? 1 : 2;
+
+  const rows = [];
+  let opening = principal;
+
+  for (let i = 0; i < months; i++) {
+    const dueDate = new Date(
+      Date.UTC(year, month - 1 + firstMonthGap + i, dueDay),
+    )
+      .toISOString()
+      .slice(0, 10);
+
+    const interest = Math.round(opening * monthlyRate);
+    let installmentPrincipal = regularEmi - interest;
+
+    if (i === months - 1 || installmentPrincipal > opening) {
+      installmentPrincipal = opening;
+    }
+
+    if (installmentPrincipal <= 0) {
+      throw new Error("Invalid Niyara installment principal");
+    }
+
+    const emi = installmentPrincipal + interest;
+    const closing = opening - installmentPrincipal;
+
+    rows.push([
+      normalizedLan,
+      dueDate,
+      emi / 100,
+      interest / 100,
+      installmentPrincipal / 100,
+      installmentPrincipal / 100,
+      interest / 100,
+      emi / 100,
+      opening / 100,
+      closing / 100,
+      "Pending",
+      emi / 100,
+      0,
+    ]);
+
+    opening = closing;
+  }
+
+  if (opening !== 0) {
+    throw new Error("Niyara principal did not close");
+  }
+
+  const [result] = await conn.query(
+    `INSERT INTO manual_rps_niyara (
+      lan, due_date, emi, interest, principal,
+      remaining_principal, remaining_interest,
+      remaining_emi, opening, closing, status,
+      remaining_amount, extra_paid
+    ) VALUES ?`,
+    [rows],
+  );
+
+  if (result.affectedRows !== months) {
+    throw new Error("Niyara RPS row count mismatch");
+  }
+
+  return {
+    success: true,
+    lan: normalizedLan,
+    rowsInserted: rows.length,
+    regularEmi: regularEmi / 100,
+  };
+}
 
 module.exports = {
   generateRepaymentScheduleEV,
@@ -12338,4 +12515,5 @@ module.exports = {
   generateRepaymentScheduleSevenFincorp,
   generateRepaymentScheduleClaimBuddy,
   generateRepaymentClaimCureBuddy,
+  generateNiyaraRepaymentSchedule,
 };

@@ -118,6 +118,7 @@ const LAN_TABLE_MAP = {
   LDF: { table: "loan_booking_loan_digit", statusCol: "status" },
   SFDLR: { table: "seven_fincorp_dealer_booking", statusCol: "status" },
   SHL: { table: "loan_booking_srbh", statusCol: "status" },
+  NYRA: { table: "loan_booking_niyara", statusCol: "status" },
 };
 
 // Dynamic lock-state: pick table by LAN prefix; tolerate LAN/lan column casing
