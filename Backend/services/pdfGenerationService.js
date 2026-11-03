@@ -588,6 +588,114 @@ async function getLoanData(lan) {
     summaryRows = rows;
   }
 
+  
+  // ==========================================
+  // NIYARA LOAN PDF DATA
+  // ==========================================
+  if (type === "NIYARA") {
+    const [[loan]] = await db.promise().query(
+      `SELECT *
+       FROM loan_booking_niyara
+       WHERE lan = ?
+       LIMIT 1`,
+      [lan]
+    );
+
+    if (!loan) {
+      return null;
+    }
+
+    const loanAmount = Number(loan.loan_amount);
+    const tenure = Number(loan.loan_tenure);
+    const interest = Number(loan.interest);
+
+    if (
+      !Number.isFinite(loanAmount) ||
+      loanAmount <= 0 ||
+      !Number.isInteger(tenure) ||
+      tenure <= 0 ||
+      loan.interest == null ||
+      !Number.isFinite(interest) ||
+      interest < 0
+    ) {
+      throw new Error(
+        "Niyara final loan details are incomplete"
+      );
+    }
+
+    const address = [
+      loan.customer_address,
+      loan.customer_city,
+      loan.customer_state,
+      loan.customer_pincode,
+    ].filter(Boolean).join(", ");
+
+    // Fetch existing repayment schedule if available
+    const [rpsRows] = await db.promise().query(
+      `SELECT
+         due_date,
+         opening,
+         principal,
+         interest,
+         emi,
+         closing
+       FROM manual_rps_niyara
+       WHERE lan = ?
+       ORDER BY due_date ASC`,
+      [lan]
+    );
+
+    const rpsHtml = rpsRows.map((row, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${Number(row.opening || 0).toFixed(2)}</td>
+        <td>${Number(row.principal || 0).toFixed(2)}</td>
+        <td>${Number(row.interest || 0).toFixed(2)}</td>
+        <td>${Number(row.emi || 0).toFixed(2)}</td>
+        <td>${Number(row.closing || 0).toFixed(2)}</td>
+      </tr>
+    `).join("");
+
+    return {
+      ...loan,
+
+      // Existing generic PDF placeholders
+      LAN: loan.lan,
+      C_N: loan.customer_name,
+      cur_add: address,
+      per_add: address,
+      L_A: loanAmount,
+      I_R: interest,
+      L_T: tenure,
+      B_Na: loan.bank_name || "",
+      A_no: loan.account_number || "",
+      ifsc: loan.ifsc || "",
+
+      L_date: loan.sanction_date
+        ? dayjs(loan.sanction_date).format("DD-MM-YYYY")
+        : "",
+
+      // Niyara-friendly placeholders
+      CUSTOMER_NAME: loan.customer_name,
+      CUSTOMER_ADDRESS: address,
+      PAN_NUMBER: loan.pan_number,
+      LOAN_AMOUNT: loanAmount,
+      LOAN_TENURE: tenure,
+      INTEREST_RATE: interest,
+      EMI_AMOUNT: loan.emi_amount || "",
+      BUSINESS_NAME: loan.business_name || "",
+
+      L_A_W: numberToWords(loanAmount),
+      AMOUNT_IN_WORDS: numberToWords(loanAmount),
+      CU_date: dayjs().format("DD-MM-YYYY"),
+
+      RPS: rpsRows,
+      RPS_ROWS: rpsHtml,
+      RPS_TABLE_ROWS: rpsHtml,
+    };
+  }
+
+
   // ===============================
   // CLAIM BUDDY
   // ===============================

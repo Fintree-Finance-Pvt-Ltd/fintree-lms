@@ -539,6 +539,28 @@ function getLoanContext(lan = "") {
     };
   }
 
+  
+if (normalizeLan(lan).startsWith("NYRA")) {
+  return {
+    type: "NIYARA",
+    bookingTable: "loan_booking_niyara",
+    rpsTable: "manual_rps_niyara",
+
+    esignParties: [
+      {
+        role: "BORROWER",
+        required: true,
+        name: "customer_name",
+        email: "email",
+        mobile: "mobile_number",
+        sign_position: "BOTTOM_RIGHT",
+        agreementTemplate: "Niyara_UBL_Agreement.html",
+      },
+    ],
+  };
+}
+
+
   throw new Error(`Unknown LAN format: ${lan}`);
 }
 
