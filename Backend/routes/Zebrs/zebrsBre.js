@@ -947,10 +947,10 @@ l.battery_serial_no_2,
     ON TRIM(p.application_id) =
        TRIM(d.application_id)
 
-   AND LOWER(TRIM(p.battery_type)) =
+   AND LOWER(TRIM(p.battery_type)) <=>
        LOWER(TRIM(l.battery_type))
 
-   AND LOWER(TRIM(p.battery_name)) =
+   AND LOWER(TRIM(p.battery_name)) <=>
        LOWER(TRIM(l.battery_name))
 
   WHERE l.lan = ?
