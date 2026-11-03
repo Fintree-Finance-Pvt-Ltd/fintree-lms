@@ -30,6 +30,7 @@ const LOAN_TABLES = [
   "loan_booking_sampada",
   "loan_booking_zypay_customer",
   // "loan_booking_omrajpay",
+  "loan_booking_niyara",
 ];
 
 /*
@@ -1198,6 +1199,35 @@ router.post("/create-mandate", authenticateUser, async (req, res) => {
         authUrlFound: Boolean(authUrl),
       });
     }
+
+    //NIYARA
+
+    if (normalizedLan.startsWith("NYRA")) {
+  const [[loan]] = await db.promise().query(
+    `SELECT status, stage
+     FROM loan_booking_niyara
+     WHERE lan = ?
+     LIMIT 1`,
+    [normalizedLan]
+  );
+
+  if (!loan) {
+    return res.status(404).json({
+      success: false,
+      message: "Niyara loan not found",
+    });
+  }
+
+  if (
+    loan.status !== "credit_approved" ||
+    loan.stage !== "esign_enach_pending"
+  ) {
+    return res.status(409).json({
+      success: false,
+      message: "Credit approval required before eNACH"
+    });
+  }
+}
 
     return res.status(200).json({
       success: true,

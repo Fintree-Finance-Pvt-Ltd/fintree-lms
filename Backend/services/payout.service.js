@@ -16,6 +16,7 @@ const {
   processCarePayDisbursement,
   processYaMoneyDisbursement,
   processSabGrowDisbursement,
+  processNiyaraDisbursement,
 } = require("../services/processEmiClubDisbursement");
 
 const {
@@ -50,6 +51,7 @@ const ALLOWED_PAYOUT_TABLES = [
   "loan_booking_ya_money",
   "loan_booking_claim_buddy",
   "loan_booking_sabgrow",
+  "loan_booking_niyara",
 ];
 
 // Per-partner maximum single-payout cap. `null` = no limit configured for
@@ -68,7 +70,8 @@ const PARTNER_MAX_PAYOUT_LIMITS = {
   loan_booking_quick_money: 25000,
   loan_booking_rapid_money_v2: 25000,
   loan_booking_ya_money: null,
-  loan_booking_sabgrow:null,
+  loan_booking_sabgrow: null,
+  loan_booking_niyara: 0,
 };
 
 // Canonical partner_master.partner_name for each product, matching the names
@@ -90,6 +93,7 @@ const TABLE_TO_PARTNER_NAME = {
   loan_booking_ya_money: "YAMONEY",
   loan_booking_claim_buddy: "CLAIM-BUDDY",
   loan_booking_sabgrow: "SBR:",
+  loan_booking_niyara: "NIYARA",
 };
 
 // manual_rps_* table backing each partner's live POS (principal outstanding),
@@ -109,6 +113,7 @@ const TABLE_TO_POS_TABLE = {
   loan_booking_rapid_money_v2: null,
   loan_booking_ya_money: null,
   loan_booking_sabgrow:null,
+  loan_booking_niyara: "manual_rps_niyara",
 };
 
 // Rapid Money and Quick Money already run their own pre-transfer disbursement-
@@ -365,7 +370,7 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
   `;
     }
     if (table === "loan_booking_rapid_money_v2") {
-  loanQuery = `
+      loanQuery = `
     SELECT
       application_id,
       bank_ac_name AS beneficiary_name,
@@ -377,7 +382,7 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
     WHERE lan = ?
     LIMIT 1
   `;
-}
+    }
     if (table === "loan_booking_loan_digit") {
       loanQuery = `
         SELECT
@@ -464,9 +469,35 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
       loanQuery = await buildYaMoneyPayoutQuery();
     }
 
+    if (table === "loan_booking_niyara") {
+      if (!/^NYRA\d+$/.test(String(lan || "").trim())) {
+        throw new Error("Invalid Niyara LAN");
+      }
 
-if (table === "loan_booking_sabgrow") {
-  loanQuery = `
+      loanQuery = `
+    SELECT
+      name_in_bank AS beneficiary_name,
+      net_disbursement AS loan_amount,
+      account_number,
+      ifsc
+    FROM loan_booking_niyara
+    WHERE lan = ?
+      AND status = 'ops_checker_approved'
+      AND stage = 'disbursement_pending'
+      AND ops_maker_decision = 'APPROVED'
+      AND ops_checker_decision = 'APPROVED'
+      AND ops_maker_decision_by IS NOT NULL
+      AND ops_checker_decision_by IS NOT NULL
+      AND ops_maker_decision_by <> ops_checker_decision_by
+      AND sanction_esign_status = 'SIGNED'
+      AND agreement_esign_status = 'SIGNED'
+      AND bank_status = 'MANDATE_CREATED'
+    LIMIT 1
+  `;
+    }
+
+    if (table === "loan_booking_sabgrow") {
+      loanQuery = `
     SELECT
       customer_name AS beneficiary_name,
       net_disbursement AS loan_amount,
@@ -476,7 +507,7 @@ if (table === "loan_booking_sabgrow") {
     WHERE lan = ?
     LIMIT 1
   `;
-} 
+    }
 
     const [[loan]] = await db.promise().query(loanQuery, loanParams);
 
@@ -572,6 +603,26 @@ if (table === "loan_booking_sabgrow") {
           success: false,
           reason: posGate.reason,
           message: posGate.message,
+        };
+      }
+    }
+
+    if (table === "loan_booking_niyara") {
+      const dueDay = Number(process.env.NIYARA_EMI_DUE_DAY);
+      const cutoffDay = Number(process.env.NIYARA_EMI_CUTOFF_DAY);
+
+      if (
+        process.env.ENABLE_REAL_PAYOUT !== "true" ||
+        !Number.isInteger(dueDay) ||
+        dueDay < 1 ||
+        dueDay > 28 ||
+        !Number.isInteger(cutoffDay) ||
+        cutoffDay < 1 ||
+        cutoffDay > 31
+      ) {
+        return {
+          success: false,
+          message: "Niyara payout or EMI policy not configured",
         };
       }
     }
@@ -900,11 +951,11 @@ if (table === "loan_booking_sabgrow") {
         disbursementDate: new Date(tr.transfer_date),
       });
     } else if (table === "loan_booking_rapid_money_v2") {
-        console.log("[RAPID MONEY V2] Payout successful:", {
-    lan,
-    utr: tr.unique_transaction_reference,
-    testMode: isTestMode,
-  });
+      console.log("[RAPID MONEY V2] Payout successful:", {
+        lan,
+        utr: tr.unique_transaction_reference,
+        testMode: isTestMode,
+      });
       const webhookResult = await sendV2DisbursementWebhook({
         lan,
         transactionId: tr.unique_transaction_reference,
@@ -924,7 +975,7 @@ if (table === "loan_booking_sabgrow") {
         disbursementUTR: tr.unique_transaction_reference,
         disbursementDate: new Date(tr.transfer_date),
       });
-    }else if (table === "loan_booking_finso") {
+    } else if (table === "loan_booking_finso") {
       await processFinsoDisbursement({
         lan,
         disbursementUTR: tr.unique_transaction_reference,
@@ -944,6 +995,14 @@ if (table === "loan_booking_sabgrow") {
       });
     } else if (table === "loan_booking_ya_money") {
       await processYaMoneyDisbursement({
+        lan,
+        disbursementUTR: tr.unique_transaction_reference,
+        disbursementDate: new Date(tr.transfer_date),
+      });
+    }
+    //NIYARA
+    else if (table === "loan_booking_niyara") {
+      await processNiyaraDisbursement({
         lan,
         disbursementUTR: tr.unique_transaction_reference,
         disbursementDate: new Date(tr.transfer_date),

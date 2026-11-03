@@ -216,6 +216,8 @@ app.use(
 
 app.use("/api/srbh", require("./routes/srbh/srbhDealerRoutes"));
 
+app.use("/api/niyara",require("./routes/Niyara/NiyaraRoutes"));  // ✅ Register Routes for Niyara
+
 app.use("/api/bundela", require("./routes/Bundela/bundelaDealerRoutes"));
 app.use("/api/payout", payoutRoutes); // ✅ Register Payout Reinitiate Routes
 app.use("/api/utr", verifyToken, require("./routes/utrRoutes")); // ✅ Register UTR Routes
