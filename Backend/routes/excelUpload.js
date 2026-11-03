@@ -12,6 +12,7 @@ const { XMLParser } = require("fast-xml-parser");
 const verifyApiKey = require("../middleware/apiKeyAuth");
 const { approveAndInitiatePayout } = require("../services/payout.service");
 const { sendLoanStatusMail } = require("../jobs/mailer");
+const { sendLoanWebhook } = require("../utils/webhook");
 const { generateDailySupplyChainDemand } = require("../services/demandService"); // moved from Supply chain controller for better modularity
 const {
   generateDemandFromInvoiceDisbursement,
@@ -2876,6 +2877,22 @@ router.put("/login-loans/:lan", (req, res) => {
             customerName,
             "customer name",
           );
+
+          if (
+            table === "loan_booking_emiclub" &&
+            status === "rejected" &&
+            lan.toUpperCase().startsWith("FINE") &&
+            !lan.toUpperCase().startsWith("FINEW")
+          ) {
+            await sendLoanWebhook({
+              external_ref_no: partnerLoanId || null,
+              utr: null,
+              disbursement_date: null,
+              reference_number: lan,
+              status: "REJECTED",
+              reject_reason: null,
+            });
+          }
 
           // ✅ WEBHOOK — for FINS loans only
           if (lan.startsWith("FINS")) {
