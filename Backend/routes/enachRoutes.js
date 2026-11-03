@@ -389,6 +389,10 @@ const extractWebhookData = (event) => {
       mandateData?.customerRefNumber ||
       mandateData?.customer_reference ||
       mandateData?.customerReference ||
+      // Digio's api_mandate webhook nests these one level deeper,
+      // under "others" (confirmed from a real ZBCL mandate payload).
+      mandateData?.others?.customer_ref_number ||
+      mandateData?.others?.scheme_ref_number ||
       null,
 
     registrationStatus:
@@ -1805,6 +1809,31 @@ router.post("/webhooks/digio-mandate", async (req, res) => {
         await db.promise().query(
           `
               UPDATE loan_booking_clayyo
+              SET
+                bank_status =
+                  'MANDATE_CREATED',
+
+                enach_umrn =
+                  COALESCE(
+                    ?,
+                    enach_umrn
+                  )
+
+              WHERE lan = ?
+              `,
+          [webhook.umrn, customerReference],
+        );
+      }
+
+      /*
+       * Save the generated UMRN in Zebrs — the generic broadcast
+       * above only sets bank_status (no enach_umrn column on most
+       * tables), so Zebrs needs this same explicit save Clayyo gets.
+       */
+      if (customerReference.startsWith("ZBCL")) {
+        await db.promise().query(
+          `
+              UPDATE loan_booking_zebrs
               SET
                 bank_status =
                   'MANDATE_CREATED',
