@@ -1014,7 +1014,7 @@ if (!loan.dealer_application_id) {
 
 if (
   normalizeText(loan.dealer_status) !==
-  "ACTIVE"
+  "APPROVED"
 ) {
   return setPending(
     "ZEBRS_DEALER_NOT_ACTIVE",
@@ -1038,70 +1038,6 @@ if (
     loan.vehicle_purchase_price,
     0,
   ) <= 0
-) {
-  return setPending(
-    "E_RICKSHAW_MODEL_PRICE_MISSING",
-  );
-}
-
-if (!loan.dealer_application_id) {
-  return setPending("ZEBRS_DEALER_NOT_FOUND");
-}
-
-if (normalizeText(loan.dealer_status) !== "ACTIVE") {
-  return setPending("ZEBRS_DEALER_NOT_ACTIVE");
-}
-
-if (!loan.dealer_product_id) {
-  return setPending("ZEBRS_DEALER_PRODUCT_NOT_FOUND");
-}
-
-if (!loan.e_rickshaw_model) {
-  return setPending(
-    "E_RICKSHAW_MODEL_NOT_FOUND_IN_DEALER_PRODUCT",
-  );
-}
-
-if (toNumber(loan.vehicle_purchase_price, 0) <= 0) {
-  return setPending("E_RICKSHAW_MODEL_PRICE_MISSING");
-}
-
-    if (!loanRows.length) {
-      throw new Error(
-        `Zebrs loan not found for LAN ${lan}`,
-      );
-    }
-
-
-    if (!loan.dealer_application_id) {
-  return setPending(
-    "ZEBRS_DEALER_NOT_FOUND",
-  );
-}
-
-if (
-  normalizeText(loan.dealer_status) !==
-  "ACTIVE"
-) {
-  return setPending(
-    "ZEBRS_DEALER_NOT_ACTIVE",
-  );
-}
-
-if (!loan.dealer_product_id) {
-  return setPending(
-    "ZEBRS_DEALER_PRODUCT_NOT_FOUND",
-  );
-}
-
-if (!loan.e_rickshaw_model) {
-  return setPending(
-    "E_RICKSHAW_MODEL_NOT_FOUND_IN_DEALER_PRODUCT",
-  );
-}
-
-if (
-  toNumber(loan.vehicle_purchase_price, 0) <= 0
 ) {
   return setPending(
     "E_RICKSHAW_MODEL_PRICE_MISSING",
