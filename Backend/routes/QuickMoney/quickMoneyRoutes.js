@@ -1,5 +1,12 @@
 const express = require("express");
 const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
+const {
+  searchCkyc,
+  sendCkycOtp,
+  verifyCkycOtp,
+} = require("../../services/ckycDownloadService");
 
 const db = require("../../config/db");
 const { isRetryableDbError } = require("../../utils/retryableDbError");
@@ -4648,4 +4655,430 @@ router.post("/v1/rejection-webhook/by-lan", verifyApiKey, async (req, res) => {
     });
   }
 });
+// ============================================================
+// CKYC — SEND OTP / VALIDATE OTP
+//
+// Same flow as RapidMoney's CKYC routes (switchMyLoanRotues.js) —
+// see routes/switchMyLoan/befiscckycresponse.txt for the third
+// party's response shape. The partner only sends pan_number +
+// mobile, but the vendor's send-otp needs a ckycReferenceId (not
+// the PAN), which is only available by first calling the vendor's
+// /ckyc/search with PAN + DOB + mobile — so send-otp here does
+// search -> send-otp internally and the partner never sees that
+// extra step. DOB comes from this applicant's own loan record
+// (loan_booking_quick_money), since the partner-facing contract
+// doesn't include it.
+//
+// validate-otp replays the provider_request_id captured from
+// send-otp's response (stored in quick_money_ckyc_otp_sessions)
+// since the partner only sends back pan_number + otp, not that id.
+//
+// NOTE: the third party's base URL is a placeholder
+// (CKYC_BUREAU_BASE_URL env var) pending the real host.
+// ============================================================
+
+const QM_PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+
+function qmCkycValidationError(res, message) {
+  return res.status(400).json({
+    is_success: false,
+    error: {
+      message,
+      code: "request_validation_error",
+    },
+  });
+}
+
+function qmCkycServerError(res, message) {
+  return res.status(500).json({
+    is_success: false,
+    error: {
+      message: message || "Something went wrong. Please try again.",
+      code: "server_error",
+    },
+  });
+}
+
+// Best-effort CERSAI/CKYC image_code -> document_type mapping. Not
+// confirmed against this provider's actual code list — adjust once
+// confirmed, this is only a readable label for the partner.
+const QM_CKYC_IMAGE_CODE_TO_DOC_TYPE = {
+  "02": "photograph",
+  "03": "identity_proof",
+  "04": "address_proof",
+  "09": "signature",
+  "36": "other_document",
+};
+
+async function qmSaveCkycImageAndGetUrl(req, panNumber, lan, documentType, image, index) {
+  const ext =
+    String(image.image_type || "jpg").toLowerCase() === "pdf" ? "pdf" : "jpg";
+
+  const dir = path.join(__dirname, "..", "..", "uploads", "ckyc", panNumber);
+  fs.mkdirSync(dir, { recursive: true });
+
+  const filename = `${Date.now()}_${index}_${image.image_code || "doc"}.${ext}`;
+  fs.writeFileSync(
+    path.join(dir, filename),
+    Buffer.from(image.image_data || "", "base64"),
+  );
+
+  const url = `${req.protocol}://${req.get("host")}/uploads/ckyc/${panNumber}/${filename}`;
+
+  if (lan) {
+    try {
+      await db.promise().query(
+        `INSERT INTO loan_documents
+          (lan, doc_name, file_name, source_url, original_name, uploaded_at)
+         VALUES (?, ?, ?, ?, ?, NOW())`,
+        [
+          lan,
+          `CKYC_${documentType.toUpperCase()}`,
+          filename,
+          url,
+          `CKYC ${documentType} - ${panNumber}`,
+        ],
+      );
+    } catch (dbError) {
+      console.error("[QuickMoney CKYC documents] loan_documents insert failed", {
+        lan,
+        panNumber,
+        message: dbError.message,
+      });
+    }
+  }
+
+  return url;
+}
+
+function buildQmCkycAddress(parts) {
+  return parts
+    .filter((part) => part !== null && part !== undefined && part !== "")
+    .join(" ");
+}
+
+async function mapQmCkycResultToPartnerFormat(result, panNumber, lan, req) {
+  const personal = result?.personalDetails || {};
+  const images = result?.imageDetails?.image || [];
+
+  const documents = [];
+  for (let index = 0; index < images.length; index++) {
+    const image = images[index];
+    const documentType =
+      QM_CKYC_IMAGE_CODE_TO_DOC_TYPE[image.image_code] || "unknown";
+    const url = await qmSaveCkycImageAndGetUrl(
+      req,
+      panNumber,
+      lan,
+      documentType,
+      image,
+      index,
+    );
+    documents.push({ document_type: documentType, url });
+  }
+
+  const correspondenceParts = {
+    CORRES_LINE1: personal.corresLine1 || null,
+    CORRES_LINE2: personal.corresLine2 || null,
+    CORRES_LINE3: personal.corresLine3 || null,
+    CORRES_PIN: personal.corresPin || null,
+    CORRES_CITY: personal.corresCity || null,
+    CORRES_STATE: personal.corresState || null,
+  };
+
+  const permanentParts = {
+    PERM_LINE1: personal.permLine1 || null,
+    PERM_LINE2: personal.permLine2 || null,
+    PERM_LINE3: personal.permLine3 || null,
+    PERM_PIN: personal.permPin || null,
+    PERM_CITY: personal.permCity || null,
+    PERM_STATE: personal.permState || null,
+  };
+
+  return {
+    ckyc_no: personal.ckycNo || null,
+    name: personal.fullName || null,
+    fathers_name: personal.fatherFullname || null,
+    dob: personal.dob || null,
+    correspondence_address_parts: correspondenceParts,
+    correspondence_address: buildQmCkycAddress([
+      correspondenceParts.CORRES_LINE1,
+      correspondenceParts.CORRES_LINE2,
+      correspondenceParts.CORRES_LINE3,
+      correspondenceParts.CORRES_CITY,
+      correspondenceParts.CORRES_STATE,
+      correspondenceParts.CORRES_PIN,
+    ]),
+    correspondance_address_pin_code: correspondenceParts.CORRES_PIN,
+    permanent_address: buildQmCkycAddress([
+      permanentParts.PERM_LINE1,
+      permanentParts.PERM_LINE2,
+      permanentParts.PERM_LINE3,
+      permanentParts.PERM_CITY,
+      permanentParts.PERM_STATE,
+      permanentParts.PERM_PIN,
+    ]),
+    permanent_address_parts: permanentParts,
+    permanent_address_pin_code: permanentParts.PERM_PIN,
+    email: personal.email || null,
+    gender: personal.gender || null,
+    mob_num: personal.mobNum || null,
+    kyc_date: personal.kycDate || null,
+    documents,
+  };
+}
+
+async function qmSaveCkycRecord(panNumber, lan, personal, mapped) {
+  try {
+    await db.promise().query(
+      `INSERT INTO quick_money_ckyc_records
+        (lan, pan_number, ckyc_no, name, fathers_name, dob, kyc_date, email, gender, mobile_number, correspondence_address, permanent_address, documents, personal_details)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        lan || null,
+        panNumber,
+        mapped.ckyc_no,
+        mapped.name,
+        mapped.fathers_name,
+        mapped.dob,
+        mapped.kyc_date,
+        mapped.email,
+        mapped.gender,
+        mapped.mob_num,
+        mapped.correspondence_address,
+        mapped.permanent_address,
+        JSON.stringify(mapped.documents || []),
+        JSON.stringify(personal || {}),
+      ],
+    );
+  } catch (err) {
+    console.error("[QuickMoney CKYC] failed to persist ckyc record", {
+      panNumber,
+      lan,
+      message: err.message,
+    });
+  }
+}
+
+function formatDobForQmCkyc(dob) {
+  if (!dob) return null;
+  const date = dob instanceof Date ? dob : new Date(dob);
+  if (Number.isNaN(date.getTime())) return null;
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${day}-${month}-${date.getFullYear()}`;
+}
+
+router.post("/v1/kyc/ckyc/send-otp", verifyApiKey, async (req, res) => {
+  try {
+    const pan_number = String(req.body?.pan_number || "")
+      .trim()
+      .toUpperCase();
+    const mobile_number = String(req.body?.mobile_number || "").trim();
+
+    if (!pan_number || !QM_PAN_REGEX.test(pan_number)) {
+      return qmCkycValidationError(res, "A valid pan_number is required.");
+    }
+
+    if (!mobile_number || !/^\d{10}$/.test(mobile_number.replace(/\D/g, "").slice(-10))) {
+      return qmCkycValidationError(res, "A valid mobile_number is required.");
+    }
+
+    const [[loanRow]] = await db.promise().query(
+      `SELECT dob FROM loan_booking_quick_money
+       WHERE pan_number = ?
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [pan_number],
+    );
+
+    const dob = formatDobForQmCkyc(loanRow?.dob);
+
+    if (!dob) {
+      return qmCkycValidationError(
+        res,
+        "No loan record with a date of birth was found for this PAN.",
+      );
+    }
+
+    let searchResponse;
+
+    try {
+      searchResponse = await searchCkyc({ pan_number, dob, mobile_number });
+    } catch (providerError) {
+      console.error("[QuickMoney CKYC search] provider call failed", {
+        pan_number,
+        message: providerError.message,
+      });
+      return qmCkycServerError(
+        res,
+        "Unable to send OTP right now. Please try again.",
+      );
+    }
+
+    const ckycReferenceId = searchResponse?.data?.result?.ckycReferenceId;
+
+    if (!searchResponse?.success || !searchResponse?.data?.success || !ckycReferenceId) {
+      return qmCkycValidationError(
+        res,
+        searchResponse?.data?.message ||
+          searchResponse?.error ||
+          "No CKYC record found for the given PAN.",
+      );
+    }
+
+    let providerResponse;
+
+    try {
+      providerResponse = await sendCkycOtp({
+        ckyc_reference_id: ckycReferenceId,
+        mobile_number,
+      });
+    } catch (providerError) {
+      console.error("[QuickMoney CKYC send-otp] provider call failed", {
+        pan_number,
+        message: providerError.message,
+      });
+      return qmCkycServerError(
+        res,
+        "Unable to send OTP right now. Please try again.",
+      );
+    }
+
+    if (!providerResponse?.success || !providerResponse?.data?.success) {
+      return qmCkycValidationError(
+        res,
+        providerResponse?.data?.message ||
+          providerResponse?.error ||
+          "Unable to send OTP for the given PAN.",
+      );
+    }
+
+    await db.promise().query(
+      `INSERT INTO quick_money_ckyc_otp_sessions
+        (pan_number, mobile_number, provider_txn_id, provider_request_id)
+       VALUES (?, ?, ?, ?)`,
+      [
+        pan_number,
+        mobile_number,
+        providerResponse.data.providerTxnId || null,
+        providerResponse.data.providerRequestId || null,
+      ],
+    );
+
+    return res.status(200).json({
+      is_success: true,
+      data: {
+        message: providerResponse.data.message,
+      },
+    });
+  } catch (error) {
+    console.error("[QuickMoney CKYC send-otp] failed", {
+      message: error.message,
+      stack: error.stack,
+    });
+    return qmCkycServerError(res);
+  }
+});
+
+router.post("/v1/kyc/ckyc/validate-otp", verifyApiKey, async (req, res) => {
+  try {
+    const pan_number = String(req.body?.pan_number || "")
+      .trim()
+      .toUpperCase();
+    const otp = String(req.body?.otp || "").trim();
+
+    if (!pan_number || !QM_PAN_REGEX.test(pan_number)) {
+      return qmCkycValidationError(res, "A valid pan_number is required.");
+    }
+
+    if (!otp) {
+      return qmCkycValidationError(res, "otp is required.");
+    }
+
+    const [[session]] = await db.promise().query(
+      `SELECT provider_txn_id, provider_request_id
+       FROM quick_money_ckyc_otp_sessions
+       WHERE pan_number = ?
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [pan_number],
+    );
+
+    if (!session) {
+      return qmCkycValidationError(
+        res,
+        "OTP not requested for this PAN. Please request a new OTP first.",
+      );
+    }
+
+    if (!session.provider_request_id) {
+      return qmCkycValidationError(
+        res,
+        "OTP session is missing a provider request id. Please request a new OTP.",
+      );
+    }
+
+    let providerResponse;
+
+    try {
+      providerResponse = await verifyCkycOtp({
+        request_id: session.provider_request_id,
+        otp,
+      });
+    } catch (providerError) {
+      console.error("[QuickMoney CKYC validate-otp] provider call failed", {
+        pan_number,
+        message: providerError.message,
+      });
+      return qmCkycServerError(
+        res,
+        "Unable to validate OTP right now. Please try again.",
+      );
+    }
+
+    if (!providerResponse?.success || !providerResponse?.data?.success) {
+      return qmCkycValidationError(
+        res,
+        providerResponse?.data?.message ||
+          providerResponse?.error ||
+          "Invalid or expired OTP.",
+      );
+    }
+
+    const [[loanRow]] = await db.promise().query(
+      `SELECT lan FROM loan_booking_quick_money
+       WHERE pan_number = ?
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [pan_number],
+    );
+
+    const mapped = await mapQmCkycResultToPartnerFormat(
+      providerResponse.data.result,
+      pan_number,
+      loanRow?.lan || null,
+      req,
+    );
+
+    await qmSaveCkycRecord(
+      pan_number,
+      loanRow?.lan || null,
+      providerResponse.data.result?.personalDetails,
+      mapped,
+    );
+
+    return res.status(200).json({
+      is_success: true,
+      data: mapped,
+    });
+  } catch (error) {
+    console.error("[QuickMoney CKYC validate-otp] failed", {
+      message: error.message,
+      stack: error.stack,
+    });
+    return qmCkycServerError(res);
+  }
+});
+
 module.exports = router;
