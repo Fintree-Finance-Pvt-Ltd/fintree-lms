@@ -21,7 +21,7 @@ const pool = mysql.createPool({
   // what looked like the app "stuck" with no error anywhere. Bounding queueLimit
   // and adding connectTimeout makes that failure fast and loud instead.
   connectionLimit: 12,
-  queueLimit: 30,
+  queueLimit: 0,
   connectTimeout: 10000,
   idleTimeout: 60000,
   maxIdle: 6,
