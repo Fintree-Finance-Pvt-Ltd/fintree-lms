@@ -380,6 +380,7 @@ import ZebrsBRERejectedLoans from "./components/Zebrs/ZebrsBRERejectedLoans.jsx"
 import CarePayEducationAllLoans from "./components/CarePayEducation/CarePayEduAllLoans.jsx";
 import CarePayEduDisburseInitiate from "./components/CarePayEducation/CarePayEduDisburseInitiate.jsx";
 import CarePayEduDisbursedLoans from "./components/CarePayEducation/CarePayEduDisbursedLoans.jsx";
+import NiyaraLoanBooking from "./components/Niyara/NiyaraLoanBooking.jsx";
 
 function App() {
   return (
@@ -2599,6 +2600,15 @@ function App() {
           <Route
             path="/claimcurebuddy/ops-screen"
             element={<Navigate to="/claimcurebuddy/loan-booking" replace />}
+          />
+  {/* =========================
+   ✅ niyara Routes
+========================= */}
+           <Route
+            path="/niyara/loan-booking"
+            element={
+              <NiyaraLoanBooking />
+            }
           />
           {/* =========================
    ✅ Bundela Routes

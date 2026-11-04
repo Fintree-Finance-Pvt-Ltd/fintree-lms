@@ -231,6 +231,7 @@ const Sidebar = () => {
       "Clayoo Loans": <Layers size={iconSize} />,
       "Loan Digit": <Layers size={iconSize} />,
       "RapidMoney Loans": <Layers size={iconSize} />,
+     "Niyara Loans": <Layers size={iconSize} />,
       "Ya Money Loans": <Wallet size={iconSize} />,
       "Niyara Loans": <Wallet size={iconSize} />,
       "Switch My Loans": <Layers size={iconSize} />,
@@ -291,6 +292,7 @@ const Sidebar = () => {
           "/supply-chain-loans",
           "/clayoo-loans",
           "/claimcurebuddy",
+          "/niyara",
           "/motion-corp",
           "/zebrs",
           "/sampada",
@@ -345,6 +347,12 @@ const Sidebar = () => {
           p.path.includes("/claimcurebuddy/draft-cases") ||
           p.path.includes("/claimcurebuddy/all-loans") ||
           p.path.includes("/claimcurebuddy/disbursed-loans")),
+    ),
+
+      "niyara Loans": allowedPages.filter(
+      (p) =>
+        p.path.includes("/niyara") &&
+        (p.path.includes("/niyara/loan-booking") ),
     ),
     "CirclePe Loans": allowedPages.filter((p) =>
       p.path.includes("/circlepe-loans"),
