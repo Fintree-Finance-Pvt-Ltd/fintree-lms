@@ -74,9 +74,29 @@ const {
 // const digioWebhookRoutes = require("./routes/digioWebhookRoutes");
 
 const crypto = require("crypto");
+const dns = require("dns");
 // const { initScheduler } = require('./jobs/smsSchedulerRaw');
 const { initScheduler, runOnce } = require("./jobs/smsSchedulerRaw");
 const mobileRevocationLookup = require("./utils/mnrlApiService");
+const { getClientIp } = require("./utils/clientIp");
+const createIpWhitelistMiddleware = require("./middleware/ipWhitelist");
+
+// Reverse DNS can hang on IPs with no PTR record; bound it so the audit
+// insert's setImmediate callback never stalls behind a slow/failed lookup.
+async function resolveCallerDomain(ip) {
+  if (!ip) return null;
+  try {
+    const hostnames = await Promise.race([
+      dns.promises.reverse(ip),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("reverse dns timeout")), 1500),
+      ),
+    ]);
+    return hostnames?.[0] || null;
+  } catch {
+    return null;
+  }
+}
 const { initAadhaarKyc } = require("./services/digitapaadharservice");
 const { autoRunFinsoBreIfReady } = require("./utils/fincrestBRE");
 const { autoApproveSrbhIfAllVerified } = require("./routes/srbh/srbhBRE");
@@ -216,7 +236,7 @@ app.use(
 
 app.use("/api/srbh", require("./routes/srbh/srbhDealerRoutes"));
 
-app.use("/api/niyara",require("./routes/Niyara/NiyaraRoutes"));  // ✅ Register Routes for Niyara
+app.use("/api/niyara", require("./routes/Niyara/NiyaraRoutes"));  // ✅ Register Routes for Niyara
 
 app.use("/api/bundela", require("./routes/Bundela/bundelaDealerRoutes"));
 app.use("/api/payout", payoutRoutes); // ✅ Register Payout Reinitiate Routes
@@ -314,6 +334,9 @@ function rmlApiAuditMiddleware(req, res, next) {
   res.on("finish", () => {
     setImmediate(async () => {
       try {
+        const clientIp = getClientIp(req);
+        const callerDomain = await resolveCallerDomain(clientIp);
+
         const responseData =
           responseBody?.data && typeof responseBody.data === "object"
             ? responseBody.data
@@ -390,9 +413,12 @@ function rmlApiAuditMiddleware(req, res, next) {
             response_body,
             duration_ms,
             ip_address,
-            user_agent
+            user_agent,
+            caller_domain,
+            origin_header,
+            referer_header
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `,
           [
             requestId,
@@ -409,8 +435,11 @@ function rmlApiAuditMiddleware(req, res, next) {
             res.statusCode,
             safeAuditJson(responseBody),
             Date.now() - startedAt,
-            req.ip || req.socket?.remoteAddress || null,
+            clientIp,
             req.headers["user-agent"] || null,
+            callerDomain,
+            req.headers["origin"] || null,
+            req.headers["referer"] || null,
           ],
         );
       } catch (auditError) {
@@ -613,6 +642,7 @@ function rmlV2ApiAuditMiddleware(req, res, next) {
 app.use(
   "/api/rapid-money",
   rmlApiAuditMiddleware,
+  createIpWhitelistMiddleware("RML_ALLOWED_IPS", "RAPID MONEY"),
   require("./routes/switchMyLoan/switchMyLoanRotues"),
 ); // ✅ Register Switch My Loan Routes
 
@@ -670,6 +700,9 @@ function quickMoneyApiAuditMiddleware(req, res, next) {
   res.on("finish", () => {
     setImmediate(async () => {
       try {
+        const clientIp = getClientIp(req);
+        const callerDomain = await resolveCallerDomain(clientIp);
+
         const responseData =
           responseBody?.data && typeof responseBody.data === "object"
             ? responseBody.data
@@ -746,9 +779,12 @@ function quickMoneyApiAuditMiddleware(req, res, next) {
             response_body,
             duration_ms,
             ip_address,
-            user_agent
+            user_agent,
+            caller_domain,
+            origin_header,
+            referer_header
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `,
           [
             requestId,
@@ -765,8 +801,11 @@ function quickMoneyApiAuditMiddleware(req, res, next) {
             res.statusCode,
             safeAuditJson(responseBody),
             Date.now() - startedAt,
-            req.ip || req.socket?.remoteAddress || null,
+            clientIp,
             req.headers["user-agent"] || null,
+            callerDomain,
+            req.headers["origin"] || null,
+            req.headers["referer"] || null,
           ],
         );
       } catch (auditError) {
@@ -839,7 +878,12 @@ app.use(
 
 app.use("/api/payment-receipts", paymentReceiptRoutes);
 
-app.use("/api/quick-money", quickMoneyApiAuditMiddleware, quickMoneyRoutes);
+app.use(
+  "/api/quick-money",
+  quickMoneyApiAuditMiddleware,
+  createIpWhitelistMiddleware("QUICKMONEY_ALLOWED_IPS", "QUICK MONEY"),
+  quickMoneyRoutes,
+);
 app.post("/api/cibil/:id/pdf", async (req, res) => {
   try {
     const doc = await generateForReport(req.params.id);
