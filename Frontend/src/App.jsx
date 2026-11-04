@@ -366,6 +366,7 @@ import NiyaraEsignEnachScreen from "./components/Niyara/EsignEnachScreen";
 import NiyaraDisbursedLoans from "./components/Niyara/DisbursedLoanScreen";
 import NiyaraOpsMakerScreen from "./components/Niyara/OpsMakerScreen";
 import NiyaraOpsCheckerScreen from "./components/Niyara/OpsCheckerScreen";
+import NiyaraLoanBooking from "./components/Niyara/NiyaraLoanBooking.jsx";
 
 // ===================== Zebrs Imports =====================
 import ZebrsDealerLists from "./components/Zebrs/ZebrsDealerLists";
@@ -380,7 +381,6 @@ import ZebrsBRERejectedLoans from "./components/Zebrs/ZebrsBRERejectedLoans.jsx"
 import CarePayEducationAllLoans from "./components/CarePayEducation/CarePayEduAllLoans.jsx";
 import CarePayEduDisburseInitiate from "./components/CarePayEducation/CarePayEduDisburseInitiate.jsx";
 import CarePayEduDisbursedLoans from "./components/CarePayEducation/CarePayEduDisbursedLoans.jsx";
-import NiyaraLoanBooking from "./components/Niyara/NiyaraLoanBooking.jsx";
 
 function App() {
   return (

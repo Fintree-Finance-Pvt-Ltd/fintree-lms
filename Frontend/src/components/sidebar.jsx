@@ -350,7 +350,13 @@ const Sidebar = () => {
       "niyara Loans": allowedPages.filter(
       (p) =>
         p.path.includes("/niyara") &&
-        (p.path.includes("/niyara/loan-booking") ),
+        (p.path.includes("/niyara/loan-booking")||
+          p.path.includes("/niyara/credit-team") ||
+          p.path.includes("/niyara/disbursed-loans") ||
+          p.path.includes("/niyara/ops-maker") ||
+          p.path.includes("/niyara/ops-checker") ||
+          p.path.includes("/niyara/all-loans") ||
+          p.path.includes("/niyara/esign-enach")),
     ),
     "CirclePe Loans": allowedPages.filter((p) =>
       p.path.includes("/circlepe-loans"),
