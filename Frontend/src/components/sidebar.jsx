@@ -232,6 +232,7 @@ const Sidebar = () => {
       "Loan Digit": <Layers size={iconSize} />,
       "RapidMoney Loans": <Layers size={iconSize} />,
       "Ya Money Loans": <Wallet size={iconSize} />,
+      "Niyara Loans": <Wallet size={iconSize} />,
       "Switch My Loans": <Layers size={iconSize} />,
       "Quick Money Loans": <Layers size={iconSize} />,
       "Motion Corp": <Users size={iconSize} />,
@@ -296,6 +297,7 @@ const Sidebar = () => {
           "/loan-digit",
           "/rapidmoney-loans",
           "/ya-money",
+          "/niyara",
           "/sml-loans",
           "/aldun-loans",
           "/mis-reports",
@@ -401,6 +403,7 @@ const Sidebar = () => {
       p.path.includes("/rapidmoney-loans"),
     ),
     "Ya Money Loans": allowedPages.filter((p) => p.path.includes("/ya-money")),
+    "Niyara Loans": allowedPages.filter((p) => p.path.includes("/niyara")),
     "Switch My Loans": allowedPages.filter((p) =>
       p.path.includes("/sml-loans"),
     ),

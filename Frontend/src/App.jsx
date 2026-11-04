@@ -358,6 +358,14 @@ import ClaimBuddyApprovedLoanDetails from "./components/ClaimBuddy/ClaimBuddyApp
 import ClaimBuddyOpsCheckerScreen from "./components/ClaimBuddy/ClaimBuddyOpsCheckerScreen";
 // import ClaimBuddyApproveInitiateScreen from "./components/ClaimBuddy/ClaimBuddyApproveInitiateScreen";
 
+//Niyara
+
+import NiyaraAllLoans from "./components/Niyara/AllLoansScreen";
+import NiyaraCreditTeamScreen from "./components/Niyara/CreditTeamScreen";
+import NiyaraDisbursedLoans from "./components/Niyara/DisbursedLoanScreen";
+import NiyaraOpsMakerScreen from "./components/Niyara/OpsMakerScreen";
+import NiyaraOpsCheckerScreen from "./components/Niyara/OpsCheckerScreen";
+
 // ===================== Zebrs Imports =====================
 import ZebrsDealerLists from "./components/Zebrs/ZebrsDealerLists";
 import ZebrsDealerLoginActions from "./components/Zebrs/ZebrsDealerLoginActions";
@@ -471,10 +479,7 @@ function App() {
               </PermissionRoute>
             }
           />
-           <Route
-               path="/payment-receipt"
-            element={<SaswatPaymentReceipt />}
-          />
+          <Route path="/payment-receipt" element={<SaswatPaymentReceipt />} />
           {/* <Route
   path="/nach-presentation"
   element={
@@ -1267,8 +1272,8 @@ function App() {
               </PermissionRoute>
             }
           />
-                        {/* CAREPAY EDUCATION */}
-           <Route
+          {/* CAREPAY EDUCATION */}
+          <Route
             path="/carepay-education-loans/all"
             element={
               <PermissionRoute pageName="CarePay Education All Loans">
@@ -1276,8 +1281,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
-           
           <Route
             path="/carepay-education-loans/disburse-initiate"
             element={
@@ -1286,8 +1289,7 @@ function App() {
               </PermissionRoute>
             }
           />
-
-            <Route
+          <Route
             path="/carepay-education-loans/disbursed"
             element={
               <PermissionRoute pageName="CarePay Education Disbursed Loans">
@@ -1295,8 +1297,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
-
           <Route
             path="/sterlion-loans/approved"
             element={
@@ -3037,7 +3037,49 @@ function App() {
               </PermissionRoute>
             }
           />
+          {/* ===================== Niyara Routes ===================== */}
+          <Route
+            path="/niyara/all-loans"
+            element={
+              <PermissionRoute pageName="Niyara All Loans">
+                <NiyaraAllLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/niyara/credit-team"
+            element={
+              <PermissionRoute pageName="Niyara Credit Team">
+                <NiyaraCreditTeamScreen />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/niyara/disbursed-loans"
+            element={
+              <PermissionRoute pageName="Niyara Disbursed Loans">
+                <NiyaraDisbursedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/niyara/ops-maker"
+            element={
+              <PermissionRoute pageName="Niyara Ops Maker">
+                <NiyaraOpsMakerScreen />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/niyara/ops-checker"
+            element={
+              <PermissionRoute pageName="Niyara Ops Checker">
+                <NiyaraOpsCheckerScreen />
+              </PermissionRoute>
+            }
+          />
         </Route>
+
         {/* Optional commented route */}
         {/* 
 <Route

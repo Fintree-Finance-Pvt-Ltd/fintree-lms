@@ -2400,6 +2400,7 @@ router.get("/all-loans", async (req, res) => {
     loan_booking_sabgrow: true,
     loan_booking_claim_buddy: true,
     loan_booking_zebrs: true, //Zebrs
+    loan_booking_niyara: true,
   };
 
   if (!allowedTables[table]) {

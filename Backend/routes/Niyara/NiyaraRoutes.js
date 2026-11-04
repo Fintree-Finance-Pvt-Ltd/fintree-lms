@@ -2953,5 +2953,48 @@ router.post("/:lan/verify", authenticateUser, async (req, res) => {
   }
 });
 
+
+router.get("/disbursed-loans", authenticateUser, async (req, res) => {
+  try {
+    const [rows] = await db.promise().query(
+      `
+      SELECT
+        id,
+        lan,
+        partner_loan_id,
+        customer_name,
+        mobile_number,
+        requested_amount,
+        loan_amount,
+        net_disbursement,
+        status,
+        stage,
+        created_at,
+        updated_at
+      FROM loan_booking_niyara
+      WHERE lan LIKE 'NYRA%'
+        AND status = 'Disbursed'
+      ORDER BY updated_at DESC
+      `
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Niyara disbursed loans fetched successfully",
+      rows,
+      total: rows.length,
+    });
+  } catch (error) {
+    console.error("[NIYARA] Disbursed Loans:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch Niyara disbursed loans",
+    });
+  }
+});
+
+
+
 // Export Router
 module.exports = router;

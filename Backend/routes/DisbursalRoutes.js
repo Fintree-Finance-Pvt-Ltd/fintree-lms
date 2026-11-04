@@ -193,6 +193,23 @@ router.get("/:lan", async (req, res) => {
       "COALESCE(lb.sanction_date, '0000-00-00') AS agreement_date";
   }
 
+  // ==============================
+// NIYARA UBL
+// ==============================
+if (lan.startsWith("NYRA")) {
+  tableName = "loan_booking_niyara";
+  loanAmountCol = "lb.loan_amount";
+  loanAmountExpr = "lb.loan_amount";
+  interestRateCol = "lb.interest AS interest_rate";
+  tenureCol = "lb.loan_tenure AS loan_tenure";
+  processingFeeCol ="COALESCE(lb.processing_fee, 0) AS processing_fee";
+  subventionCol = "0";
+  retentionCol = "0";
+  partnerLoanIdCol = "lb.partner_loan_id";
+  netDisbursementExpr = "lb.net_disbursement";
+  agreementDateExpr = "NULL AS agreement_date";
+}
+
   if (lan.startsWith("CLY")) {
     tableName = "loan_booking_clayyo";
     loanAmountCol = "lb.final_limit as loan_amount";
