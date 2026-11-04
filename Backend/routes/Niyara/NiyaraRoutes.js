@@ -1379,6 +1379,37 @@ router.patch("/:lan/credit-decision", authenticateUser, async (req, res) => {
   }
 });
 
+router.get("/esign-enach-loans", authenticateUser, async (req, res) => {
+  try {
+    const [rows] = await db.promise().query(`
+      SELECT
+        lan, customer_name, mobile_number, email,
+        loan_amount, loan_tenure, emi_amount,
+        status, stage,
+        bank_name, name_in_bank, account_number, ifsc,
+        bank_status,
+        sanction_esign_status, agreement_esign_status
+      FROM loan_booking_niyara
+      WHERE status = 'credit_approved'
+        AND stage = 'esign_enach_pending'
+        AND ops_maker_decision IS NULL
+      ORDER BY id DESC
+    `);
+
+    return res.json({
+      success: true,
+      rows,
+      total: rows.length
+    });
+  } catch (error) {
+    console.error("[NIYARA] eSign/eNACH:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch Niyara eSign/eNACH cases"
+    });
+  }
+});
+
 // POST /api/niyara/:lan/esign/:type
 router.post("/:lan/esign/:type", authenticateUser, async (req, res) => {
   try {

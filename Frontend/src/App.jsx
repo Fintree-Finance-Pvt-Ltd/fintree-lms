@@ -362,6 +362,7 @@ import ClaimBuddyOpsCheckerScreen from "./components/ClaimBuddy/ClaimBuddyOpsChe
 
 import NiyaraAllLoans from "./components/Niyara/AllLoansScreen";
 import NiyaraCreditTeamScreen from "./components/Niyara/CreditTeamScreen";
+import NiyaraEsignEnachScreen from "./components/Niyara/EsignEnachScreen";
 import NiyaraDisbursedLoans from "./components/Niyara/DisbursedLoanScreen";
 import NiyaraOpsMakerScreen from "./components/Niyara/OpsMakerScreen";
 import NiyaraOpsCheckerScreen from "./components/Niyara/OpsCheckerScreen";
@@ -3051,6 +3052,14 @@ function App() {
             element={
               <PermissionRoute pageName="Niyara Credit Team">
                 <NiyaraCreditTeamScreen />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/niyara/esign-enach"
+            element={
+              <PermissionRoute pageName="Niyara eSign & eNACH">
+                <NiyaraEsignEnachScreen />
               </PermissionRoute>
             }
           />

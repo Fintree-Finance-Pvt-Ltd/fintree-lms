@@ -26,6 +26,83 @@ function fillTemplate(html, data) {
   });
 }
 
+function fillNiyaraTemplate(html, loan) {
+  const date = (value) =>
+    value ? dayjs(value).format("DD-MM-YYYY") : "";
+
+  const firstEmiDate = loan.RPS?.[0]?.due_date;
+
+  const data = {
+    LAN: loan.lan,
+    APPLICATION_DATE: date(loan.login_date),
+    PARTNER_LOAN_ID: loan.partner_loan_id,
+
+    CUSTOMER_NAME: loan.customer_name,
+    BORROWER_NAME: loan.customer_name,
+    GENDER: loan.gender,
+    DOB: date(loan.borrower_dob),
+    CUSTOMER_ADDRESS: loan.CUSTOMER_ADDRESS,
+    MOBILE_NUMBER: loan.mobile_number,
+    EMAIL: loan.email,
+    AADHAAR_NO: loan.aadhaar_number, // Masked Aadhaar only
+    PAN_CARD: loan.pan_number,
+
+    BUSINESS_NAME: loan.business_name,
+    BUSINESS_TYPE: loan.business_type,
+    BUSINESS_ADDRESS: loan.business_address,
+
+    ACCOUNT_HOLDER_NAME: loan.name_in_bank,
+    BANK_NAME: loan.bank_name,
+    BANK_ACCOUNT_NUMBER: loan.account_number,
+    BANK_IFSC_CODE: loan.ifsc,
+
+    LOAN_AMOUNT: loan.loan_amount,
+    LOAN_TENURE: loan.loan_tenure,
+    INTEREST_RATE: loan.interest,
+    INTEREST_RATE_TYPE: loan.interest_rate_type,
+    EMI_AMOUNT: loan.emi_amount,
+    REPAYMENT_FREQUENCY: loan.repayment_frequency,
+    PROCESSING_FEE: loan.processing_fee,
+    INSURANCE_AMOUNT: loan.insurance_amount,
+    NET_DISBURSEMENT: loan.net_disbursement,
+    APR: loan.apr,
+
+    FIRST_EMI_DATE: date(firstEmiDate),
+    EMI_DUE_DATE: date(firstEmiDate),
+    AGREEMENT_DATE: date(loan.agreement_date),
+    AGREEMENT_PLACE: loan.agreement_place,
+
+    BANK_NAME_AND_ACCOUNT:
+      loan.bank_name && loan.account_number
+        ? `${loan.bank_name} - ${loan.account_number}`
+        : "",
+  };
+
+  const escapeHtml = (value) =>
+    String(value).replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    })[char]);
+
+  return html.replace(
+    /(<span\b[^>]*data-niyara-field="([^"]+)"[^>]*>)[\s\S]*?(<\/span>)/g,
+    (match, opening, key, closing) => {
+      const value = data[key];
+
+      return (
+        opening +
+        (value == null || String(value).trim() === ""
+          ? "—"
+          : escapeHtml(value)) +
+        closing
+      );
+    }
+  );
+}
+
 /* ======================================================
    NUMBER TO WORDS
 ====================================================== */
@@ -1290,7 +1367,8 @@ exports.generateAgreementPdf = async (lan) => {
   console.log("PATIENT_NAME:", loanData.PATIENT_NAME);
 
   console.log("==============================================");
-  const html = fillTemplate(templateHtml, loanData);
+  // const html = fillTemplate(templateHtml, loanData);
+  const html =type === "NIYARA" ? fillNiyaraTemplate(templateHtml, loanData) : fillTemplate(templateHtml, loanData);
 
   // Only CCB uses Handlebars because it has #each
 

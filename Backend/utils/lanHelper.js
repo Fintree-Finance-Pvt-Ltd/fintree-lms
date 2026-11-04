@@ -539,12 +539,14 @@ function getLoanContext(lan = "") {
     };
   }
 
-  
+
 if (normalizeLan(lan).startsWith("NYRA")) {
   return {
     type: "NIYARA",
     bookingTable: "loan_booking_niyara",
+    summaryTable: "niyara_loan_summary",
     rpsTable: "manual_rps_niyara",
+    agreementTemplate: "Niyara_UBL_Agreement.html",
 
     esignParties: [
       {
@@ -559,7 +561,6 @@ if (normalizeLan(lan).startsWith("NYRA")) {
     ],
   };
 }
-
 
   throw new Error(`Unknown LAN format: ${lan}`);
 }
