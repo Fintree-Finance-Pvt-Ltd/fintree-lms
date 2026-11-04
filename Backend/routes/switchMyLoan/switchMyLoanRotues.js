@@ -5590,7 +5590,16 @@ router.post(
         lan: loan.lan,
         table: "loan_booking_switch_my_loan",
       }).catch((payoutErr) => {
-        console.error("Payout initiation failed for LAN:", loan.lan, payoutErr);
+        // Logging the raw error (which can be an AxiosError) dumps its full
+        // .config/.response — including auth headers and request body — and
+        // can run to thousands of lines when the payout API is down or the
+        // credentials are wrong, flooding PM2 logs. Log only what's useful.
+        console.error("Payout initiation failed for LAN:", loan.lan, {
+          message: payoutErr.message,
+          status: payoutErr.response?.status,
+          statusText: payoutErr.response?.statusText,
+          stack: payoutErr.stack,
+        });
       });
 
       return res.json({

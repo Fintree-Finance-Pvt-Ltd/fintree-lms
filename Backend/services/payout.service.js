@@ -1162,12 +1162,24 @@ async function sendFintreePlDisbursementWebhook({
       timeout: 15000,
     });
   } catch (err) {
+    // err.response?.data can be a full HTML error page when the webhook
+    // endpoint is down, and err.response?.headers adds little value here —
+    // both have flooded PM2 logs in the past. Truncate/drop them.
+    const rawResponseData = err.response?.data;
+    const responseDataPreview =
+      rawResponseData === undefined || rawResponseData === null
+        ? null
+        : String(
+            typeof rawResponseData === "string"
+              ? rawResponseData
+              : JSON.stringify(rawResponseData),
+          ).slice(0, 500);
+
     console.error("📥 Fintree PL disbursement webhook RESPONSE (failure):", {
       webhookUrl,
       status: err.response?.status || null,
       statusText: err.response?.statusText || null,
-      responseHeaders: err.response?.headers || null,
-      responseData: err.response?.data || null,
+      responseDataPreview,
       errorMessage: err.message,
     });
     throw err;

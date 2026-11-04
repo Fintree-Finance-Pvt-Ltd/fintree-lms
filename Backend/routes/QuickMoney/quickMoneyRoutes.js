@@ -3552,6 +3552,10 @@ router.post(
 
           message: payoutErr.message,
 
+          status: payoutErr.response?.status,
+
+          statusText: payoutErr.response?.statusText,
+
           stack: payoutErr.stack,
         });
       });
