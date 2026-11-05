@@ -8,7 +8,7 @@ import React, {
   useState,
 } from "react";
 import { useNavigate } from "react-router-dom";
-
+import { Link } from "react-router-dom";
 import api from "../../api/api";
 import DataTable from "../ui/DataTable";
 import LoaderOverlay from "../ui/LoaderOverlay";
@@ -368,16 +368,25 @@ const SterlionMexonDexonAllLoans = ({
         key: "customer_name",
         header: "Customer Name",
         sortable: true,
-        render: (row) => (
-          <span
-            style={{
-              fontWeight: 700,
-              color: "#0f172a",
-            }}
-          >
-            {getCustomerName(row)}
-          </span>
-        ),
+        render: (row) =>
+          row?.lan ? (
+            <Link
+              to={`/sterlion-mexon-dexon/loan-details/${encodeURIComponent(row.lan)}`}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                fontWeight: 700,
+                color: "#0f766e",
+                textDecoration: "underline",
+                cursor: "pointer",
+              }}
+            >
+              {getCustomerName(row)}
+            </Link>
+          ) : (
+            <span style={{ fontWeight: 700, color: "#0f172a" }}>
+              {getCustomerName(row)}
+            </span>
+          ),
         sortAccessor: (row) => getCustomerName(row).toLowerCase(),
         csvAccessor: (row) =>
           getCustomerName(row) === "—" ? "" : getCustomerName(row),
@@ -388,13 +397,28 @@ const SterlionMexonDexonAllLoans = ({
         key: "lan",
         header: "LAN",
         sortable: true,
-        render: (row) => (
-          <span className="lan-code-badge">{displayValue(row?.lan)}</span>
-        ),
+        render: (row) =>
+          row?.lan ? (
+            <Link
+              to={`/sterlion-mexon-dexon/loan-details/${encodeURIComponent(row.lan)}`}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                color: "#0f766e",
+                fontWeight: 700,
+                textDecoration: "underline",
+                cursor: "pointer",
+              }}
+            >
+              {row.lan}
+            </Link>
+          ) : (
+            "—"
+          ),
         sortAccessor: (row) => String(row?.lan ?? "").toLowerCase(),
         csvAccessor: (row) => row?.lan ?? "",
         width: 170,
       },
+
       {
         key: "lender",
         header: "Lender",

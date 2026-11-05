@@ -1444,7 +1444,6 @@ const bureauResult = mockBureauEnabled
   };
 }
 
-
 router.post("/bre/zebrs/:lan", verifyApiKey, async (req, res) => {
   try {
     const lan = String(req.params.lan || "")
@@ -1528,7 +1527,6 @@ router.post("/bre/zebrs/:lan", verifyApiKey, async (req, res) => {
     });
   }
 });
-
 
 // ============================================
 // GET ZEBRS LOAN STATUS BY LAN

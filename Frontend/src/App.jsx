@@ -338,6 +338,8 @@ import SterlionMexonDexonAllLoans from "./components/SterlionMexonDexon/Sterlion
 import SterlionMexonDexonInvoiceUpload from "./components/SterlionMexonDexon/SterlionMexonDexonInvoiceUpload.jsx";
 import SterlionMexonDexonCollectionUpload from "./components/SterlionMexonDexon/SterlionMexonDexonCollectionUpload.jsx";
 import SterlionMexonDexonAllInvoices from "./components/SterlionMexonDexon/SterlionMexonDexonAllInvoice.jsx";
+import SterlionMexonDexonLoanDetails from "./components/SterlionMexonDexon/SterlionMexonDexonLoanDetails";
+import SterlionMexonDexonStatusUpdate from "./components/SterlionMexonDexon/SterlionMexonDexonStatusUpdate";
 import QMLAllLoans from "./components/QuickMoney/QMLAllLoans.jsx";
 import QMLDisburseInitiate from "./components/QuickMoney/QMLDisburseInitiate.jsx";
 // import QMLLoginloans from "./components/QuickMoney/QMLLoginLoans.jsx";
@@ -2678,15 +2680,10 @@ function App() {
             path="/claimcurebuddy/ops-screen"
             element={<Navigate to="/claimcurebuddy/loan-booking" replace />}
           />
-  {/* =========================
+          {/* =========================
    ✅ niyara Routes
 ========================= */}
-           <Route
-            path="/niyara/loan-booking"
-            element={
-              <NiyaraLoanBooking />
-            }
-          />
+          <Route path="/niyara/loan-booking" element={<NiyaraLoanBooking />} />
           {/* =========================
    ✅ Bundela Routes
 ========================= */}
@@ -3016,6 +3013,22 @@ function App() {
               </PermissionRoute>
             }
           />
+          <Route
+            path="/sterlion-mexon-dexon/loan-details/:lan"
+            element={
+              <PermissionRoute pageName="Sterlion Mexon Dexon All Loans">
+                <SterlionMexonDexonLoanDetails />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/sterlion-mexon-dexon/status-update"
+            element={
+              <PermissionRoute pageName="Sterlion Mexon Dexon Status Update">
+                <SterlionMexonDexonStatusUpdate />
+              </PermissionRoute>
+            }
+          />
           <Route path="/payout-reinitiate" element={<PayoutReinitiate />} />
           <Route
             path="/saswat/approved-loans"
@@ -3175,7 +3188,6 @@ function App() {
             }
           />
         </Route>
-
         {/* Optional commented route */}
         {/* 
 <Route

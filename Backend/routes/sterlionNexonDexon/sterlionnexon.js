@@ -4,7 +4,7 @@ const multer = require("multer");
 const XLSX = require("xlsx");
 const path = require("path");
 const cron = require("node-cron");
-
+const authenticateUser = require("../../middleware/verifyToken");
 const router = express.Router();
 
 const SMD_PRODUCT_CONFIG = Object.freeze({
@@ -100,6 +100,30 @@ class RowImportError extends Error {
     this.details = details;
   }
 }
+
+
+const allowSmdStatusUpdate = (req, res, next) => {
+  const allowedKeyId =
+    process.env.SMD_STATUS_UPDATE_API_KEY_ID;
+
+  if (!allowedKeyId) {
+    return res.status(503).json({
+      success: false,
+      message: "Status update API key is not configured.",
+    });
+  }
+
+  // Only a specifically authorized API key can update statuses.
+  if (String(req.partner?.id) !== String(allowedKeyId)) {
+    return res.status(403).json({
+      success: false,
+      message: "This API key cannot update loan statuses.",
+    });
+  }
+
+  next();
+};
+
 
 function isBlank(value) {
   return value === undefined || value === null || String(value).trim() === "";
@@ -5029,6 +5053,375 @@ async function recalculateInvoiceCarryForwardChainV2(conn, loanBookingId) {
     );
   }
 }
+
+
+router.get("/:lan/details", async (req, res) => {
+  const lan = String(req.params.lan ?? "")
+    .trim()
+    .toUpperCase();
+
+  if (!/^(STF|MXF|DXF)\d+$/.test(lan)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid Sterlion / Mexon / Dexon LAN.",
+    });
+  }
+
+  try {
+    const [rows] = await db.promise().query(
+      `
+      SELECT
+        id,
+        lan,
+        product,
+        lender,
+        loan_limit,
+        utilized_amount,
+        unutilized_amount,
+        tenure_months,
+        interest_rate,
+        processing_fee,
+        first_name,
+        last_name,
+        customer_name,
+
+        CASE WHEN aadhaar_number IS NULL THEN NULL
+          ELSE CONCAT(
+            REPEAT('X', GREATEST(CHAR_LENGTH(aadhaar_number) - 4, 0)),
+            RIGHT(aadhaar_number, 4)
+          )
+        END AS aadhaar_number,
+
+        CASE WHEN pan_number IS NULL THEN NULL
+          ELSE CONCAT(
+            REPEAT('X', GREATEST(CHAR_LENGTH(pan_number) - 4, 0)),
+            RIGHT(pan_number, 4)
+          )
+        END AS pan_number,
+
+        mobile_number,
+        email,
+        business_name,
+        industry,
+        account_holder_name,
+
+        CASE WHEN account_number IS NULL THEN NULL
+          ELSE CONCAT(
+            REPEAT('X', GREATEST(CHAR_LENGTH(account_number) - 4, 0)),
+            RIGHT(account_number, 4)
+          )
+        END AS account_number,
+
+        ifsc,
+        bank_name,
+        date_of_birth,
+        permanent_address,
+        business_address,
+        gst_number,
+        udyam_number,
+        status,
+        created_at,
+        updated_at
+
+      FROM loan_booking_sterlion_mexon_dexon
+      WHERE lan = ?
+      LIMIT 1
+      `,
+      [lan],
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        success: false,
+        message: `Loan not found for LAN ${lan}.`,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: rows[0],
+    });
+  } catch (error) {
+    console.error(
+      "Sterlion/Mexon/Dexon loan details error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch loan details.",
+    });
+  }
+});
+
+
+router.patch("/:lan/status", authenticateUser,async (req, res) => {
+    const lan = String(req.params.lan || "")
+      .trim()
+      .toUpperCase();
+
+    const requestedStatus = String(req.body?.status || "")
+      .trim()
+      .toUpperCase();
+
+    const expectedStatus = String(
+      req.body?.previous_status || ""
+    )
+      .trim()
+      .toUpperCase();
+
+    // Only authorized staff can update loan status.
+    const roles = [
+      req.user?.role,
+      req.user?.user_role,
+      ...(Array.isArray(req.user?.roles)
+        ? req.user.roles
+        : []),
+    ].map((role) => String(role || "").toUpperCase());
+
+    const allowedRoles = [
+      "SUPERADMIN",
+      "ADMIN",
+      "OPERATIONS",
+    ];
+
+    if (!roles.some((role) => allowedRoles.includes(role))) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to update loan status.",
+      });
+    }
+
+    const actor = String(
+      req.user?.id ??
+      req.user?.user_id ??
+      req.user?.email ??
+      req.user?.username ??
+      ""
+    ).trim();
+
+    if (!actor) {
+      return res.status(403).json({
+        success: false,
+        message: "Authenticated staff identity is required.",
+      });
+    }
+
+    if (!/^(STF|MXF|DXF)\d+$/.test(lan)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Sterlion/Mexon/Dexon LAN.",
+      });
+    }
+
+    if (!["LOGIN", "CLOSED"].includes(requestedStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: "Status must be Login or Closed.",
+      });
+    }
+
+    if (!["LOGIN", "CLOSED"].includes(expectedStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: "A valid previous_status is required.",
+      });
+    }
+
+    let conn;
+
+    try {
+      conn = await db.promise().getConnection();
+      await conn.beginTransaction();
+
+      const [loans] = await conn.query(
+        `
+        SELECT
+          id, lan, customer_name,
+          product, lender, status,
+          loan_limit, utilized_amount, unutilized_amount
+        FROM loan_booking_sterlion_mexon_dexon
+        WHERE lan = ?
+        LIMIT 1
+        FOR UPDATE
+        `,
+        [lan]
+      );
+
+      if (!loans.length) {
+        const error = new Error("Loan not found.");
+        error.httpStatus = 404;
+        throw error;
+      }
+
+      const loan = loans[0];
+      const currentStatus = String(loan.status || "")
+        .trim()
+        .toUpperCase();
+
+      if (currentStatus !== expectedStatus) {
+        const error = new Error(
+          "Loan status has changed. Fetch the latest details before updating."
+        );
+        error.httpStatus = 409;
+        throw error;
+      }
+
+      // Only allow Login <-> Closed transitions.
+      if (!["LOGIN", "CLOSED"].includes(currentStatus)) {
+        const error = new Error(
+          `Status ${loan.status} cannot be changed using this page.`
+        );
+        error.httpStatus = 409;
+        throw error;
+      }
+
+      if (currentStatus === requestedStatus) {
+        const error = new Error(
+          `Loan is already ${loan.status}.`
+        );
+        error.httpStatus = 409;
+        throw error;
+      }
+
+      // A loan with outstanding principal cannot be closed.
+      if (requestedStatus === "CLOSED") {
+        const [balances] = await conn.query(
+          `
+          SELECT
+            COALESCE(
+              SUM(
+                CASE
+                  WHEN status <> 'CANCELLED'
+                  THEN GREATEST(outstanding_principal, 0)
+                  ELSE 0
+                END
+              ),
+              0
+            ) AS outstanding_principal
+          FROM loan_invoices_sterlion_mexon_dexon
+          WHERE loan_booking_id = ?
+          `,
+          [loan.id]
+        );
+
+        const outstanding = Number(
+          balances[0]?.outstanding_principal || 0
+        );
+
+        // Also check the booking's utilization figure.
+        const utilization = Number(
+          loan.utilized_amount || 0
+        );
+
+        if (outstanding > 0.009 || utilization > 0.009) {
+          const error = new Error(
+            "Cannot close loan while principal is outstanding. Reconcile the invoices and utilization first."
+          );
+          error.httpStatus = 409;
+          error.details = {
+            outstanding_principal: outstanding,
+            utilized_amount: utilization,
+          };
+          throw error;
+        }
+      }
+
+      const newStatus =
+        requestedStatus === "CLOSED" ? "Closed" : "Login";
+
+      const [result] = await conn.query(
+        `
+        UPDATE loan_booking_sterlion_mexon_dexon
+        SET status = ?
+        WHERE id = ? AND status = ?
+        `,
+        [newStatus, loan.id, loan.status]
+      );
+
+      if (result.affectedRows !== 1) {
+        const error = new Error(
+          "Status update conflict. Please fetch again."
+        );
+        error.httpStatus = 409;
+        throw error;
+      }
+
+      // Save permanent audit record.
+      await conn.query(
+        `
+        INSERT INTO loan_status_audit_sterlion_mexon_dexon
+        (
+          loan_booking_id,
+          lan,
+          old_status,
+          new_status,
+          changed_by
+        )
+        VALUES (?, ?, ?, ?, ?)
+        `,
+        [
+          loan.id,
+          loan.lan,
+          loan.status,
+          newStatus,
+          actor,
+        ]
+      );
+
+      const [updatedRows] = await conn.query(
+        `
+        SELECT
+          id, lan, customer_name,
+          product, lender, status,
+          loan_limit, utilized_amount,
+          unutilized_amount, updated_at
+        FROM loan_booking_sterlion_mexon_dexon
+        WHERE id = ?
+        LIMIT 1
+        `,
+        [loan.id]
+      );
+
+      await conn.commit();
+
+      return res.status(200).json({
+        success: true,
+        message: `Loan ${lan} status updated to ${newStatus}.`,
+        previous_status: loan.status,
+        new_status: newStatus,
+        data: updatedRows[0],
+      });
+    } catch (error) {
+      if (conn) {
+        try {
+          await conn.rollback();
+        } catch (rollbackError) {
+          console.error("Status rollback failed:", rollbackError);
+        }
+      }
+
+      if (error.httpStatus) {
+        return res.status(error.httpStatus).json({
+          success: false,
+          message: error.message,
+          ...(error.details || {}),
+        });
+      }
+
+      console.error("SMD status update failed:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to update loan status.",
+      });
+    } finally {
+      if (conn) conn.release();
+    }
+  }
+);
+
+
 
 /* ================== END CARRY FORWARD V2 ================== */
 
