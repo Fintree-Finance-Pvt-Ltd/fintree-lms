@@ -291,3 +291,15 @@ router.get("/aadhaar/details/:unifiedTransactionId", async (req, res) => {
   }
 });
 exports.router = router;
+
+// Fetch an existing request; this never creates a KYC request or sends a link.
+exports.fetchAadhaarKycDetails = async (transactionId) => {
+  if (!transactionId || !process.env.DIGITAP_BASE_URL || !process.env.DIGITAP_CLIENT_ID || !process.env.DIGITAP_CLIENT_SECRET) {
+    throw Object.assign(new Error("Digitap details configuration is missing"), { code: "DIGITAP_CONFIG_MISSING" });
+  }
+  const response = await axios.get(
+    `${process.env.DIGITAP_BASE_URL}/kyc-unified/v1/${encodeURIComponent(transactionId)}/details/`,
+    { headers: { Authorization: `Basic ${Buffer.from(`${process.env.DIGITAP_CLIENT_ID}:${process.env.DIGITAP_CLIENT_SECRET}`).toString("base64")}`, Accept: "application/json" }, timeout: 30000 },
+  );
+  return response.data;
+};

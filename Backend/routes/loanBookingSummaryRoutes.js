@@ -50,6 +50,15 @@ const PRODUCT_CONFIG = {
     lanLike: "YAM%",
     principalField: "loan_amount",
   },
+   ARTHAVIDHI_CAPITAL: {
+    label: "Arthavidhi Capital",
+    bookingTable: "loan_booking_arthavidhi",
+    rpsTable: "manual_rps_arthavidhi_capital",
+    allocationTable: "allocation",
+    repaymentTable: "repayments_upload",
+    lanLike: "AVCL%",
+    principalField: "loan_amount",
+  },
    SABGROW: {
     label: "Sabgrow",
     bookingTable: "loan_booking_sabgrow",
@@ -83,6 +92,16 @@ const PRODUCT_CONFIG = {
     lanLike: "SPL%",
     principalField: "loan_amount",
   },
+
+  OMRAJPAY: {
+  label: "OmrajPay",
+  bookingTable: "loan_booking_omrajpay",
+  rpsTable: "manual_rps_omrajpay",
+  allocationTable: "allocation",
+  repaymentTable: "repayments_upload",
+  lanLike: "OMR%",
+  principalField: "loan_amount",
+},
   CLAIMCUREBUDDY: {
     label: "Claim Cure Buddy",
     bookingTable: "loan_booking_claim_cure_buddy",

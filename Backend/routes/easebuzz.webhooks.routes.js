@@ -1,6 +1,5 @@
-const {
-  processEmiClub2Disbursement,
-} = require("../services/processEmiClub2Disbursement");
+const { processArthavidhiCapitalDisbursement } = require("../services/processArthavidhiCapitalDisbursement");
+const { processEmiClub2Disbursement } = require("../services/processEmiClub2Disbursement");
 const express = require("express");
 const db = require("../config/db");
 const { verifyWebhookHash } = require("../utils/webhookHashVerify");
@@ -297,11 +296,10 @@ router.post("/payout", async (req, res) => {
         });
       }
 
-      if (
-        transfer.lan?.startsWith("YAM") &&
-        effectiveUtr &&
-        effectiveTransferDate
-      ) {
+      if (transfer.lan?.startsWith("AVCL") && effectiveUtr && effectiveTransferDate) {
+        await processArthavidhiCapitalDisbursement({ lan: transfer.lan, disbursementUTR: effectiveUtr, disbursementDate: new Date(effectiveTransferDate) });
+      }
+      if (transfer.lan?.startsWith("YAM") && effectiveUtr && effectiveTransferDate) {
         const processingResult = await processYaMoneyDisbursement({
           lan: transfer.lan,
           disbursementUTR: effectiveUtr,
@@ -585,12 +583,30 @@ router.post("/payout", async (req, res) => {
           skipped: yaMoneyResult?.skipped,
           reason: yaMoneyResult?.reason,
         });
-      } else if (lan?.startsWith("FINE2")) {
-        await processEmiClub2Disbursement({
+      }else if (lan?.startsWith("AVCL")) {
+        const arthavidhiCapitalResult = await processArthavidhiCapitalDisbursement({
           lan,
           disbursementUTR: effectiveUtr,
           disbursementDate,
         });
+
+        console.log("Arthavidhi Capital internal processing result", {
+          lan,
+          utr: effectiveUtr,
+          success: arthavidhiCapitalResult?.success,
+          skipped: arthavidhiCapitalResult?.skipped,
+          reason: arthavidhiCapitalResult?.reason,
+        });
+      } else if (lan?.startsWith("FINE2")) {
+        await processEmiClub2Disbursement({ lan, disbursementUTR: effectiveUtr, disbursementDate });
+      } else if (lan?.startsWith("FINE")) {
+        /*
+         * EmiClub-specific processing. processEmiClubDisbursement generates
+         * the RPS and sends the partner webhook internally (same as the
+        });
+        
+             } else if (lan?.startsWith("FINE2")) {
+        await processEmiClub2Disbursement({ lan, disbursementUTR: effectiveUtr, disbursementDate });
       } else if (lan?.startsWith("FINE")) {
         /*
          * EmiClub-specific processing. processEmiClubDisbursement generates

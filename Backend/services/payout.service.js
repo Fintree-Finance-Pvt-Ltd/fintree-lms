@@ -1,3 +1,4 @@
+const { processArthavidhiCapitalDisbursement } = require("./processArthavidhiCapitalDisbursement");
 const {
   processEmiClub2Disbursement,
 } = require("./processEmiClub2Disbursement");
@@ -51,6 +52,7 @@ const ALLOWED_PAYOUT_TABLES = [
   "loan_booking_quick_money",
   "loan_booking_rapid_money_v2",
   "loan_booking_ya_money",
+  "loan_booking_arthavidhi"
   "loan_booking_claim_buddy",
   "loan_booking_sabgrow",
   "loan_booking_niyara",
@@ -72,6 +74,7 @@ const PARTNER_MAX_PAYOUT_LIMITS = {
   loan_booking_quick_money: 25000,
   loan_booking_rapid_money_v2: 25000,
   loan_booking_ya_money: null,
+  loan_booking_arthavidhi: null,
   loan_booking_sabgrow: null,
   loan_booking_niyara: 0,
 };
@@ -93,6 +96,7 @@ const TABLE_TO_PARTNER_NAME = {
   loan_booking_quick_money: "QUICK MONEY",
   loan_booking_rapid_money_v2: "RAPID MONEY V2",
   loan_booking_ya_money: "YAMONEY",
+  loan_booking_arthavidhi: "Arthavidhi Capital",
   loan_booking_claim_buddy: "CLAIM-BUDDY",
   loan_booking_sabgrow: "SBR:",
   loan_booking_niyara: "NIYARA",
@@ -114,6 +118,7 @@ const TABLE_TO_POS_TABLE = {
   loan_booking_quick_money: null,
   loan_booking_rapid_money_v2: null,
   loan_booking_ya_money: null,
+  loan_booking_arthavidhi: "manual_rps_arthavidhi_capital",
   loan_booking_sabgrow:null,
   loan_booking_niyara: "manual_rps_niyara",
 };
@@ -127,6 +132,7 @@ const TABLE_TO_POS_TABLE = {
 // sole gate; only add the new POS-limit gate for them (an entirely new check
 // with nothing existing to conflict with).
 const DISBURSEMENT_GATE_EXEMPT_TABLES = new Set([
+  "loan_booking_arthavidhi",
   "loan_booking_switch_my_loan",
   "loan_booking_quick_money",
   "loan_booking_rapid_money_v2",
@@ -147,6 +153,7 @@ const DISBURSEMENT_RECORD_EXEMPT_TABLES = new Set([
   "loan_booking_ya_money",
   "loan_booking_sabgrow",
   "loan_booking_finso",
+  "loan_booking_arthavidhi",
 ]);
 
 async function getTableColumnSet(tableName) {
@@ -237,7 +244,11 @@ async function buildYaMoneyPayoutQuery() {
 exports.approveAndInitiatePayout = async ({ lan, table }) => {
   let emiClub2Lock;
   let emiClub2LockName;
+  let arthavidhiRequestNumber;
   try {
+    if (table === "loan_booking_arthavidhi") {
+      throw Object.assign(new Error("Arthavidhi uses manual payment and UTR upload; API payout is disabled"), {code:"ARTHAVIDHI_MANUAL_PAYMENT_ONLY",status:409});
+    }
     if (table === "loan_booking_emiclub2") {
       if (!String(lan || "").startsWith("FINE2"))
         throw new Error("Invalid EMIClub2 LAN");
@@ -501,6 +512,39 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
   `;
     }
 
+    if (table === "loan_booking_niyara") {
+      if (!/^NYRA\d+$/.test(String(lan || "").trim())) {
+        throw new Error("Invalid Niyara LAN");
+      }
+
+      loanQuery = `
+    SELECT
+      name_in_bank AS beneficiary_name,
+      net_disbursement AS loan_amount,
+      account_number,
+      ifsc
+    FROM loan_booking_niyara
+    WHERE lan = ?
+    LIMIT 1
+  `;
+    }
+
+    if (table === "loan_booking_sabgrow") {
+      loanQuery = `
+    SELECT
+      customer_name AS beneficiary_name,
+      net_disbursement AS loan_amount,
+      account_number,
+      ifsc
+    FROM loan_booking_sabgrow
+    WHERE lan = ?
+    LIMIT 1
+  `;
+    }
+
+    if (table === "loan_booking_arthavidhi") {
+      loanQuery = "SELECT name_in_bank AS beneficiary_name, net_disbursement AS loan_amount, account_number, ifsc FROM loan_booking_arthavidhi WHERE lan=? AND LOWER(status)='approved' LIMIT 1";
+    }
     const [[loan]] = await db.promise().query(loanQuery, loanParams);
 
     if (!loan) {
@@ -620,6 +664,7 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
     }
 
     const unique_request_number = `LAN_${lan}_${Date.now()}`;
+    if (table === "loan_booking_arthavidhi") arthavidhiRequestNumber = unique_request_number;
 
     await db.promise().query(
       `
@@ -834,6 +879,10 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
     });
 
     const finalSuccessStatuses = ["success", "completed", "processed"];
+    if (table === "loan_booking_arthavidhi" &&
+        !["success","completed","processed","initiated","pending","queued","processing","in_progress"].includes(normalizedStatus)) {
+      return { success:false,unique_request_number,payout_status:normalizedStatus,message:"Arthavidhi payout was not accepted; reconcile before retry" };
+    }
 
     if (!finalSuccessStatuses.includes(normalizedStatus)) {
       console.log("⏳ Payout not final yet. RPS will not be generated now.", {
@@ -988,6 +1037,8 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
         disbursementUTR: tr.unique_transaction_reference,
         disbursementDate: new Date(tr.transfer_date),
       });
+    } else if (table === "loan_booking_arthavidhi") {
+      await processArthavidhiCapitalDisbursement({ lan, disbursementUTR: tr.unique_transaction_reference, disbursementDate: new Date(tr.transfer_date) });
     } else if (table === "loan_booking_ya_money") {
       await processYaMoneyDisbursement({
         lan,
@@ -1068,6 +1119,21 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
       payout_status: tr.status,
     };
   } catch (err) {
+    // Preserve ambiguous AVCL provider failures for reconciliation. Do not mark
+    // them failed/retryable: a timed-out transfer may still have moved money.
+    if (table === "loan_booking_arthavidhi" && arthavidhiRequestNumber) {
+      try {
+        await db.promise().query(
+          `UPDATE quick_transfers SET raw_api_response=?,failure_reason=?,updated_at=NOW()
+           WHERE lan=? AND unique_request_number=? AND raw_api_response IS NULL`,
+          [JSON.stringify({error_code:err.code || null,message:"Payout initiation requires reconciliation",
+            http_status:err.response?.status ?? null,response:err.response?.data ?? null}),
+          String(err.code || "RECONCILIATION_REQUIRED"),lan,arthavidhiRequestNumber],
+        );
+      } catch (logError) {
+        console.error("Arthavidhi payout diagnostic persistence failed", {code:logError.code || "DB_ERROR"});
+      }
+    }
     console.error("🔥 approveAndInitiatePayout ERROR", {
       lan,
       table,

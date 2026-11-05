@@ -72,7 +72,12 @@ if (normalizedLan.startsWith("WCTLFFPL")) {
     loanTable = "loan_booking_motion_corp";
   } else if (normalizedLan.startsWith("SPL")) {
     loanTable = "loan_booking_sampada";
-  } else if (normalizedLan.startsWith("SFL")) {
+  } else if (normalizedLan.startsWith("OMR")) {
+    loanTable = "loan_booking_omrajpay";
+  }else if (normalizedLan.startsWith("AVCL")) {
+    loanTable = "loan_booking_arthavidhi";
+  }
+   else if (normalizedLan.startsWith("SFL")) {
     loanTable = "loan_booking_seven_fincorp";
   } else if (normalizedLan.startsWith("BUN")) {
     loanTable = "loan_booking_bundela";

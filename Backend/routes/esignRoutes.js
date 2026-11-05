@@ -176,8 +176,7 @@ router.get("/:lan/pdfs", async (req, res) => {
   const { summaryTable, rpsTable, agreementTemplate, type } =
     getLoanContext(lan);
 
-  try {
-    if (type === "CLAIM_CURE_BUDDY") {
+  try {     if (["CLAIM_CURE_BUDDY", "OMRAJPAY" ,].includes(type)) {
   const result = await generateAgreementPdf(lan);
 
   const pdfPath = path.join(
@@ -571,6 +570,10 @@ router.post("/v1/digio-esign-webhook", async (req, res) => {
       ]);
 
     console.log("[DB] Booking table updated successfully");
+    if (/^AVCL\d+$/.test(lan) && document_type === "AGREEMENT") {
+      await require("../services/ArthavidhiCapitalAgreementStatus")
+        .advanceArthavidhiSigningIfComplete(db.promise(), lan);
+    }
     triggerClaimCureBuddyAutoDisbursementAfterEsign({
       lan,
       documentType: document_type,
@@ -945,6 +948,10 @@ if (
       );
     }
 
+    if (/^AVCL\d+$/.test(lan) && document_type === "AGREEMENT") {
+      await require("../services/ArthavidhiCapitalAgreementStatus")
+        .advanceArthavidhiSigningIfComplete(db.promise(), lan);
+    }
     triggerClaimCureBuddyAutoDisbursementAfterEsign({
       lan,
       documentType: document_type,

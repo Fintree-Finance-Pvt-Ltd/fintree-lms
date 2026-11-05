@@ -192,6 +192,21 @@ router.get("/:lan", async (req, res) => {
     agreementDateExpr =
       "COALESCE(lb.sanction_date, '0000-00-00') AS agreement_date";
   }
+  if (lan.startsWith("AVCL")) {
+    tableName = "loan_booking_arthavidhi";
+    loanAmountCol = "lb.loan_amount";
+    loanAmountExpr = "lb.loan_amount";
+    interestRateCol = "lb.interest AS interest_rate";
+    tenureCol = "lb.loan_tenure";
+    processingFeeCol = "COALESCE(lb.processing_fee, 0) AS processing_fee";
+    subventionCol = "0";      
+    retentionCol = "0";
+    partnerLoanIdCol = "lb.partner_loan_id";
+    netDisbursementExpr = "lb.net_disbursement";
+     agreementDateExpr =
+      "COALESCE(lb.sanction_date, '0000-00-00') AS agreement_date";
+  }
+
 
   // ==============================
 // NIYARA UBL
@@ -301,7 +316,20 @@ if (lan.startsWith("NYRA")) {
     preEmi = "0";
     netDisbursementExpr = `(${loanAmountExpr} - ${processingFeeCol} - ${preEmi})`;
   }
-
+   if (lan.startsWith("OMR")) {
+    tableName = "loan_booking_omrajpay";
+    loanAmountCol = "lb.loan_amount";
+    loanAmountExpr = "lb.loan_amount";
+    interestRateCol = "lb.interest_rate";
+    tenureCol = "lb.loan_tenure AS loan_tenure";
+    processingFeeCol = "COALESCE(lb.processing_fee, 0)";
+    subventionCol = "0";
+    retentionCol = "0";
+    partnerLoanIdCol = "lb.partner_loan_id";
+    preEmi = "0";
+    netDisbursementExpr = `(${loanAmountExpr} - ${processingFeeCol} - ${preEmi})`;
+  }
+  
   if (lan.startsWith("SFL")) {
     tableName = "loan_booking_seven_fincorp";
     loanAmountCol = "lb.loan_amount";

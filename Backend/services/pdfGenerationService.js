@@ -630,6 +630,17 @@ async function getClaimCureBuddyLoanData(lan) {
 async function getLoanData(lan) {
   const { summaryTable, rpsTable, type, bookingTable } = getLoanContext(lan);
 
+  if (summaryTable === "omrajpay_loan_summary") {
+    await db.promise().query("CALL sp_generate_omrajpay_rps(?)", [lan]);
+    await db.promise().query("CALL sp_create_omrajpay_loan_summary(?)", [lan]);
+  }
+  if (summaryTable === "arthavidhi_capital_loan_summary") { 
+    const { getArthavidhiCapitalLoanDocumentData } = require("./ArthavidhiCapitalLoanDocumentData");
+    const data = await getArthavidhiCapitalLoanDocumentData(db.promise(), lan);
+    if (!data) return null;
+    const amount = Number(data.LOAN_AMOUNT);
+    return { ...data, L_A_W: numberToWords(amount), AMOUNT_IN_WORDS: numberToWords(amount) };
+  }
   if (summaryTable === "claim_cure_buddy_loan_summary") {
     return getClaimCureBuddyLoanData(lan);
   }
@@ -856,13 +867,13 @@ async function getLoanData(lan) {
   }
 
   // ===============================
-  // SAMPADA SUMMARY
-  // ===============================
-  else if (summaryTable === "sampada_loan_summary") {
-    const [rows] = await db.promise().query(
-      `
+// SAMPADA SUMMARY
+// ===============================
+else if (["sampada_loan_summary", "omrajpay_loan_summary"].includes(summaryTable)) {
+  const [rows] = await db.promise().query(
+    `
       SELECT *
-      FROM sampada_loan_summary
+      FROM ${summaryTable}
       WHERE LAN = ?
     `,
       [lan],
@@ -882,7 +893,7 @@ async function getLoanData(lan) {
         remaining_emi,
         remaining_interest,
         remaining_principal
-      FROM loan_rps_sampada
+      FROM ${rpsTable}
       WHERE TRIM(lan) = TRIM(?)
       ORDER BY emi_no ASC
     `,
@@ -1092,6 +1103,71 @@ async function getLoanData(lan) {
   }
 
   if (!summaryRows.length) return null;
+
+  if (summaryTable === "omrajpay_loan_summary") {
+    // Keep current booking fields fresh even when an older installed summary
+    // procedure only refreshes its financial columns on duplicate LANs.
+    const [[loan]] = await db.promise().query(
+      `SELECT lb.*, (SELECT MAX(Disbursement_Date) FROM ev_disbursement_utr WHERE LAN = lb.lan) AS utr_date
+       FROM loan_booking_omrajpay lb WHERE lb.lan = ?`, [lan],
+    );
+    if (!loan || rpsRows.length !== Number(loan.loan_tenure)) {
+      throw new Error("OmrajPay agreement loan and repayment schedule do not match");
+    }
+    const data = { ...summaryRows[0], ...Object.fromEntries(Object.entries(loan).map(([key, value]) => [key.toUpperCase(), value])) };
+    const address = prefix => ["address_line_1", "address_line_2", "village_city", "district", "state", "pincode"]
+      .map(key => loan[`${prefix}_${key}`]).filter(Boolean).join(", ");
+    const date = value => value && dayjs(value).isValid() ? dayjs(value).format("DD-MM-YYYY") : "";
+    const agreementDate = loan.agreement_date || summaryRows[0].CUR_DATE;
+    const { getFirstEmiDate } = require("../utils/emiDateCalculator");
+    const firstDue = getFirstEmiDate(loan.utr_date || agreementDate, null, "OmRajPay", "Monthly Loan");
+    const upfrontFees = Number(loan.processing_fee || 0) + Number(loan.gps_charges || 0) + Number(loan.insurance_cost || 0);
+    Object.assign(data, {
+      CUR_DATE: date(agreementDate), PERMANENT_ADDRESS: address("permanent"),
+      BANK_NAME: loan.customer_bank_name, BANK_ACCOUNT_NUMBER: loan.customer_account_number,
+      BANK_IFSC_CODE: loan.bank_ifsc_code, BANK_ADDRESS: loan.bank_branch_address,
+      APPLICANT_DL: loan.driving_licence, TENURE: loan.loan_tenure, NUMBER_OF_EMI: rpsRows.length,
+      EMI_AMOUNT: rpsRows[0].emi, AMOUNT_OF_EMI: rpsRows[0].emi,
+      SUM_OF_INTEREST: rpsRows.reduce((sum, row) => sum + Number(row.interest), 0),
+      TOTAL_REPAYMENT: rpsRows.reduce((sum, row) => sum + Number(row.emi), 0),
+      SUM_OF_PROCESSING_FEE: upfrontFees, DISBURSAL_AMOUNT: Number(loan.loan_amount) - upfrontFees,
+      THIRD_PARTY_CHARGES: Number(loan.gps_charges || 0) + Number(loan.insurance_cost || 0),
+      INSURANCE_CHARGES: loan.insurance_cost, ROI: loan.interest_rate,
+      SALE_INVOICE_NUMBER: loan.sales_invoice_number || loan.sale_invoice_number,
+      SALE_INVOICE_DATE: date(loan.sales_invoice_date || loan.sale_invoice_date),
+      MANIFACTURING_YEAR: loan.manufacturing_year,
+      REPAYMENT_START_DATE: date(firstDue), INSTALMENT_TYPE: "Monthly", INTEREST_RATE_TYPE: "Fixed",
+      PRINCIPAL_INSTALMENT_COUNT: rpsRows.length, CAPITALISED_INTEREST_INSTALMENTS: 0,
+      EMI_DETAILS: `${rpsRows.length} monthly instalments; regular EMI INR ${rpsRows[0].emi}`,
+      INSTALMENT_DUE_DATE: `5th of every month, starting ${date(firstDue)}`,
+      DISBURSEMENT_SCHEDULE: "100% upfront", AGREEMENT_PLACE: loan.permanent_village_city,
+    });
+    if (Number(data.DISBURSAL_AMOUNT) <= 0) throw new Error("OmrajPay upfront charges exceed the approved loan amount");
+    for (const [prefix, role] of [["borrower", "BORROWER"], ["co_applicant", "CO_APPLICANT"], ["guarantor", "GUARANTOR"]]) {
+      const [[kyc]] = await db.promise().query(
+        `SELECT aadhaar_masked_number FROM kyc_verification_status
+         WHERE lan = ? AND applicant_type = ? AND aadhaar_status = 'VERIFIED'
+         ORDER BY updated_at DESC, id DESC LIMIT 1`, [lan, role],
+      );
+      const key = prefix === "borrower" ? "AADHAAR_NO" : `${prefix.toUpperCase()}_AADHAAR_NO`;
+      data[key] = kyc?.aadhaar_masked_number || "";
+      if (prefix !== "borrower") {
+        data[`${prefix.toUpperCase()}_ADDRESS`] = address(prefix);
+        data[`${prefix.toUpperCase()}_DL`] = loan[`${prefix}_driving_licence`];
+      }
+    }
+    for (const key of ["dob", "co_applicant_dob", "guarantor_dob", "policy_issued_date", "guarantor_date_of_formation_incorporation"]) {
+      data[key.toUpperCase()] = date(loan[key]);
+    }
+    data["CO_APPLICANT_NAME / GUARANTOR_NAME"] = [loan.co_applicant_name, loan.guarantor_name].filter(Boolean).join(" / ");
+    Object.assign(data, { L_A: loan.loan_amount, L_T: loan.loan_tenure, I_R: loan.interest_rate,
+      C_N: loan.customer_name, per_add: data.PERMANENT_ADDRESS, cur_add: data.PERMANENT_ADDRESS,
+      B_Na: data.BANK_NAME, A_no: data.BANK_ACCOUNT_NUMBER, ifsc: data.BANK_IFSC_CODE,
+      I_S: data.SUM_OF_INTEREST, P_S: data.SUM_OF_PROCESSING_FEE });
+    summaryRows[0] = Object.fromEntries(Object.entries(data).map(([key, value]) => [key,
+      String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]),
+    ]));
+  }
 
   if (summaryTable !== "motioncorp_loan_summary") {
     RPS_ROWS = rpsRows

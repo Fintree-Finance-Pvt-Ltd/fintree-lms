@@ -116,7 +116,13 @@ router.get("/loan-booking/:lan", (req, res) => {
   } else if (lan.startsWith("SPL")) {
     table = "loan_booking_sampada";
     posTable = "manual_rps_sampada";
-  } else if (lan.startsWith("SFL")) {
+  }else if (lan.startsWith("OMR")) {
+    table = "loan_booking_omrajpay";
+    posTable = "manual_rps_omrajpay";
+  }else if (lan.startsWith("AVCL")) {
+    table = "loan_booking_arthavidhi";
+    posTable = "manual_rps_arthavidhi_capital";
+  }else if (lan.startsWith("SFL")) {
     table = "loan_booking_seven_fincorp";
     posTable = "manual_rps_seven_fincorp";
   } else if (lan.startsWith("SH")) {

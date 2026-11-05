@@ -197,6 +197,7 @@ const TABLES = {
     bookings: "loan_booking_claim_buddy",
     rps: "manual_rps_claim_buddy",
   },
+    arthavidhicapital:{ bookings:"loan_booking_arthavidhi", rps:"manual_rps_arthavidhi_capital"},
 };
 // Priority when a LAN could exist in multiple places (adjust if needed)
 const CATEGORY_ORDER = [
@@ -205,7 +206,7 @@ const CATEGORY_ORDER = [
   "embifi",
   "circlepe",
   "saswat",
-  "yamoney",
+  "yamoney", "arthavidhicapital",
   "claimbuddy",
 ];
 
@@ -397,6 +398,8 @@ router.post("/upload", upload.single("file"), async (req, res) => {
         dataToInsertCIRCLEPE.push(dataRow);
       } else if (category === "yamoney") {
         dataToInsertYAMONEY.push(dataRow);
+            } else if (category === "arthavidhicapital") {
+                dataToInsertAVCL.push(dataRow);
       } else if (category === "claimbuddy") {
         dataToInsertCLAIMBUDDY.push(dataRow);
       } else {
@@ -419,13 +422,14 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     await batchInsert(TABLES.bl.rps, dataToInsertEV);
     await batchInsert(TABLES.circlepe.rps, dataToInsertCIRCLEPE);
     await batchInsert(TABLES.yamoney.rps, dataToInsertYAMONEY);
+        await batchInsert(TABLES.arthavidhicapital.rps, dataToInsertAVCL);
     await batchInsert(TABLES.claimbuddy.rps,dataToInsertCLAIMBUDDY);
     const totalInserted =
       dataToInsertWCTL.length +
       dataToInsertEMB.length +
       dataToInsertEV.length +
       dataToInsertCIRCLEPE.length +
-      dataToInsertYAMONEY.length +
+      dataToInsertYAMONEY.length + dataToInsertAVCL.length +
       dataToInsertCLAIMBUDDY.length;
 
     // ✅ Return response

@@ -216,6 +216,8 @@ app.use("/api/payu", require("./services/PayuIntegration/payu.routes")); // ✅ 
 app.use("/api/sterlion-ubl", sterlionUblRoutes); // ✅ Register Sterlion UBL Routes
 app.use("/api/cph", circlePeHouserRoutes); // ✅ Register Circlepe Houser Routes
 app.use("/api/loan-booking/yaMoney", require("./routes/YaMoney/yaMoneyRoutes")); // Register Routes for Ya Money Business Loan
+ app.use("/api/arthavidhi-capital", require("./routes/ArthavidhiCapital/ArthavidhiCapitalRoutes"))// ✅ Register Routes for Arthavidhi Capital//
+ 
 app.use(
   "/api/motion-corp",
   require("./routes/MotionCorp/motionCorpDealerRoutes"),  
@@ -224,10 +226,10 @@ app.use("/api/sampada", require("./routes/Sampada/sampadaDealerRoutes"));
 
 app.use("/api/sabgrow", require("./routes/SabGrow/sabGrowRoute"));
 
-// app.use(
-//   "/api/omrajpay",
-//   require("./routes/OmRajPay/OmRajPayRoutes"),
-// );
+app.use(
+  "/api/omrajpay",
+  require("./routes/OmRajPay/OmRajPayRoutes"),
+);
 
 app.use(
   "/api/seven-fincorp",

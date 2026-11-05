@@ -147,6 +147,18 @@ const PARTNER_ROUTES = [
     rpsTable: "manual_rps_sampada",
     tenureUnit: "months",
   },
+  {
+    prefix: "OMR",
+    table: "loan_booking_omrajpay",
+    rpsTable: "manual_rps_omrajpay",
+    tenureUnit: "months",
+  },
+  {
+    prefix: "AVCL",
+    table: "loan_booking_arthavidhi",
+    rpsTable: "manual_rps_arthavidhi_capital",
+    tenureUnit: "days",
+  },
 
   /*
    * Supports LANs beginning with MC where MCL is not used.

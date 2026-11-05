@@ -159,6 +159,12 @@ async function processRows(sheetData, res) {
         queryDB(`SELECT lan FROM loan_booking_sampada WHERE lan IN (?)`, [
           uniqueLANs,
         ]),
+        queryDB(`SELECT lan FROM loan_booking_omrajpay WHERE lan IN (?)`, [
+          uniqueLANs,
+        ]),
+        queryDB(`SELECT lan FROM loan_booking_arthavidhi WHERE lan IN (?)`, [
+          uniqueLANs,
+        ]),
         queryDB(`SELECT lan FROM loan_booking_helium WHERE lan IN (?)`, [
           uniqueLANs,
         ]),

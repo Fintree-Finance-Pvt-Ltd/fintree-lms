@@ -29,7 +29,7 @@ const LOAN_TABLES = [
   "loan_booking_zebrs",
   "loan_booking_sampada",
   "loan_booking_zypay_customer",
-  // "loan_booking_omrajpay",
+  "loan_booking_omrajpay",
   "loan_booking_niyara",
 ];
 
@@ -122,15 +122,25 @@ async function updateLoanTables({
         ifsc: "bank_ifsc_code",
       },
     },
-//     {
-//   table: "loan_booking_omrajpay",
-//   fields: {
-//     bank_name: "customer_bank_name",
-//     beneficiary_name: "customer_name_as_per_bank",
-//     account_no: "customer_account_number",
-//     ifsc: "bank_ifsc_code",
-//   },
-// },
+    {
+  table: "loan_booking_omrajpay",
+  fields: {
+    bank_name: "customer_bank_name",
+    beneficiary_name: "customer_name_as_per_bank",
+    account_no: "customer_account_number",
+    ifsc: "bank_ifsc_code",
+  },
+},
+ {
+  table: "loan_booking_arthavidhi",
+  fields: {
+    bank_name: "bank_name",
+    beneficiary_name: "name_in_bank",
+    account_no: "account_number",
+    ifsc: "ifsc",
+  },
+},
+
   ];
 
   await Promise.all(
@@ -1112,6 +1122,7 @@ router.post("/create-mandate", authenticateUser, async (req, res) => {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 
         ON DUPLICATE KEY UPDATE
+          ${normalizedLan.startsWith("AVCL") ? "document_id=VALUES(document_id),umrn=NULL,mandate_amount=VALUES(mandate_amount),account_no=VALUES(account_no),ifsc=VALUES(ifsc),account_type=VALUES(account_type),bank_name=VALUES(bank_name)," : ""}
           status =
             VALUES(status),
 
@@ -1726,11 +1737,39 @@ router.post("/zebrs/create-mandate", verifyApiKey,
 /*
  * POST /api/enach/webhooks/digio-mandate
  */
+async function applyArthavidhiMandateWebhook(webhook,event) {
+  if(!webhook.documentId)return false;
+  const [[saved]]=await db.promise().query("SELECT id,lan,status FROM enach_mandates WHERE document_id=? LIMIT 1",[String(webhook.documentId)]);
+  if(!saved||!/^AVCL\d+$/.test(saved.lan))return false;
+  const normalizeState=v=>String(v||"").toLowerCase().replace(/[^a-z]/g,"");
+  const providerState=normalizeState(webhook.registrationStatus||webhook.status);
+  const eventState=normalizeState(webhook.status);
+  let next="PENDING";
+  if(/cancel|revok/.test(eventState)||/cancel|revok/.test(providerState))next="CANCELLED";
+  else if(/expir/.test(eventState)||/expir/.test(providerState))next="EXPIRED";
+  else if(["active","registered","success","completed","registersuccess","apimndtregistersuccess"].includes(providerState))next="ACTIVE";
+  else if(/fail|reject/.test(providerState))next="FAILED";
+  else if(/authsuccess/.test(providerState))next="AUTHORISED";
+  const terminal=["CANCELLED","CANCELED","REVOKED","EXPIRED"].includes(String(saved.status).toUpperCase());
+  if(terminal)return true;
+  if(String(saved.status).toUpperCase()==="ACTIVE"&&["PENDING","AUTHORISED"].includes(next))return true;
+  const [updated]=await db.promise().query(`UPDATE enach_mandates SET status=?,umrn=COALESCE(NULLIF(?,''),umrn),webhook_payload=?
+    WHERE id=? AND document_id=? AND UPPER(status) NOT IN ('CANCELLED','CANCELED','REVOKED','EXPIRED')`,
+    [next,webhook.umrn||null,JSON.stringify(event),saved.id,String(webhook.documentId)]);
+  if(!updated.affectedRows)return true;
+  await db.promise().query(`UPDATE loan_booking_arthavidhi
+    SET bank_status=?,umrn=CASE WHEN ?='ACTIVE' THEN COALESCE(NULLIF(?,''),umrn) ELSE umrn END WHERE lan=?`,
+    [`MANDATE_${next}`,next,webhook.umrn||null,saved.lan]);
+  await require("../services/ArthavidhiCapitalAgreementStatus")
+    .advanceArthavidhiSigningIfComplete(db.promise(), saved.lan);
+  return true;
+}
 router.post("/webhooks/digio-mandate", async (req, res) => {
   try {
     const event = req.body || {};
 
     const webhook = extractWebhookData(event);
+    if(await applyArthavidhiMandateWebhook(webhook,event))return res.status(200).json({received:true});
 
     const webhookStatus = webhook.status.toLowerCase();
 
@@ -1980,4 +2019,6 @@ router.post("/webhooks/digio-mandate", async (req, res) => {
   }
 });
 
+
+router.applyArthavidhiMandateWebhook = applyArthavidhiMandateWebhook;
 module.exports = router;

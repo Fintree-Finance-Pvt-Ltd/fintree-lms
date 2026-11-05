@@ -167,6 +167,7 @@ async function buildClaimCureBuddyCoApplicantUsers(
 }
 
 const initDoqfyEsign = async (lan, type) => {
+  let arthavidhiStep = "loan_lookup";
   try {
     console.log("🚀 INITIATING DOQFY ESIGN:", lan, type);
 
@@ -208,6 +209,7 @@ const initDoqfyEsign = async (lan, type) => {
 
     console.log("✅ LOAN FETCHED");
 
+    arthavidhiStep = "signer_details";
     // const partyUsers = buildDoqfyPartyUsers(loan, esignParties, type);
 
     const borrowerOnlyUat =
@@ -252,6 +254,7 @@ const partyUsers = buildDoqfyPartyUsers(
     /* GENERATE PDF */
     /* --------------------------------------------------- */
 
+    arthavidhiStep = "agreement_pdf";
     let pdfResult;
 
     if (type === "SANCTION") {
@@ -267,6 +270,7 @@ const partyUsers = buildDoqfyPartyUsers(
       throw new Error("PDF generation failed");
     }
 
+    arthavidhiStep = "pdf_file";
     const filePath = path.join(__dirname, "../uploads", fileName);
 
     if (!fs.existsSync(filePath)) {
@@ -322,6 +326,7 @@ const partyUsers = buildDoqfyPartyUsers(
     /* DOQFY API CALL */
     /* --------------------------------------------------- */
 
+    arthavidhiStep = "provider_order";
     let response;
 
     try {
@@ -329,9 +334,14 @@ const partyUsers = buildDoqfyPartyUsers(
     } catch (err) {
       console.error("❌ DOQFY API ERROR:", err.response?.data || err.message);
 
-      throw new Error(
+      const providerError = new Error(
         "DOQFY API ERROR: " + JSON.stringify(err.response?.data || err.message),
       );
+      if (loanContext.type === "ARTHAVIDHI_CAPITAL") {
+        providerError.provider_http_status = err.response?.status || null;
+        providerError.provider_error = err.response?.data || null;
+      }
+      throw providerError;
     }
 
     console.log("✅ DOQFY RESPONSE RECEIVED");
@@ -406,6 +416,7 @@ console.log(
     /* SAVE TO DATABASE */
     /* --------------------------------------------------- */
 
+    arthavidhiStep = "esign_persistence";
     const primarySigner = partyUsers[0];
 
     const signerIdentifier =
@@ -466,6 +477,7 @@ console.log(
     /* UPDATE BOOKING TABLE */
     /* --------------------------------------------------- */
 
+    arthavidhiStep = "booking_update";
     if (type === "SANCTION") {
       await db.promise().query(
         `
@@ -505,6 +517,10 @@ console.log(
         : {}),
     };
   } catch (err) {
+    if (/^AVCL\d+$/.test(String(lan))) {
+      err.arthavidhi_step = arthavidhiStep;
+      err.code = err.code || `ESIGN_${arthavidhiStep.toUpperCase()}_FAILED`;
+    }
     console.error("❌ FINAL DOQFY ERROR:", err);
     throw err;
   }
@@ -512,11 +528,125 @@ console.log(
 
 // Serialize Sampada agreement sends across tabs and server processes, and use
 // persisted documents to protect loans whose booking status is stale.
+
+async function initOmrajPayAgreementEsign(lan) {
+  const cleanLan = String(lan || "").trim().toUpperCase();
+
+  const {
+    loadOmrajPayAgreementStatus,
+  } = require("./omrajpayAgreementStatus");
+
+  const connection = await db.promise().getConnection();
+
+  const lockName = `omrajpay-agreement:${cleanLan}`;
+  let locked = false;
+
+  const statusQuery = `
+    SELECT
+      lan,
+      agreement_esign_status,
+      agreement_esign_sent_at,
+      agreement_esign_document_id
+    FROM loan_booking_omrajpay
+    WHERE lan = ?
+  `;
+
+  try {
+    const [[lock]] = await connection.query(
+      "SELECT GET_LOCK(?, 0) AS acquired",
+      [lockName],
+    );
+
+    locked = Number(lock.acquired) === 1;
+
+    if (!locked) {
+      throw new Error(
+        "Agreement send is already processing. Refresh to check its status.",
+      );
+    }
+
+    const [rows] = await connection.query(statusQuery, [cleanLan]);
+
+    if (!rows.length) {
+      throw new Error("OmrajPay loan not found");
+    }
+
+    const [current] = await loadOmrajPayAgreementStatus(
+      connection,
+      rows,
+    );
+
+    if (!current.agreement_esign_can_send) {
+      return {
+        success: true,
+        already_initiated: true,
+        ...current,
+      };
+    }
+
+    const result = await initDoqfyEsign(cleanLan, "AGREEMENT");
+
+    await connection.query(
+      `UPDATE loan_booking_omrajpay
+       SET agreement_esign_sent_at = NOW()
+       WHERE lan = ?
+         AND agreement_esign_document_id = ?`,
+      [cleanLan, result.orderId],
+    );
+
+    const [updatedRows] = await connection.query(
+      statusQuery,
+      [cleanLan],
+    );
+
+    const [persisted] = await loadOmrajPayAgreementStatus(
+      connection,
+      updatedRows,
+    );
+
+    return { ...result, ...persisted };
+  } finally {
+    try {
+      if (locked) {
+        await connection.query(
+          "SELECT RELEASE_LOCK(?)",
+          [lockName],
+        );
+      }
+    } finally {
+      connection.release();
+    }
+  }
+}
 exports.initDoqfyEsign = async (lan, type) => {
+  if (getLoanContext(lan).type === "ARTHAVIDHI_CAPITAL" && type === "AGREEMENT") {
+    const {loadArthavidhiCapitalAgreementStatus}=require("./ArthavidhiCapitalAgreementStatus");
+    const connection=await db.promise().getConnection();
+    const lockName=`avcl-agreement:${String(lan).trim().toUpperCase()}`;let acquired=false;
+    try {
+      const [[lock]]=await connection.query("SELECT GET_LOCK(?,0) AS acquired",[lockName]);
+      acquired=Number(lock?.acquired)===1;
+      if(!acquired)throw Object.assign(new Error("Agreement initiation is already processing. Refresh its status."),{status:409});
+      const [loans]=await connection.query("SELECT * FROM loan_booking_arthavidhi WHERE lan=?",[lan]);
+      if(!loans.length)throw Object.assign(new Error("Loan not found"),{status:404});
+      const [current]=await loadArthavidhiCapitalAgreementStatus(connection,loans);
+      if(!current.agreement_esign_can_send)return {success:true,already_initiated:true,lan,sign_url:current.agreement_sign_url,agreement_esign_status:current.agreement_esign_status};
+      if(!["signing_pending","ops_initiate"].includes(String(current.status).toLowerCase()))throw Object.assign(new Error("Save final loan terms before sending the agreement"),{status:409});
+      const result=await initDoqfyEsign(lan,type);
+      await connection.query("UPDATE loan_booking_arthavidhi SET agreement_esign_sent_at=NOW() WHERE lan=? AND agreement_esign_document_id=?",[lan,String(result.orderId)]);
+      return result;
+    }finally{
+      try{if(acquired)await connection.query("SELECT RELEASE_LOCK(?)",[lockName]);}finally{connection.release();}
+    }
+  }
+  if (getLoanContext(lan).type === "OMRAJPAY" && type === "AGREEMENT") {
+    return initOmrajPayAgreementEsign(lan);
+  }
   const { type: loanType, bookingTable } = getLoanContext(lan);
   if (type !== "AGREEMENT" || !["SAMPADA", "CLAYYO", "CLAIM_BUDDY"].includes(loanType)) {
     return initDoqfyEsign(lan, type);
   }
+
   const connection = await db.promise().getConnection();
   const lockName = `${loanType.toLowerCase()}-agreement:${String(lan).trim().toUpperCase()}`;
   let locked = false;

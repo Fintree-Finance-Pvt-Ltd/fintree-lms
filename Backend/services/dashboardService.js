@@ -324,6 +324,27 @@ const PRODUCT_MAP = {
     label: "Sampada",
     disbDateSource: "utr",
   },
+  "Omrajpay": {
+    rpsTable: "manual_rps_omrajpay",
+    bookTable: "loan_booking_omrajpay",
+    disbField: "loan_amount",
+    collType: "subquery",
+    allocTable: "allocation",
+    allocLike: "%OMR%",
+    label: "Omrajpay",
+    disbDateSource: "utr",
+  },
+
+  "Arthavidhi Capital": {
+    rpsTable: "manual_rps_arthavidhi_capital",
+    bookTable: "loan_booking_arthavidhi",
+    disbField: "loan_amount",
+    collType: "subquery",
+    allocTable: "allocation",
+    allocLike: "%AVCL%",
+    label: "Arthavidhi Capital",
+    disbDateSource: "utr",
+  },
   ClaimCureBuddy: {
     rpsTable: "manual_rps_claim_cure_buddy",
     bookTable: "loan_booking_claim_cure_buddy",

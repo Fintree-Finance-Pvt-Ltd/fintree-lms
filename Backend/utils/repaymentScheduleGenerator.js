@@ -9919,6 +9919,7 @@ const generateRepaymentScheduleOmRajPay = async (
   disbursementDate,
   product,
   lender,
+  { persist = true } = {},
 ) => {
   console.log("inside OmRajPay RPS generate final");
 
@@ -10119,15 +10120,42 @@ const generateRepaymentScheduleOmRajPay = async (
       `interest EMI ${i}`,
     );
 
-    let principalComponent = round0(emi - interest, `principal EMI ${i}`);
+    let principalComponent =
+      round0(
+        emi-interest,
+        `principal EMI ${i}`
+      );
 
-    let installmentEmi = emi;
 
-    if (i === months) {
-      principalComponent = round0(openingPrincipal);
 
-      installmentEmi = round0(principalComponent + interest);
+    let installmentEmi =
+      emi;
+
+
+
+    if(
+      i===months
+    ){
+
+      // Reconcile rupee rounding so the schedule charges the flat interest
+      // calculated from the approved terms, with no residual principal.
+      interest = totalFlatInterest - rpsData.reduce((sum, row) => sum + row.interest, 0);
+
+      principalComponent =
+        round0(
+          openingPrincipal
+        );
+
+
+      installmentEmi =
+        round0(
+          principalComponent+
+          interest
+        );
+
     }
+
+
 
     const closingPrincipal = round0(
       Math.max(0, openingPrincipal - principalComponent),
@@ -10183,8 +10211,12 @@ const generateRepaymentScheduleOmRajPay = async (
 
     row.principal,
 
-    row.emi,
-  ]);
+        row.emi
+
+      ]
+    );
+
+
 
   await conn.query(
     `
@@ -10272,6 +10304,15 @@ WHERE lan=?
 ////////////////////////////////////////////////////
 // OmRajPay RPS End
 ////////////////////////////////////////////////////
+
+ // =====================================================
+//Arthavidhi  Rps start 
+const { generateRepaymentScheduleArthavidhiCapital } = require("../services/arthavidhiDailySchedule");
+
+//  Arthavidhi Capital Rps end
+
+
+
 
 const generateRepaymentScheduleSrbh = async (
   conn,
@@ -11219,10 +11260,16 @@ const generateRepaymentSchedule = async (
       product,
       lender,
     );
-  } else if (
-    (lender === "Motion Corp" || lender === "Sampada") &&
-    product === "Monthly Loan"
-  ) {
+  } else if (lan.startsWith("OMR")) {
+    await generateRepaymentScheduleOmRajPay(
+      conn, lan, loanAmount, interestRate, tenure, disbursementDate, product, lender,
+    );
+  }else if (lan.startsWith("AVCL")) {
+      await generateRepaymentScheduleArthavidhiCapital(
+        conn, lan, loanAmount, interestRate, tenure, disbursementDate, product, lender,
+      );
+  }else if ((lender === "Motion Corp" || lender === "Sampada") && product === "Monthly Loan") {
+
     console.log("inside rps genration");
 
     await generateRepaymentScheduleMotionCorp(
@@ -12505,6 +12552,8 @@ module.exports = {
   generateRepaymentScheduleLoanDigit,
   generateRepaymentScheduleCirclePeHouser,
   generateRepaymentScheduleMotionCorp,
+  generateRepaymentScheduleOmRajPay,
+  generateRepaymentScheduleArthavidhiCapital,
   generateRepaymentScheduleCarepay,
   generateRepaymentScheduleSterlion,
   generateRepaymentScheduleSrbh,

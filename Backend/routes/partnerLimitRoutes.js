@@ -21,6 +21,14 @@ const RPS_POS_SOURCES = [
     partnerName: "Sampada",
     tableName: "manual_rps_sampada",
   },
+    {
+    partnerName: "Omrajpay",
+    tableName: "manual_rps_omrajpay",
+  },
+  {
+    partnerName: "Arthavidhi Capital",
+    tableName: "manual_rps_arthavidhi_capital",
+  },
   {
     partnerName: "Adikosh",
     tableName: "manual_rps_adikosh",

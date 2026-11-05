@@ -464,7 +464,7 @@ if (lender === "LOAN-DIGIT" && product === "Loan Digit") {
 /////////////////////// MOTION CORP ///////////////////
 
 // ✅ Motion Corp Monthly Loan EMI logic
-if (lender === "Motion Corp" && product === "Monthly Loan") {
+if (["Motion Corp", "OmRajPay"].includes(lender) && product === "Monthly Loan") {
 
   const dueDate = new Date(disbDate);
 

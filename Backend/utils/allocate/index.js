@@ -45,6 +45,8 @@ const allocateLoanDigit = require("./allocateLoanDigit");
 const allocateRapidMoney = require("./allocateRapidMoney");
 const allocateMotionCorp = require("./allocateMotionCorp");
 const allocateSampada = require("./allocateSampada");
+const allocateOmrajPay = require("./allocateOmrajPay");
+const allocateArthavidhiCapital = require("./allocateArthavidhiCapital");
 const allocateSterlion = require("./allocateSterlion");
 const allocateWctlffpl = require("./allocateWctlffpl");
 const allocateSterlionUBL = require("./allocateSterlionUbl"); //
@@ -124,6 +126,12 @@ const allocateRepaymentByLAN = async (lan, payment) => {
   }
   else if (lan.startsWith("SPL")) {
     return allocateSampada(lan, payment);
+  }
+  else if (lan.startsWith("OMR")) {
+    return alocateOmrajPay(lan, payment);
+  } 
+  else if(lan.startsWith("AVCL")) {
+    return allocateArthavidhiCapital(lan, payment);
   }
   else if (lan.startsWith("FINS")) {
     return allocateFinso(lan, payment);

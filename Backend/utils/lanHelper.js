@@ -73,6 +73,10 @@ function isOmrajPayLan(lan = "") {
   const s = normalizeLan(lan);
   return s.startsWith("OMR");
 }
+  function isArthavidhiCapitalLan(lan = "") {
+    const s = normalizeLan(lan);
+    return s.startsWith("AVCL");
+  }
 
 function isClaimBuddyLan(lan = "") {
   const s = normalizeLan(lan);
@@ -215,48 +219,116 @@ function getLoanContext(lan = "") {
 
           sign_position: "DRAG_DROP",
 
-          position_details: {
-            ALL: [
-              {
-                x1: 328,
-                x2: 403,
-                y1: 85,
-                y2: 130,
-              },
-            ],
+        position_details: {
+          ALL: [
+            {
+              x1: 328,
+              x2: 403,
+              y1: 85,
+              y2: 130,
+            },
+          ],
+        },
+      },
+    ],
+  };
+}
+  
+    if (isCustomerLan(lan)) {
+      return {
+        type: "CUSTOMER",
+        summaryTable: "customer_loan_summary",
+        rpsTable: "loan_rps_customer",
+        bookingTable: "loan_booking_zypay_customer",
+        agreementTemplate: "Customer_Aggrement_Zypay.html",
+        // Applicant only
+        esignParties: [
+          {
+            role: "APPLICANT",
+            required: true,
+            name: "customer_name",
+            email: "email_id",
+            mobile: "mobile_number",
           },
-        },
-      ],
-    };
-  }
+        ],
+      };
+    } 
+    if(isArthavidhiCapitalLan(lan)){
+      return {
+        type: "ARTHAVIDHI_CAPITAL",
+        summaryTable: "arthavidhi_capital_loan_summary",
+        rpsTable: "manual_rps_arthavidhi_capital",
+        bookingTable: "loan_booking_arthavidhi",
+        agreementTemplate: process.env.ARTHAVIDHI_CAPITAL_AGREEMENT_TEMPLATE || "ArthavidhiCapital_Agreement.html",
+        // Applicant only
+        esignParties: [
+          {
+            role: "APPLICANT",
+            required: true,
+            name: "customer_name",
+            email: "email",
+            mobile: "mobile_number",
+                   sign_position: "DRAG_DROP",
 
-  if (isCustomerLan(lan)) {
-    return {
-      type: "CUSTOMER",
-      summaryTable: "customer_loan_summary",
-      rpsTable: "loan_rps_customer",
-      bookingTable: "loan_booking_zypay_customer",
-      agreementTemplate: "Customer_Aggrement_Zypay.html",
-      // Applicant only
-      esignParties: [
-        {
-          role: "APPLICANT",
-          required: true,
-          name: "customer_name",
-          email: "email_id",
-          mobile: "mobile_number",
+        position_details: {
+          ALL: [
+            {
+              x1: 51,
+              x2: 126,
+              y1: 85,
+              y2: 130,
+            },
+          ],
         },
-      ],
-    };
-  }
+      },
+      {
+        role: "CO_APPLICANT",
+        required: false,
+        name: "co_applicant_name",
+        email: "co_applicant_email",
+        mobile: "co_applicant_mobile",
+        sign_position: "DRAG_DROP",
 
-  if (isOmrajPayLan(lan)) {
-    return {
-      type: "OMRAJPAY",
-      summaryTable: "omrajpay_loan_summary",
-      rpsTable: "loan_rps_omrajpay",
-      bookingTable: "loan_booking_omrajpay",
-      agreementTemplate: "OmrajPay_Agreement.html",
+        position_details: {
+          ALL: [
+            {
+              x1: 191,
+              x2: 266,
+              y1: 84,
+              y2: 129,
+            },
+          ],
+        },
+      },
+      {
+        role: "GUARANTOR",
+        required: false,
+        name: "guarantor_name",
+        email: "guarantor_email",
+        mobile: "guarantor_mobile",
+        sign_position: "DRAG_DROP",
+
+        position_details: {
+          ALL: [
+            {
+              x1: 328,
+              x2: 403,
+              y1: 85,
+              y2: 130,
+            },
+          ],
+        },
+      },
+    ],
+  };
+}
+    if (isOmrajPayLan(lan)) {
+  return {
+    type: "OMRAJPAY",
+    summaryTable: "omrajpay_loan_summary",
+    rpsTable: "loan_rps_omrajpay",
+    bookingTable: "loan_booking_omrajpay",
+    agreementTemplate: "OmrajPay_Agreement.html",
 
       esignParties: [
         {
@@ -575,6 +647,7 @@ module.exports = {
   isZebrsLan,
   isSampadaLan,
   isOmrajPayLan,
+    isArthavidhiCapitalLan,
   isClaimCureBuddyLan,
   isClaimBuddyLan,
   CLAIM_CURE_BUDDY_CONTEXT,

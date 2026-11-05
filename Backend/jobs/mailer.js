@@ -509,7 +509,25 @@ async function sendNocEmail({
 }
 
 
+async function sendAgreementSigningMail({ to, customerName, lan, signUrl }) {
+  if (!isValidEmail(to)) throw new Error("Customer email is missing or invalid");
+  const url = new URL(signUrl);
+  if (url.protocol !== "https:") throw new Error("Invalid agreement signing link");
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    throw new Error("Signing email delivery is not configured");
+  }
+  const result = await transporter.sendMail({
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to,
+    subject: `Arthavidhi Capital - sign your loan agreement (${lan})`,
+    text: `Dear ${customerName},\n\nPlease review and electronically sign your Arthavidhi Capital loan agreement for ${lan}:\n\n${url.href}\n\nComplete the signing yourself. Do not share your OTP with anyone.\n\nArthavidhi Capital`,
+  });
+  if (!result.accepted?.length) throw new Error("Signing email was not accepted for delivery");
+  return { status: "SENT" };
+}
+
 module.exports = {
+  sendAgreementSigningMail,
   sendLoanStatusMail,
   sendAadhaarKycMail,
   sendEnachMandateMail,

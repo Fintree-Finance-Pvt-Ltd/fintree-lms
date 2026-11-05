@@ -199,6 +199,14 @@ import RapidMoneyAllLoans from "./components/RapidMoney/RapidMoneyAllLoans";
 import RapidMoneyLoginLoans from "./components/RapidMoney/RapidMoneyLoginLoans";
 import RapidMoneyActionScreen from "./components/RapidMoney/RapidMoneyActionScreen";
 import RapidMoneyApproveInitiateScreen from "./components/RapidMoney/RapidMoneyApproveInitiateScreen";
+import ArthavidhiCapitalAllLoans from "./components/ArthavidhiCapital/ArthavidhiCapitalAllLoans";
+import ArthavidhiCapitalCreditTeam, { ArthavidhiCapitalPartnerCreditReview } from "./components/ArthavidhiCapital/ArthavidhiCapitalCreditTeam";
+import ArthavidhiCapitalOpsMaker from "./components/ArthavidhiCapital/ArthavidhiCapitalOpsMaker";
+import ArthavidhiCapitalOpsChecker from "./components/ArthavidhiCapital/ArthavidhiCapitalOpsChecker";
+import ArthavidhiCapitalDisbursedLoans from "./components/ArthavidhiCapital/ArthavidhiCapitalDisbursedLoans";
+import ArthavidhiCapitalCustomerDetails from "./components/ArthavidhiCapital/ArthavidhiCapitalCustomerDetails";
+import ArthavidhiCapitalLoanBooking from "./components/ArthavidhiCapital/ArthavidhiCapitalLoanBooking";
+import { ArthavidhiCapitalSigning } from "./components/ArthavidhiCapital/ArthavidhiCapitalActions";
 import YaMoneyAllLoans from "./components/YaMoney/YaMoneyAllLoans";
 import YaMoneyCreditTeamScreen from "./components/YaMoney/CreditTeam";
 import YaMoneyOpsMakerScreen from "./components/YaMoney/OpsMaker";
@@ -296,21 +304,21 @@ import SampadaApprovedLoans from "./components/Sampada/SampadaApprovedLoans";
 import SampadaOperationApproval from "./components/Sampada/SampadaOperationApproval";
 import SampadaUpdateData from "./components/Sampada/SampadaUpdateData.jsx";
 
-// /* ===================== OmrajPay imports ===================== */
-// import OmrajPayDealerEntry from "./components/OmRajPay/OmrajPayDealerEntry";
-// import OmrajPayDealerLists from "./components/OmRajPay/OmrajPayDealerLists";
-// import OmrajPayDealerLoginActions from "./components/OmRajPay/OmrajPayDealerLoginActions";
-// import OmrajPayDealerDetails from "./components/OmRajPay/OmrajPayDealerDetails";
-// import OmrajPayLoanBooking from "./components/OmRajPay/OmrajPayLoanBooking";
-// import OmrajPayAllLoans from "./components/OmRajPay/OmrajPayAllLoans";
-// import OmrajPayLoginCases from "./components/OmRajPay/OmrajPayLoginCases";
-// import OmrajPayLoginAction from "./components/OmRajPay/OmrajPayLoginAction";
-// import OmrajPayDisburseInitiate from "./components/OmRajPay/OmrajPayDisburseInitiate";
-// import OmrajPayApprovedLoans from "./components/OmRajPay/OmrajPayApprovedLoans";
-// import OmrajPayDisbursed from "./components/OmRajPay/OmrajPayDisbursed";
-// import OmrajPayOperationApproval from "./components/OmRajPay/OmrajPayOperationApproval";
-// import OmrajPayDetails from "./components/OmRajPay/OmrajPayDetails";
-// import OmrajPayUpdateData from "./components/OmRajPay/OmrajPayUpdateData";
+/* ===================== OmrajPay imports ===================== */
+import OmrajPayDealerEntry from "./components/OmRajPay/OmrajPayDealerEntry";
+import OmrajPayDealerLists from "./components/OmRajPay/OmrajPayDealerLists";
+import OmrajPayDealerLoginActions from "./components/OmRajPay/OmrajPayDealerLoginActions";
+import OmrajPayDealerDetails from "./components/OmRajPay/OmrajPayDealerDetails";
+import OmrajPayLoanBooking from "./components/OmRajPay/OmrajPayLoanBooking";
+import OmrajPayAllLoans from "./components/OmRajPay/OmrajPayAllLoans";
+import OmrajPayLoginCases from "./components/OmRajPay/OmrajPayLoginCases";
+import OmrajPayLoginAction from "./components/OmRajPay/OmrajPayLoginAction";
+import OmrajPayDisburseInitiate from "./components/OmRajPay/OmrajPayDisburseInitiate";
+import OmrajPayApprovedLoans from "./components/OmRajPay/OmrajPayApprovedLoans";
+import OmrajPayDisbursed from "./components/OmRajPay/OmrajPayDisbursed";
+import OmrajPayOperationApproval from "./components/OmRajPay/OmrajPayOperationApproval";
+import OmrajPayDetails from "./components/OmRajPay/OmrajPayDetails";
+import OmrajPayUpdateData from "./components/OmRajPay/OmrajPayUpdateData";
 
 /* ===================== OmrajPay routes ===================== */
 
@@ -1913,6 +1921,71 @@ function App() {
             }
           />
           <Route
+            path="/arthavidhi-capital/all"
+            element={
+              <PermissionRoute pageName="ArthavidhiCapitalAllLoans">
+                <ArthavidhiCapitalAllLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route path="/arthavidhi-capital/partner-credit" element={<PermissionRoute pageName="ArthavidhiCapitalPartnerCreditReview"><ArthavidhiCapitalPartnerCreditReview /></PermissionRoute>} />
+          <Route
+            path="/arthavidhi-capital/credit-team"
+            element={
+              <PermissionRoute pageName="ArthavidhiCapitalCreditTeam">
+                <ArthavidhiCapitalCreditTeam />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/arthavidhi-capital/signing"
+            element={
+              <PermissionRoute pageName="ArthavidhiCapitalSigning">
+                <ArthavidhiCapitalSigning />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/arthavidhi-capital/ops-maker"
+            element={
+              <PermissionRoute pageName="ArthavidhiCapitalOpsMaker">
+                <ArthavidhiCapitalOpsMaker />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/arthavidhi-capital/ops-checker"
+            element={
+              <PermissionRoute pageName="ArthavidhiCapitalOpsChecker">
+                <ArthavidhiCapitalOpsChecker />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/arthavidhi-capital/disbursed"
+            element={
+              <PermissionRoute pageName="ArthavidhiCapitalDisbursedLoans">
+                <ArthavidhiCapitalDisbursedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/arthavidhi-capital/customer-details"
+            element={
+              <PermissionRoute pageName="ArthavidhiCapitalCustomerDetails">
+                <ArthavidhiCapitalCustomerDetails />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/arthavidhi-capital/new"
+            element={
+              <PermissionRoute pageName="ArthavidhiCapitalLoanBooking">
+                <ArthavidhiCapitalLoanBooking />
+              </PermissionRoute>
+            }
+          />
+          <Route
             path="/ya-money/all"
             element={
               <PermissionRoute pageName="Ya Money All Loans">
@@ -2300,8 +2373,11 @@ function App() {
               </PermissionRoute>
             }
           />
-          /* ===================== OmrajPay routes ===================== */
-          {/* <Route
+
+
+
+/* ===================== OmrajPay routes ===================== */
+          <Route
             path="/omrajpay/dealer-entry"
             element={
               <PermissionRoute pageName="OmrajPay Dealer Entry">
@@ -2421,7 +2497,8 @@ function App() {
                 <OmrajPayDetails />
               </PermissionRoute>
             }
-          /> */}
+          />
+
           <Route
             path="/fundify-loans/manual-entry"
             element={

@@ -14,6 +14,9 @@ const {
 const {
   autoApproveSampadaIfAllVerified,
 } = require("../routes/Sampada/sampadaBRE");
+
+const { autoApproveOmRajPayIfAllVerified } = require("../routes/OmRajPay/OmRajPayBRE");
+const{ autoRunArthavidhiCapitalBreIfReady } = require("../routes/ArthavidhiCapital/ArthavidhiCapitalBRE");
 const {
   autoApproveSevenFinCorpIfAllVerified,
 } = require("../routes/Seven Fincorp/sevenFincorpBRE");
@@ -204,6 +207,386 @@ const generateAndStoreSampadaPanVerificationPdf = async ({
       width: contentWidth,
       align: "center",
     });
+    document.end();
+  });
+
+  await connection.query(
+    `INSERT INTO loan_documents
+     (lan, doc_name, file_name, original_name, uploaded_at)
+     VALUES (?, 'PAN_VERIFICATION_RESPONSE', ?, ?, NOW())`,
+    [lan, fileName, fileName],
+  );
+
+  return { fileName, filePath };
+};
+
+const generateAndStoreOmrajPayPanVerificationPdf = async ({
+  connection,
+  lan,
+  applicantType,
+  partyNo,
+  panNumber,
+  applicantName,
+  response,
+}) => {
+  const outputDirectory = path.join(__dirname, "../uploads");
+  await fs.promises.mkdir(outputDirectory, { recursive: true });
+  const safeLan = String(lan ?? "").trim().replace(/[^a-zA-Z0-9_-]/g, "_");
+  const normalizedApplicantType = String(applicantType || "").trim().toUpperCase();
+  const normalizedPartyNo = Number(partyNo) || 1;
+  const fileName = `PAN_Verification_${safeLan}_${normalizedApplicantType}_${normalizedPartyNo}_${Date.now()}.pdf`;
+  const filePath = path.join(outputDirectory, fileName);
+  await new Promise((resolve, reject) => {
+    const document = new PDFDocument({ size: "A4", margin: 48 });
+    const stream = fs.createWriteStream(filePath);
+    stream.on("finish", resolve);
+    stream.on("error", reject);
+    document.on("error", reject);
+    document.pipe(stream);
+    const pageWidth = document.page.width;
+    const contentWidth = pageWidth - 96;
+    const labelWidth = 190;
+    const valueWidth = contentWidth - labelWidth;
+    const left = 48;
+    const bottomLimit = document.page.height - 48;
+    const printableValue = (value) => {
+      if (value === null || value === undefined || value === "") return "-";
+      if (typeof value === "boolean") return value ? "Yes" : "No";
+      if (typeof value === "object") return JSON.stringify(value);
+      return String(value);
+    };
+    const readableLabel = (key) =>
+      String(key || "")
+        .replace(/**\\[**(\d+)**\\]**/g, " $1")
+        .replace(/[._-]+/g, " ")
+        .replace(/([a-z])([A-Z])/g, "$1 $2")
+        .replace(/\b\w/g, (character) => character.toUpperCase())
+        .trim();
+    const flattenResponse = (value, prefix = "") => {
+      if (value === null || value === undefined || typeof value !== "object") {
+        return [[prefix || "Response", printableValue(value)]];
+      }
+      const entries = [];
+      for (const [key, nestedValue] of Object.entries(value)) {
+        const field = prefix ? `${prefix}.${key}` : key;
+        if (nestedValue !== null && typeof nestedValue === "object") {
+          entries.push(...flattenResponse(nestedValue, field));
+        } else {
+          entries.push([field, printableValue(nestedValue)]);
+        }
+      }
+      return entries.length ? entries : [[prefix || "Response", "-"]];
+    };
+    const ensureSpace = (height, repeatHeader) => {
+      if (document.y + height <= bottomLimit) return;
+      document.addPage();
+      if (repeatHeader) repeatHeader();
+    };
+    const drawTableHeader = () => {
+      const y = document.y;
+      document.rect(left, y, contentWidth, 27).fill("#173866");
+      document.fillColor("#ffffff").font("Helvetica-Bold").fontSize(9);
+      document.text("FIELD", left + 9, y + 9, { width: labelWidth - 18 });
+      document.text("VALUE", left + labelWidth + 9, y + 9, {
+        width: valueWidth - 18,
+      });
+      document.y = y + 27;
+    };
+    const drawRows = (rows) => {
+      drawTableHeader();
+      rows.forEach(([rawLabel, rawValue], index) => {
+        const label = readableLabel(rawLabel);
+        const value = printableValue(rawValue);
+        document.font("Helvetica").fontSize(9);
+        const labelHeight = document.heightOfString(label, { width: labelWidth - 18 });
+        const valueHeight = document.heightOfString(value, { width: valueWidth - 18 });
+        const rowHeight = Math.max(28, labelHeight + 14, valueHeight + 14);
+        ensureSpace(rowHeight, drawTableHeader);
+        const y = document.y;
+        document
+          .rect(left, y, contentWidth, rowHeight)
+          .fill(index % 2 === 0 ? "#f7faff" : "#ffffff");
+        document
+          .lineWidth(0.5)
+          .strokeColor("#dbe4f0")
+          .rect(left, y, contentWidth, rowHeight)
+          .stroke();
+        document
+          .moveTo(left + labelWidth, y)
+          .lineTo(left + labelWidth, y + rowHeight)
+          .stroke();
+        document.fillColor("#41536d").font("Helvetica-Bold").fontSize(9);
+        document.text(label, left + 9, y + 7, { width: labelWidth - 18 });
+        document.fillColor("#17233b").font("Helvetica").fontSize(9);
+        document.text(value, left + labelWidth + 9, y + 7, {
+          width: valueWidth - 18,
+        });
+        document.y = y + rowHeight;
+      });
+    };
+    const drawSectionTitle = (title) => {
+      ensureSpace(34);
+      document.moveDown(0.8);
+      document.fillColor("#173866").font("Helvetica-Bold").fontSize(12).text(title);
+      document.moveDown(0.45);
+    };
+    document.rect(0, 0, pageWidth, 92).fill("#173866");
+    document.fillColor("#ffffff").font("Helvetica-Bold").fontSize(20);
+    document.text("PAN Verification Report", left, 31, {
+      width: contentWidth,
+      align: "center",
+    });
+    document.fillColor("#dbeafe").font("Helvetica").fontSize(9);
+    document.text("OmrajPay | Identity Verification Record", left, 59, {
+      width: contentWidth,
+      align: "center",
+    });
+    document.y = 112;
+    drawSectionTitle("Applicant Details");
+    drawRows([
+      ["LAN", lan],
+      ["Applicant Type", normalizedApplicantType],
+      ["Party Number", normalizedPartyNo],
+      ["Applicant Name", applicantName || "-"],
+      ["PAN Number", panNumber],
+      ["Verification Status", "VERIFIED"],
+      ["Generated At", new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })],
+    ]);
+    drawSectionTitle("PAN Provider Response");
+    drawRows(flattenResponse(response));
+    document.moveDown();
+    document.fillColor("#718096").font("Helvetica").fontSize(8);
+    document.text("This is a system-generated PAN verification report.", {
+      width: contentWidth,
+      align: "center",
+    });
+    document.end();
+  });
+  await connection.query(
+    `INSERT INTO loan_documents
+     (lan, doc_name, file_name, original_name, uploaded_at)
+     VALUES (?, 'PAN_VERIFICATION_RESPONSE', ?, ?, NOW())`,
+    [lan, fileName, fileName],
+  );
+  return { fileName, filePath };
+};
+
+const generateAndStoreArthavidhiCapitalPanVerificationPdf = async ({
+  connection,
+  lan,
+  applicantType,
+  partyNo,
+  panNumber,
+  applicantName,
+  response,
+}) => {
+  const outputDirectory = path.join(__dirname, "../uploads");
+  await fs.promises.mkdir(outputDirectory, { recursive: true });
+
+  const safeLan = String(lan ?? "")
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]/g, "_");
+
+  const normalizedApplicantType = String(applicantType || "")
+    .trim()
+    .toUpperCase();
+
+  const normalizedPartyNo = Number(partyNo) || 1;
+
+  const fileName =
+    `PAN_Verification_${safeLan}_${normalizedApplicantType}` +
+    `_${normalizedPartyNo}_${Date.now()}.pdf`;
+
+  const filePath = path.join(outputDirectory, fileName);
+
+  await new Promise((resolve, reject) => {
+    const document = new PDFDocument({ size: "A4", margin: 48 });
+    const stream = fs.createWriteStream(filePath);
+
+    stream.on("finish", resolve);
+    stream.on("error", reject);
+    document.on("error", reject);
+    document.pipe(stream);
+
+    const pageWidth = document.page.width;
+    const contentWidth = pageWidth - 96;
+    const labelWidth = 190;
+    const valueWidth = contentWidth - labelWidth;
+    const left = 48;
+    const bottomLimit = document.page.height - 48;
+
+    const printableValue = (value) => {
+      if (value === null || value === undefined || value === "") return "-";
+      if (typeof value === "boolean") return value ? "Yes" : "No";
+      if (typeof value === "object") return JSON.stringify(value);
+      return String(value);
+    };
+
+    const readableLabel = (key) =>
+      String(key || "")
+        .replace(/\[(\d+)\]/g, " $1")
+        .replace(/[._-]+/g, " ")
+        .replace(/([a-z])([A-Z])/g, "$1 $2")
+        .replace(/\b\w/g, (character) => character.toUpperCase())
+        .trim();
+
+    const flattenResponse = (value, prefix = "") => {
+      if (value === null || value === undefined || typeof value !== "object") {
+        return [[prefix || "Response", printableValue(value)]];
+      }
+
+      const entries = [];
+
+      for (const [key, nestedValue] of Object.entries(value)) {
+        const field = prefix ? `${prefix}.${key}` : key;
+
+        if (nestedValue !== null && typeof nestedValue === "object") {
+          entries.push(...flattenResponse(nestedValue, field));
+        } else {
+          entries.push([field, printableValue(nestedValue)]);
+        }
+      }
+
+      return entries.length ? entries : [[prefix || "Response", "-"]];
+    };
+
+    const ensureSpace = (height, repeatHeader) => {
+      if (document.y + height <= bottomLimit) return;
+
+      document.addPage();
+      if (repeatHeader) repeatHeader();
+    };
+
+    const drawTableHeader = () => {
+      const y = document.y;
+
+      document.rect(left, y, contentWidth, 27).fill("#173866");
+      document.fillColor("#ffffff").font("Helvetica-Bold").fontSize(9);
+
+      document.text("FIELD", left + 9, y + 9, {
+        width: labelWidth - 18,
+      });
+
+      document.text("VALUE", left + labelWidth + 9, y + 9, {
+        width: valueWidth - 18,
+      });
+
+      document.y = y + 27;
+    };
+
+    const drawRows = (rows) => {
+      drawTableHeader();
+
+      rows.forEach(([rawLabel, rawValue], index) => {
+        const label = readableLabel(rawLabel);
+        const value = printableValue(rawValue);
+
+        document.font("Helvetica").fontSize(9);
+
+        const labelHeight = document.heightOfString(label, {
+          width: labelWidth - 18,
+        });
+
+        const valueHeight = document.heightOfString(value, {
+          width: valueWidth - 18,
+        });
+
+        const rowHeight = Math.max(
+          28,
+          labelHeight + 14,
+          valueHeight + 14,
+        );
+
+        ensureSpace(rowHeight, drawTableHeader);
+        const y = document.y;
+
+        document
+          .rect(left, y, contentWidth, rowHeight)
+          .fill(index % 2 === 0 ? "#f7faff" : "#ffffff");
+
+        document
+          .lineWidth(0.5)
+          .strokeColor("#dbe4f0")
+          .rect(left, y, contentWidth, rowHeight)
+          .stroke();
+
+        document
+          .moveTo(left + labelWidth, y)
+          .lineTo(left + labelWidth, y + rowHeight)
+          .stroke();
+
+        document.fillColor("#41536d").font("Helvetica-Bold").fontSize(9);
+        document.text(label, left + 9, y + 7, {
+          width: labelWidth - 18,
+        });
+
+        document.fillColor("#17233b").font("Helvetica").fontSize(9);
+        document.text(value, left + labelWidth + 9, y + 7, {
+          width: valueWidth - 18,
+        });
+
+        document.y = y + rowHeight;
+      });
+    };
+
+    const drawSectionTitle = (title) => {
+      ensureSpace(34);
+      document.moveDown(0.8);
+      document
+        .fillColor("#173866")
+        .font("Helvetica-Bold")
+        .fontSize(12)
+        .text(title);
+      document.moveDown(0.45);
+    };
+
+    document.rect(0, 0, pageWidth, 92).fill("#173866");
+    document.fillColor("#ffffff").font("Helvetica-Bold").fontSize(20);
+
+    document.text("PAN Verification Report", left, 31, {
+      width: contentWidth,
+      align: "center",
+    });
+
+    document.fillColor("#dbeafe").font("Helvetica").fontSize(9);
+    document.text(
+      "Arthavidhi Capital | Identity Verification Record",
+      left,
+      59,
+      {
+        width: contentWidth,
+        align: "center",
+      },
+    );
+
+    document.y = 112;
+
+    drawSectionTitle("Applicant Details");
+    drawRows([
+      ["LAN", lan],
+      ["Applicant Type", normalizedApplicantType],
+      ["Party Number", normalizedPartyNo],
+      ["Applicant Name", applicantName || "-"],
+      ["PAN Number", panNumber],
+      ["Verification Status", "VERIFIED"],
+      [
+        "Generated At",
+        new Date().toLocaleString("en-IN", {
+          timeZone: "Asia/Kolkata",
+        }),
+      ],
+    ]);
+
+    drawSectionTitle("PAN Provider Response");
+    drawRows(flattenResponse(response));
+
+    document.moveDown();
+    document.fillColor("#718096").font("Helvetica").fontSize(8);
+    document.text("This is a system-generated PAN verification report.", {
+      width: contentWidth,
+      align: "center",
+    });
+
     document.end();
   });
 
@@ -410,6 +793,37 @@ async function runApplicantValidation({
           );
         }
       }
+        if (panResult.success && lan.startsWith("OMR")) {
+              try {
+                await generateAndStoreOmrajPayPanVerificationPdf({
+                  connection: pool,
+                  lan,
+                  applicantType,
+                  partyNo: normalizedPartyNo,
+                  panNumber: applicantData.pan_number,
+                  applicantName: applicantData.customer_name,
+                  response: panResult.response || panResult,
+                });
+              } catch (pdfError) {
+                console.error(`OmrajPay PAN PDF generation failed for ${lan}:`, pdfError);
+              }
+            }
+             if (panResult.success && lan.startsWith("AVCL")) {
+                    try {
+                      await generateAndStoreArthavidhiCapitalPanVerificationPdf({
+                        connection: pool,
+                        lan,
+                        applicantType,
+                        partyNo: normalizedPartyNo,
+                        panNumber: applicantData.pan_number,
+                        applicantName: applicantData.customer_name,
+                        response: panResult.response || panResult,
+                      });
+                    } catch (pdfError) {
+                      console.error(`Arthavidhi Capital PAN PDF generation failed for ${lan}:`, pdfError);
+                    }
+                  }
+
     } else if (runPanValidation) {
       console.log(
         `⏭️ ${applicantType} PAN skipped. Existing status: ${currentStatus.pan_status}`,
@@ -817,8 +1231,9 @@ async function runApplicantValidation({
 }
 
 exports.runApplicantValidation = runApplicantValidation;
-exports.generateAndStoreSampadaPanVerificationPdf =
-  generateAndStoreSampadaPanVerificationPdf;
+exports.generateAndStoreSampadaPanVerificationPdf = generateAndStoreSampadaPanVerificationPdf;
+exports.generateAndStoreOmrajPayPanVerificationPdf = generateAndStoreOmrajPayPanVerificationPdf;
+exports.generateAndStoreArthavidhiCapitalPanVerificationPdf = generateAndStoreArthavidhiCapitalPanVerificationPdf;
 
 exports.universalRunAllValidations = async (lan, options = {}) => {
   try {
@@ -830,7 +1245,11 @@ exports.universalRunAllValidations = async (lan, options = {}) => {
       table = "loan_booking_helium";
     } else if (lan.startsWith("MC")) {
       table = "loan_booking_motion_corp";
-    } else if (lan.startsWith("SPL")) {
+    } else if (lan.startsWith("OMR")) {
+      table = "loan_booking_omrajpay";
+    } else if (lan.startsWith("AVCL")) {
+      table = "loan_booking_arthavidhi";
+    }else if (lan.startsWith("SPL")) {
       table = "loan_booking_sampada";
     } else if (lan.startsWith("SFL")) {
       table = "loan_booking_seven_fincorp";
@@ -862,7 +1281,7 @@ exports.universalRunAllValidations = async (lan, options = {}) => {
       return;
     }
 
-    const loan = loanRows[0];
+    const loan = lan.startsWith("AVCL") ? require("../services/ArthavidhiCapitalAgreementStatus").fromArthavidhiBookingRecord(loanRows[0]) : loanRows[0];
 
     // =========================
     // BORROWER
@@ -1012,7 +1431,17 @@ exports.universalRunAllValidations = async (lan, options = {}) => {
 
       console.log(`Sampada BRE finished for ${lan}`);
     }
-
+    if (lan.startsWith("OMR")) {
+          console.log(`Running OmrajPay BRE for ${lan}`);
+          await autoApproveOmRajPayIfAllVerified(lan);
+          console.log(`OmrajPay BRE finished for ${lan}`);
+        }
+if(lan.startsWith("AVCL")) {
+      console.log(`🚀 Running Arthavidhi Capital BRE for ${lan}`);
+      await autoRunArthavidhiCapitalBreIfReady(lan);
+      console.log(`✅ Arthavidhi Capital BRE finished for ${lan}`);
+    } 
+    
     if (lan.startsWith("SFL")) {
       console.log(`🚀 Running Seven FinCorp BRE for ${lan}`);
 

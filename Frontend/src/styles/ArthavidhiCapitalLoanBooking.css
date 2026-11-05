@@ -1,0 +1,104 @@
+.avcl-booking { max-width: 1200px; margin: 0 auto; }
+.avcl-booking .avcl-eyebrow { color: #52718c; font-size: 11px; font-weight: 700; letter-spacing: .12em; }
+.avcl-booking .avcl-form-card, .avcl-booking .avcl-success { background: #fff; border: 1px solid #e1e8ef; border-radius: 14px; padding: 28px; box-shadow: 0 8px 28px rgb(15 23 42 / 5%); }
+.avcl-booking .avcl-section-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.avcl-booking .avcl-section-tab { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid transparent; border-radius: 8px; background: #f1f5f9; color: #475569; font: inherit; font-size: 12px; cursor: pointer; }
+.avcl-booking .avcl-section-tab > span { display: grid; place-items: center; width: 23px; height: 23px; border-radius: 50%; background: #e2e8f0; font-weight: 700; }
+.avcl-booking .avcl-section-tab.active { color: #0c4a6e; border-color: #7dd3fc; background: #f0f9ff; font-weight: 600; }
+.avcl-booking .avcl-section-tab.active > span { color: #fff; background: #0284c7; }
+.avcl-booking .avcl-section-tab:hover { border-color: #94a3b8; }
+.avcl-booking .avcl-progress { height: 4px; background: #f1f5f9; margin: 22px 0 30px; border-radius: 4px; overflow: hidden; }
+.avcl-booking .avcl-progress > div { height: 100%; background: #0ea5e9; transition: width .2s ease; }
+.avcl-booking .avcl-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.avcl-booking h2 { color: #172e48; font-size: 22px; margin: 8px 0; }
+.avcl-booking .avcl-section-heading { margin-bottom: 26px; }
+.avcl-booking .avcl-section-heading p, .avcl-booking .avcl-review > p { color: #64748b; font-size: 13px; line-height: 1.6; }
+.avcl-booking .avcl-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 24px; min-height: 120px; }
+.avcl-booking .avcl-form-grid label { display: grid; align-content: start; gap: 8px; font-size: 13px; font-weight: 500; color: #334155; }
+.avcl-booking .avcl-form-grid input, .avcl-booking .avcl-form-grid select { min-height: 44px; color: #0f172a; background: #fff; }
+.avcl-booking input:focus, .avcl-booking select:focus { outline: 2px solid #38bdf8; outline-offset: 2px; }
+.avcl-booking .avcl-wide-field { grid-column: 1 / -1; }
+.avcl-booking .avcl-required { color: #b91c1c; }
+.avcl-booking .avcl-step-buttons { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; margin-top: 32px; padding-top: 22px; border-top: 1px solid #e2e8f0; }
+.avcl-booking .avcl-step-buttons > span { color: #64748b; font-size: 12px; }
+.avcl-booking .avcl-next { background: #122e4b; border: 1px solid #122e4b; color: #fff; min-width: 112px; justify-content: center; }
+.avcl-booking .avcl-next:hover { background: #1e466b; }
+.avcl-booking button:disabled { opacity: .55; cursor: not-allowed; }
+.avcl-booking button:focus-visible, .avcl-booking a:focus-visible { outline: 2px solid #0284c7; outline-offset: 3px; }
+.avcl-booking .avcl-review-section { margin-top: 18px; padding: 18px; border: 1px solid #e2e8f0; border-radius: 10px; }
+.avcl-booking .avcl-review-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.avcl-booking .avcl-review-heading h3 { margin: 0; color: #1e3a55; font-size: 15px; }
+.avcl-booking .avcl-review-heading button { background: transparent; border: 0; color: #0369a1; cursor: pointer; font: inherit; font-size: 13px; text-decoration: underline; }
+.avcl-booking .avcl-review dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-bottom: 0; }
+.avcl-booking .avcl-review dt { color: #64748b; font-size: 12px; margin-bottom: 5px; }
+.avcl-booking .avcl-review dd { margin: 0; color: #1e293b; font-size: 13px; overflow-wrap: anywhere; }
+.avcl-booking .avcl-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.avcl-booking .avcl-success { border-top: 4px solid #16a34a; }
+.avcl-booking .avcl-lan { color: #0369a1; font-size: 24px; font-weight: 700; }
+.avcl-booking .avcl-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
+@media (max-width: 640px) {
+  .avcl-booking .avcl-form-card, .avcl-booking .avcl-success { padding: 18px; }
+  .avcl-booking .avcl-form-grid, .avcl-booking .avcl-review dl { grid-template-columns: 1fr; }
+  .avcl-booking .avcl-section-tabs { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 8px; }
+  .avcl-booking .avcl-section-tab { flex-shrink: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .avcl-booking .avcl-progress > div { transition: none; }
+}
+
+.avcl-booking .avcl-identity-panel { padding: 20px; border: 1px solid #bae6fd; border-radius: 12px; background: #f0f9ff; margin-bottom: 24px; }
+.avcl-booking .avcl-identity-panel p { font-size: 13px; line-height: 1.6; color: #475569; }
+.avcl-booking .avcl-identity-status { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; font-size: 13px; font-weight: 600; }
+.avcl-booking .avcl-consent { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; line-height: 1.7; }
+.avcl-booking .avcl-consent input { margin-top: 5px; }
+.avcl-booking .avcl-otp { display: flex; align-items: end; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
+.avcl-booking .avcl-otp label { display: grid; gap: 8px; font-size: 13px; }
+.avcl-case-flow { display: flex; gap: 10px; flex-wrap: wrap; padding: 18px 0; }
+.avcl-case-flow span { background: #e2e8f0; color: #334155; padding: 10px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; }
+.avcl-case-flow span[aria-current="step"] { background: #e0f2fe; color: #075985; outline: 1px solid #38bdf8; }
+
+/* Match ClaimCureBuddy's Basic Details field layout without changing its CSS. */
+.avcl-booking { max-width: 1480px; }
+.avcl-booking .avcl-section-heading { padding-bottom: 24px; margin-bottom: 24px; border-bottom: 1px solid #e8edf4; }
+.avcl-booking .avcl-section-heading h2 { margin: 9px 0 0; font-size: 32px; line-height: 1.25; letter-spacing: -.03em; color: #0f172a; font-weight: 750; }
+.avcl-booking .avcl-section-heading .avcl-eyebrow { color: #2563eb; font-size: 12px; font-weight: 800; letter-spacing: .06em; }
+.avcl-booking .avcl-section-heading p { display: none; }
+.avcl-booking .avcl-basic-grid { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 22px 18px; }
+.avcl-booking .avcl-field { display: grid; align-content: start; gap: 9px; min-width: 0; }
+.avcl-booking .avcl-form-grid .avcl-field > span { color: #3e4d65; font-size: 13px; font-weight: 750; }
+.avcl-booking .avcl-form-grid input, .avcl-booking .avcl-form-grid select { min-height: 48px; border-radius: 8px !important; padding: 12px 13px !important; font-size: 14px !important; color: #142944; }
+.avcl-booking .avcl-form-grid input[readonly] { background: #f1f4f8; color: #526178; }
+.avcl-booking .avcl-inline-field { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; align-items: end; min-width: 0; }
+.avcl-booking .avcl-verify-button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 48px; padding: 10px 16px; border: 1px solid #bfcce0; border-radius: 8px; background: white; color: #32527d; font: inherit; font-size: 13px; font-weight: 750; white-space: nowrap; cursor: pointer; text-decoration: none; }
+.avcl-booking .avcl-verify-button:hover:not(:disabled) { border-color: #6d91c7; background: #f5f8fd; }
+.avcl-booking .avcl-verify-button:disabled { color: #7890b0; border-color: #ccd8eb; opacity: .8; }
+.avcl-booking .avcl-reset-identity { margin-top: 18px; padding: 0; border: 0; background: none; color: #526178; font: inherit; font-size: 12px; text-decoration: underline; cursor: pointer; }
+.avcl-booking .avcl-address-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; }
+.avcl-booking .avcl-verification-state { font-size: 12px; font-weight: 700; color: #475569; }
+.avcl-booking .avcl-verification-notice { margin: 20px 0 0; font-size: 13px; color: #325985; }
+.avcl-booking .avcl-otp-dialog { position: fixed; inset: 0; margin: auto; width: min(460px,calc(100vw - 40px)); max-height: calc(100dvh - 40px); overflow-y: auto; box-sizing: border-box; padding: 26px; border: 1px solid #d9e3f0; border-radius: 16px; color: #172e48; }
+.avcl-booking .avcl-otp-dialog::backdrop { background: rgb(15 23 42 / 45%); }
+.avcl-booking .avcl-otp-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.avcl-booking .avcl-otp-heading h2 { font-size: 21px; }
+.avcl-booking .avcl-otp-heading > button { border: 0; background: none; color: #526178; cursor: pointer; padding: 8px; }
+.avcl-booking .avcl-otp-dialog p { font-size: 13px; line-height: 1.6; }
+.avcl-booking .avcl-otp-input { margin-top: 20px; }
+.avcl-booking .avcl-otp-input input { padding: 12px; border: 1px solid #ccd6e4; border-radius: 8px; font: inherit; }
+@media(max-width: 1000px) { .avcl-booking .avcl-basic-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(max-width: 640px) { .avcl-booking .avcl-basic-grid { grid-template-columns: 1fr; } .avcl-booking .avcl-section-heading h2 { font-size: 27px; } }
+.avcl-authorisation-card { border: 1px solid #dce5ef; border-radius: 12px; padding: 20px; min-width: 0; }
+.avcl-authorisation-card h4 { margin: 0 0 16px; font-size: 18px; }
+.avcl-authorisation-card label { display: grid; gap: 8px; font-size: 13px; }
+.avcl-mandate-dialog { width: min(680px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); overflow-y: auto; box-sizing: border-box; padding: 26px; border: 1px solid #dce5ef; border-radius: 16px; color: #172e48; }
+.avcl-mandate-dialog::backdrop { background: rgb(15 23 42 / 50%); }
+.avcl-mandate-dialog h2 { margin-top: 0; }
+.avcl-mandate-dialog p { font-size: 14px; line-height: 1.6; }
+.avcl-mandate-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 18px; padding: 20px; background: #f5f8fc; border-radius: 10px; }
+.avcl-mandate-summary dt { font-size: 12px; color: #526178; margin-bottom: 6px; }
+.avcl-mandate-summary dd { margin: 0; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+
+.avcl-booking .avcl-booking-checks { margin: 24px 0; padding: 20px 24px; border: 1px solid #fca5a5; border-left: 5px solid #dc2626; border-radius: 10px; background: #fff7f7; color: #7f1d1d; }
+.avcl-booking .avcl-booking-checks h3 { margin: 0 0 12px; }
+.avcl-booking .avcl-booking-checks h4 { margin: 18px 0 8px; }
+.avcl-booking .avcl-booking-checks li { margin: 6px 0; }
+

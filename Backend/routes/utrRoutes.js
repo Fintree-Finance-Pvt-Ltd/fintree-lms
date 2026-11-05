@@ -578,6 +578,7 @@ function toClientError(err) {
 function getPartnerNameByLan(lan, lender, product) {
   if (lan.startsWith("MCL")) return "Motion Corp";
   if (lan.startsWith("SPL")) return "Sampada";
+  if (lan.startsWith("OMR")) return "Omrajpay";
   if (lan.startsWith("GQN")) return "GQ NON FSF";
   if (lan.startsWith("GQF")) return "GQ FSF";
   if (lan.startsWith("ADK")) return "Adikosh";
@@ -677,6 +678,22 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
       workbook.Sheets[workbook.SheetNames[0]],
     );
 
+    // Only AVCL uploads require the new manual-payment authorisation here;
+    // other products retain their existing upload path.
+    if (sheetData.some(row=>String(row["LAN"]||"").trim().toUpperCase().startsWith("AVCL"))) {
+      const authFailure = await new Promise(resolve=>{
+        const denied={status(code){this.code=code;return this;},json(body){resolve({code:this.code||401,body});}};
+        require("../middleware/verifyToken")(req,denied,()=>resolve(null));
+      });
+      if (authFailure) return res.status(authFailure.code).json(authFailure.body);
+      const actor = req.user?.id ?? req.user?.userId ?? req.user?.user_id;
+      if (actor == null) return res.status(401).json({message:"Authenticated staff identity required for Arthavidhi UTR upload"});
+      if (String(req.user?.role||"").toLowerCase()!=="admin") {
+        const [pages]=await db.promise().query("SELECT p.id FROM pages p JOIN user_permissions up ON up.page_id=p.id WHERE up.user_id=? AND p.path IN ('/upload-utr','/arthavidhi-capital/ops-checker') LIMIT 1",[actor]);
+        if (!pages.length) return res.status(403).json({message:"UTR upload or Arthavidhi Ops Checker permission required"});
+      }
+    }
+
     let processedCount = 0;
     const duplicateUTRs = [];
     const missingLANs = [];
@@ -726,6 +743,29 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
         });
         continue;
       }
+      if (lan.startsWith("AVCL")) {
+        const utr=String(disbursementUTR).trim();
+        if (!/^AVCL\d+$/.test(lan) || !utr || utr.length>100 || !Number.isFinite(disbursementDate.getTime())) {
+          rowErrors.push({lan,utr,reason:"Valid AVCL LAN, bank UTR and payment date required",stage:"validation"});
+          continue;
+        }
+        try {
+          const {processArthavidhiCapitalDisbursement}=require("../services/processArthavidhiCapitalDisbursement");
+          const result=await processArthavidhiCapitalDisbursement({lan,disbursementUTR:utr,disbursementDate,mode:"MANUAL",actorId:req.user.id??req.user.userId??req.user.user_id});
+          if (result.skipped) { duplicateUTRs.push(utr); continue; }
+          insertedLANs.add(lan);processedCount++;
+          try {
+            const email=await sendWelcomeLetterAfterUtrUpload({lan,utrNumber:utr});
+            welcomeEmailResults.push({lan,utr,status:"SENT",recipient:email.recipient});
+          } catch (error) {
+            welcomeEmailErrors.push({lan,utr,status:"FAILED",reason:error.message});
+          }
+        } catch (error) {
+          rowErrors.push({lan,utr,reason:error.message||"Unable to confirm manual payment",stage:"arthavidhi-manual-payment"});
+        }
+        continue;
+      }
+
       // Sanction Date mandatory only for Sterlion UBL
       if (lan.startsWith("UBLF") && !sanctionDate) {
         rowErrors.push({
@@ -1094,9 +1134,36 @@ WHERE lan = ?`,
     FROM loan_booking_seven_fincorp
     WHERE lan = ?
     `,
+    [lan],
+  );
+}
+ else if (lan.startsWith("OMR")) {
+          [loanRes] = await db.promise().query(
+            `SELECT 
+      loan_amount,
+      interest_rate,
+      loan_tenure,
+      product,
+      lender
+     FROM loan_booking_omrajpay
+     WHERE lan = ?`,
             [lan],
           );
-        } else if (lan.startsWith("MCL")) {
+        }
+        else if (lan.startsWith("AVCL")) {
+          [loanRes] = await db.promise().query(
+            `SELECT
+      loan_amount,
+      interest AS interest_rate,
+      loan_tenure,
+      product,
+      lender
+     FROM loan_booking_arthavidhi
+     WHERE lan = ?`,
+            [lan],
+          );
+        }
+ else if (lan.startsWith("MCL")) {
           [loanRes] = await db.promise().query(
             `SELECT 
       loan_amount,
@@ -1395,7 +1462,24 @@ WHERE lan = ?`,
               `UPDATE loan_booking_motion_corp SET status = 'Disbursed' WHERE lan = ?`,
               [lan],
             );
-          } else if (lan.startsWith("SPL")) {
+          } else if (lan.startsWith("OMR")) {
+            await conn.query(
+              `UPDATE loan_booking_omrajpay
+               SET status = 'Disbursed', stage = 'Disbursed'
+               WHERE lan = ?`,
+              [lan],
+            );
+
+          }
+          else if(lan.startsWith("AVCL")){
+            await conn.query(
+              `UPDATE loan_booking_arthavidhi
+                SET status = 'Disbursed', stage = 'Disbursed'
+                WHERE lan = ?`,
+              [lan],
+            );
+          }
+           else if (lan.startsWith("SPL")) {
             await conn.query(
               `UPDATE loan_booking_sampada SET status = 'Disbursed' WHERE lan = ?`,
               [lan],

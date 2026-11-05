@@ -133,6 +133,8 @@ const FINSO_WEBHOOK_URL = process.env.FINSO_WEBHOOK_URL;
 const CAREPAY_WEBHOOK_URL = process.env.CAREPAY_WEBHOOK_URL;
 const STERLION_WEBHOOK_URL = process.env.STERLION_WEBHOOK_URL;
 const YAMONEY_WEBHOOK_URL = process.env.YAMONEY_DISBURSEMENT_WEBHOOK_URL;
+//arthavidhi capital webhook url
+const ARTHAVIDHI_CAPITAL_WEBHOOK_URL = process.env.ARTHAVIDHI_CAPITAL_WEBHOOK_URL;
 
 const FINSO_WEBHOOK_USERNAME = process.env.FINSO_WEBHOOK_USERNAME;
 const FINSO_WEBHOOK_PASSWORD = process.env.FINSO_WEBHOOK_PASSWORD;
@@ -227,7 +229,9 @@ async function sendLoanWebhook(data) {
       url = FINSO_WEBHOOK_URL;
     } else if (ref.startsWith("YAM")) {
       url = YAMONEY_WEBHOOK_URL;
-    } else if (ref.startsWith("CIRHUF")) {
+    } else if (ref.startsWith("AVCL")) {
+      url = ARTHAVIDHI_CAPITAL_WEBHOOK_URL;
+    }else if (ref.startsWith("CIRHUF")) {
       url = CIRCLE_PE_HOUSER_WEBHOOK_URL;
 
       // Enable this when Finso basic authentication is required.
