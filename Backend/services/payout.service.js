@@ -52,7 +52,7 @@ const ALLOWED_PAYOUT_TABLES = [
   "loan_booking_quick_money",
   "loan_booking_rapid_money_v2",
   "loan_booking_ya_money",
-  "loan_booking_arthavidhi"
+  "loan_booking_arthavidhi",
   "loan_booking_claim_buddy",
   "loan_booking_sabgrow",
   "loan_booking_niyara",
