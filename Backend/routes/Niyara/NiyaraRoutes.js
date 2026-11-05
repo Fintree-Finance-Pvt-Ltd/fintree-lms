@@ -5058,6 +5058,265 @@ router.get("/disbursed-loans", authenticateUser, async (req, res) => {
 });
 
 
+// router.get("/customer-details/:lan", authenticateUser, async (req, res) => {
+//   res.setHeader("Cache-Control", "private, no-store");
+
+//   try {
+//     const lan = String(req.params.lan || "").trim().toUpperCase();
+
+//     if (!/^NYRA\d+$/.test(lan)) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Invalid Niyara LAN",
+//       });
+//     }
+
+//     console.log("[NIYARA DETAILS] Fetching:", lan);
+
+//     // 1. MAIN BOOKING DATA
+//     const [rows] = await db.promise().query(
+//       {
+//         sql: `
+//           SELECT *
+//           FROM loan_booking_niyara
+//           WHERE lan = ?
+//           LIMIT 1
+//         `,
+//         timeout: 10000,
+//       },
+//       [lan]
+//     );
+
+//     if (!rows.length) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Niyara loan not found",
+//       });
+//     }
+
+//     const booking = rows[0];
+
+//     // Only fields needed for Niyara UBL Details
+//     const fields = [
+//       // Application
+//       "lan", "partner_loan_id", "lender", "product",
+//       "loan_type", "status", "stage", "login_date",
+//       "created_at", "updated_at",
+
+//       // Applicant
+//       "customer_name", "first_name", "middle_name",
+//       "last_name", "borrower_dob", "age", "gender",
+//       "father_name", "mother_name", "mobile_number",
+//       "email", "pan_number", "aadhaar_number",
+//       "annual_income",
+
+//       // Address
+//       "customer_address", "address_line_2",
+//       "customer_city", "district", "customer_state",
+//       "customer_pincode",
+
+//       // Business
+//       "business_name", "business_type", "gst_number",
+//       "udyam_number", "business_vintage", "industry",
+//       "business_address", "business_city",
+//       "business_state", "business_pincode",
+//       "annual_turnover", "net_profit",
+
+//       // Financial
+//       "requested_amount", "loan_amount", "loan_tenure",
+//       "tenure_unit", "interest", "roi", "reducing_roi",
+//       "flat_interest", "apr", "emi_amount",
+//       "repayment_frequency", "processing_fee",
+//       "insurance_amount", "pre_emi_interest",
+//       "net_disbursement", "total_repayment",
+//       "sanction_date",
+
+//       // Bank
+//       "name_in_bank", "bank_name", "account_number",
+//       "ifsc", "bank_status", "umrn",
+
+//       // Bureau and risk
+//       "cibil_score", "niyara_bre_status",
+//       "niyara_bre_reason", "niyara_bre_checked_at",
+//       "niyara_enquiries_30d",
+//       "niyara_unsecured_enquiries_30d",
+//       "niyara_active_tradeline_count",
+//       "niyara_dpd_6m_flag",
+//       "niyara_settled_writtenoff_36m_flag",
+//       "niyara_willful_default_suit_filed_3y_flag",
+//       "niyara_active_overdue_3m_flag",
+//       "niyara_active_overdue_amount",
+//       "loanemi_obligations", "abb_value",
+
+//       // Credit policy
+//       "niyara_deviation_flag",
+//       "niyara_cibil_offer",
+//       "niyara_abb_offer",
+//       "niyara_final_offer",
+//       "niyara_policy_inputs",
+//       "niyara_policy_result",
+
+//       // AML
+//       "aml_status", "aml_score",
+//       "aml_total_matches", "aml_reason",
+//       "aml_checked_at",
+
+//       // Partner credit
+//       "partner_credit_decision",
+//       "partner_credit_decision_reason",
+//       "partner_credit_decision_by",
+//       "partner_credit_decided_at",
+
+//       // Fintree credit
+//       "credit_decision_by",
+//       "credit_decision_reason",
+
+//       // eSign
+//       "sanction_esign_status",
+//       "sanction_esign_document_id",
+//       "agreement_esign_status",
+//       "agreement_esign_document_id",
+//       "agreement_esign_sent_at",
+
+//       // Operations
+//       "ops_maker_decision",
+//       "ops_maker_decision_reason",
+//       "ops_maker_id",
+//       "ops_maker_decided_at",
+//       "ops_checker_decision",
+//       "ops_checker_decision_reason",
+//       "ops_checker_id",
+//       "ops_checker_decided_at",
+//     ];
+
+//     const loan = {};
+
+//     for (const field of fields) {
+//       loan[field] = booking[field] ?? null;
+//     }
+
+//     // Never expose unmasked Aadhaar
+//     if (loan.aadhaar_number) {
+//       loan.aadhaar_number =
+//         "XXXXXXXX" + String(loan.aadhaar_number).slice(-4);
+//     }
+
+//     // Mask account number
+//     if (loan.account_number) {
+//       const account = String(loan.account_number);
+//       loan.account_number =
+//         "****" + account.slice(-4);
+//     }
+
+//     // 2. FETCH ESIGN + RPS
+//     // An optional query failure should not hide the main loan.
+//     const results = await Promise.allSettled([
+//       db.promise().query(
+//         {
+//           sql: `
+//             SELECT document_id, document_type, status
+//             FROM esign_documents
+//             WHERE lan = ?
+//               AND document_type IN ('SANCTION', 'AGREEMENT')
+//           `,
+//           timeout: 10000,
+//         },
+//         [lan]
+//       ),
+
+//       db.promise().query(
+//         {
+//           sql: `
+//             SELECT
+//               due_date, opening, principal,
+//               interest, emi, closing
+//             FROM manual_rps_niyara
+//             WHERE lan = ?
+//             ORDER BY due_date ASC
+//           `,
+//           timeout: 10000,
+//         },
+//         [lan]
+//       ),
+//     ]);
+
+//     const warnings = [];
+
+//     const esignRows =
+//       results[0].status === "fulfilled"
+//         ? results[0].value[0]
+//         : [];
+
+//     if (results[0].status === "rejected") {
+//       warnings.push("ESIGN_DATA_UNAVAILABLE");
+//       console.error(
+//         "[NIYARA] eSign query:",
+//         results[0].reason
+//       );
+//     }
+
+//     const repaymentRows =
+//       results[1].status === "fulfilled"
+//         ? results[1].value[0]
+//         : [];
+
+//     if (results[1].status === "rejected") {
+//       warnings.push("RPS_DATA_UNAVAILABLE");
+//       console.error(
+//         "[NIYARA] RPS query:",
+//         results[1].reason
+//       );
+//     }
+
+//     const findEsign = (type, documentId, fallbackStatus) => {
+//       const document = documentId
+//         ? esignRows.find(
+//             (row) =>
+//               row.document_type === type &&
+//               String(row.document_id) === String(documentId)
+//           )
+//         : null;
+
+//       return {
+//         document_id: documentId || null,
+//         status: document?.status || fallbackStatus || null,
+//       };
+//     };
+
+//     // 3. RESPONSE
+//     console.log("[NIYARA DETAILS] Booking found:", lan);
+
+//     return res.status(200).json({
+//       success: true,
+//       loan,
+
+//       esign: {
+//         sanction: findEsign(
+//           "SANCTION",
+//           booking.sanction_esign_document_id,
+//           booking.sanction_esign_status
+//         ),
+//         agreement: findEsign(
+//           "AGREEMENT",
+//           booking.agreement_esign_document_id,
+//           booking.agreement_esign_status
+//         ),
+//       },
+
+//       repayment_schedule: repaymentRows,
+//       warnings,
+//     });
+
+//   } catch (error) {
+//     console.error("[NIYARA DETAILS] ERROR:", error);
+
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to fetch Niyara customer details",
+//     });
+//   }
+// });
+
 
 // Export Router
 module.exports = router;

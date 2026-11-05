@@ -377,6 +377,7 @@ import NiyaraDisbursedLoans from "./components/Niyara/DisbursedLoanScreen";
 import NiyaraOpsMakerScreen from "./components/Niyara/OpsMakerScreen";
 import NiyaraOpsCheckerScreen from "./components/Niyara/OpsCheckerScreen";
 import NiyaraLoanBooking from "./components/Niyara/NiyaraLoanBooking.jsx";
+import NiyaraCustomerDetails from "./components/Niyara/NiyaraCustomerDetails";
 
 // ===================== Zebrs Imports =====================
 import ZebrsDealerLists from "./components/Zebrs/ZebrsDealerLists";
@@ -2378,7 +2379,7 @@ function App() {
 
 
 
-/* ===================== OmrajPay routes ===================== */
+          /* ===================== OmrajPay routes ===================== */
           <Route
             path="/omrajpay/dealer-entry"
             element={
@@ -3184,6 +3185,14 @@ function App() {
             element={
               <PermissionRoute pageName="Niyara Ops Checker">
                 <NiyaraOpsCheckerScreen />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/niyara/customer-details/:lan"
+            element={
+              <PermissionRoute pageName="Niyara All Loans">
+                <NiyaraCustomerDetails />
               </PermissionRoute>
             }
           />
