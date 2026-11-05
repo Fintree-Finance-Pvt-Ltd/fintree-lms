@@ -669,7 +669,7 @@ async function getLoanData(lan) {
   // ==========================================
   // NIYARA LOAN PDF DATA
   // ==========================================
-  if (type === "NIYARA") {
+ else if (type === "NIYARA") {
     const [[loan]] = await db.promise().query(
       `SELECT *
        FROM loan_booking_niyara
