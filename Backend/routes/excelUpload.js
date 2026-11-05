@@ -2563,6 +2563,8 @@ router.get("/approved-loans", async (req, res) => {
     loan_booking_saswat: true,
     loan_booking_sterlion_ubl: true,
     loan_booking_zebrs: true,
+    loan_booking_arthavidhi: true,
+
   };
   if (!allowedTables[table])
     return res.status(400).json({ message: "Invalid table name" });
@@ -2593,7 +2595,9 @@ router.get("/approved-loans", async (req, res) => {
     // For switch_my_loan (RML), approved status is BRE_APPROVED
 
     const statusFilter =
-      table === "loan_booking_zebrs"
+     table === "loan_booking_arthavidhi"
+          ? `LOWER(lb.status) = 'disburse_initiate'`
+          : table === "loan_booking_zebrs"
         ? `lb.status = 'Operations Initiated'
        AND lb.stage = 'Credit Approved'`
         : table === "loan_booking_switch_my_loan"
@@ -2686,6 +2690,8 @@ router.get("/disbursed-loans", async (req, res) => {
     loan_booking_saswat: true,
     loan_booking_sterlion_ubl: true,
     loan_booking_claim_cure_buddy: true,
+    loan_booking_arthavidhi: true,
+
   };
   if (!allowedTables[table])
     return res.status(400).json({ message: "Invalid table name" });
@@ -13892,7 +13898,9 @@ router.get("/schedule/:lan", (req, res) => {
   let tableName;
   let selectColumns = "*"; // Default to select all columns
 
-  if (lan.startsWith("GQN")) {
+  if (lan.startsWith("AVCL")) {
+      tableName = "manual_rps_arthavidhi_capital";
+    } else if (lan.startsWith("GQN")) {
     tableName = "manual_rps_gq_non_fsf";
   } else if (lan.startsWith("WCTLFFPL")) {
     tableName = "manual_rps_wctl_ffpl";
