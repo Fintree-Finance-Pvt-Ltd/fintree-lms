@@ -7,7 +7,15 @@ function formatTimestamp(ts) {
   if (!ts) return "-";
 
   try {
-    const date = new Date(Number(ts));
+    // The UIDAI XML's ts attribute is an ISO 8601 string (e.g.
+    // "2026-07-11T16:34:45.376+05:30"), while the Digilocker response's
+    // TimeStamp field can be a raw epoch-ms string — only treat it as a
+    // number when it's actually all digits, otherwise parse it as a date.
+    const date = /^\d+$/.test(String(ts).trim())
+      ? new Date(Number(ts))
+      : new Date(ts);
+
+    if (isNaN(date.getTime())) return String(ts);
 
     return date.toLocaleString("en-IN", {
       day: "2-digit",
