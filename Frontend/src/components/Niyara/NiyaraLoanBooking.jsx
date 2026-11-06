@@ -515,6 +515,7 @@ const verifyPan = async () => {
     setLoading(true);
 
     const response = await api.post(`${BASE}/pan/verify`, {
+       lan,
       session_id: otpSession,
       mobile_number: form.mobile_number,
       pan_number: panNumber,
