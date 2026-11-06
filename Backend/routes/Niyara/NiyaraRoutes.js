@@ -285,8 +285,6 @@ function readPositiveInteger(value, fallback) {
   return Number.isSafeInteger(number) && number > 0 ? number : fallback;
 }
 
-
-
 /* ========================================================
    NIYARA INTERNAL - OTP + PAN VERIFICATION
    Existing tables:
@@ -305,19 +303,15 @@ const NYRA_CONSENT_TEXT =
   "I consent to mobile OTP verification for my loan " +
   "application with Fintree Finance Private Limited.";
 
-const nyraMobile = (value) =>
-  String(value ?? "").replace(/\D/g, "");
+const nyraMobile = (value) => String(value ?? "").replace(/\D/g, "");
 
 const nyraPan = (value) =>
-  String(value ?? "").trim().toUpperCase();
+  String(value ?? "")
+    .trim()
+    .toUpperCase();
 
 const nyraActor = (req) =>
-  String(
-    req.user?.id ||
-    req.user?.userId ||
-    req.user?.sub ||
-    ""
-  );
+  String(req.user?.id || req.user?.userId || req.user?.sub || "");
 
 function nyraPepper() {
   const secret = process.env.OTP_HASH_PEPPER;
@@ -351,9 +345,7 @@ function nyraSessionToken(id, mobile, actor) {
 }
 
 function nyraReadSessionToken(token, mobile, actor) {
-  const match = /^([1-9]\d*)\.([a-f0-9]{64})$/.exec(
-    String(token || "")
-  );
+  const match = /^([1-9]\d*)\.([a-f0-9]{64})$/.exec(String(token || ""));
 
   if (!match) return null;
 
@@ -379,10 +371,7 @@ function nyraOtpMatches(stored, expected) {
   const a = Buffer.from(String(stored || ""));
   const b = Buffer.from(String(expected || ""));
 
-  return (
-    a.length === 10 &&
-    b.length === 10 &&
-nodeCrypto.timingSafeEqual(a, b)  );
+  return a.length === 10 && b.length === 10 && nodeCrypto.timingSafeEqual(a, b);
 }
 
 const sendSmsOtp = async (mobile, otp) => {
@@ -455,9 +444,7 @@ router.post("/otp/send", authenticateUser, async (req, res) => {
   let connection;
   let locked = false;
 
-  const mobile = nyraMobile(
-    req.body?.mobile_number ?? req.body?.mobile
-  );
+  const mobile = nyraMobile(req.body?.mobile_number ?? req.body?.mobile);
 
   const actor = nyraActor(req);
   const lockName = `nyra-otp:${mobile}`;
@@ -484,7 +471,7 @@ router.post("/otp/send", authenticateUser, async (req, res) => {
     // Serialize OTP requests for the same Niyara mobile.
     const [[lock]] = await connection.query(
       "SELECT GET_LOCK(?, 5) AS acquired",
-      [lockName]
+      [lockName],
     );
 
     if (Number(lock.acquired) !== 1) {
@@ -511,14 +498,11 @@ router.post("/otp/send", authenticateUser, async (req, res) => {
          AND purpose = ?
        ORDER BY id DESC
        LIMIT 1`,
-      [mobile, NYRA_OTP_OWNER, NYRA_OTP_PURPOSE]
+      [mobile, NYRA_OTP_OWNER, NYRA_OTP_PURPOSE],
     );
 
     if (latest.length) {
-      const elapsed = Math.max(
-        0,
-        Number(latest[0].elapsed_seconds || 0)
-      );
+      const elapsed = Math.max(0, Number(latest[0].elapsed_seconds || 0));
 
       if (elapsed < NYRA_OTP_RESEND) {
         return res.status(429).json({
@@ -530,9 +514,7 @@ router.post("/otp/send", authenticateUser, async (req, res) => {
       }
     }
 
-    const otp = String(
-      nodeCrypto.randomInt(100000, 1000000)
-    );
+    const otp = String(nodeCrypto.randomInt(100000, 1000000));
 
     await connection.beginTransaction();
 
@@ -545,7 +527,7 @@ router.post("/otp/send", authenticateUser, async (req, res) => {
          AND owner_type = ?
          AND purpose = ?
          AND status = 'PENDING'`,
-      [mobile, NYRA_OTP_OWNER, NYRA_OTP_PURPOSE]
+      [mobile, NYRA_OTP_OWNER, NYRA_OTP_PURPOSE],
     );
 
     const [insert] = await connection.query(
@@ -576,12 +558,7 @@ router.post("/otp/send", authenticateUser, async (req, res) => {
          ),
          UTC_TIMESTAMP()
        )`,
-      [
-        mobile,
-        NYRA_OTP_OWNER,
-        NYRA_OTP_PURPOSE,
-        NYRA_OTP_EXPIRY,
-      ]
+      [mobile, NYRA_OTP_OWNER, NYRA_OTP_PURPOSE, NYRA_OTP_EXPIRY],
     );
 
     const sessionId = insert.insertId;
@@ -590,48 +567,40 @@ router.post("/otp/send", authenticateUser, async (req, res) => {
       `UPDATE otp_sessions
        SET otp = ?
        WHERE id = ?`,
-      [
-        nyraOtpHash(sessionId, mobile, otp),
-        sessionId,
-      ]
+      [nyraOtpHash(sessionId, mobile, otp), sessionId],
     );
 
     await connection.commit();
 
     // Use your existing ClaimCureBuddy SMS service.
     // Must throw if SMS gateway rejects delivery.
-try {
-  console.log("[NIYARA] Sending OTP SMS");
+    try {
+      console.log("[NIYARA] Sending OTP SMS");
 
-  const smsResponse = await sendSmsOtp(mobile, otp);
+      const smsResponse = await sendSmsOtp(mobile, otp);
 
-  console.log("[NIYARA] SMS RESPONSE:", smsResponse);
+      console.log("[NIYARA] SMS RESPONSE:", smsResponse);
+    } catch (smsError) {
+      console.error("[NIYARA] SMS FAILED:", {
+        message: smsError.message,
+        status: smsError.response?.status,
+        response: smsError.response?.data,
+      });
 
-} catch (smsError) {
-  console.error("[NIYARA] SMS FAILED:", {
-    message: smsError.message,
-    status: smsError.response?.status,
-    response: smsError.response?.data,
-  });
-
-  await connection.query(
-    `UPDATE otp_sessions
+      await connection.query(
+        `UPDATE otp_sessions
      SET status = 'EXPIRED'
      WHERE id = ?
        AND status = 'PENDING'`,
-    [sessionId]
-  );
+        [sessionId],
+      );
 
-  throw smsError;
-}
+      throw smsError;
+    }
     return res.status(200).json({
       success: true,
       message: "OTP sent successfully",
-      session_id: nyraSessionToken(
-        sessionId,
-        mobile,
-        actor
-      ),
+      session_id: nyraSessionToken(sessionId, mobile, actor),
       expiresInSeconds: NYRA_OTP_EXPIRY,
     });
   } catch (error) {
@@ -642,13 +611,13 @@ try {
     }
 
     console.error("========== NIYARA OTP ERROR ==========");
-console.error("Message:", error.message);
-console.error("Code:", error.code);
-console.error("SQL Message:", error.sqlMessage);
-console.error("HTTP Status:", error.response?.status);
-console.error("Provider Error:", error.response?.data);
-console.error("Stack:", error.stack);
-console.error("======================================");
+    console.error("Message:", error.message);
+    console.error("Code:", error.code);
+    console.error("SQL Message:", error.sqlMessage);
+    console.error("HTTP Status:", error.response?.status);
+    console.error("Provider Error:", error.response?.data);
+    console.error("Stack:", error.stack);
+    console.error("======================================");
 
     return res.status(500).json({
       success: false,
@@ -658,10 +627,7 @@ console.error("======================================");
     if (connection) {
       if (locked) {
         try {
-          await connection.query(
-            "SELECT RELEASE_LOCK(?)",
-            [lockName]
-          );
+          await connection.query("SELECT RELEASE_LOCK(?)", [lockName]);
         } catch (_) {}
       }
 
@@ -688,9 +654,7 @@ router.post("/draft", authenticateUser, async (req, res) => {
     const email = nullIfEmpty(body.email);
     const gender = nullIfEmpty(body.gender);
 
-    const createdBy = String(
-      req.user?.id || req.user?.sub || ""
-    );
+    const createdBy = String(req.user?.id || req.user?.sub || "");
 
     if (!createdBy) {
       return res.status(401).json({
@@ -751,7 +715,7 @@ router.post("/draft", authenticateUser, async (req, res) => {
        WHERE partner_loan_id = ?
        LIMIT 1
        FOR UPDATE`,
-      [partnerLoanId]
+      [partnerLoanId],
     );
 
     if (existing.length) {
@@ -816,7 +780,7 @@ router.post("/draft", authenticateUser, async (req, res) => {
         email,
         createdBy,
         createdBy,
-      ]
+      ],
     );
 
     await connection.commit();
@@ -841,9 +805,7 @@ router.post("/draft", authenticateUser, async (req, res) => {
 
     console.error("[NIYARA] Draft creation:", error);
 
-    return res.status(
-      error.code === "ER_DUP_ENTRY" ? 409 : 500
-    ).json({
+    return res.status(error.code === "ER_DUP_ENTRY" ? 409 : 500).json({
       success: false,
       message:
         error.code === "ER_DUP_ENTRY"
@@ -855,10 +817,8 @@ router.post("/draft", authenticateUser, async (req, res) => {
   }
 });
 
-
-
 // PATCH /api/niyara/draft/:lan
-router.patch("/draft/:lan", authenticateUser,  async (req, res) => {
+router.patch("/draft/:lan", authenticateUser, async (req, res) => {
   try {
     const lan = clean(req.params.lan).toUpperCase();
     const step = clean(req.body?.step);
@@ -877,7 +837,7 @@ router.patch("/draft/:lan", authenticateUser,  async (req, res) => {
         "customer_state",
         "customer_pincode",
       ],
-       loan: [
+      loan: [
         "annual_income",
         "requested_amount",
         "tenure",
@@ -908,38 +868,30 @@ router.patch("/draft/:lan", authenticateUser,  async (req, res) => {
 
     const body = req.body?.data || {};
 
-   
-if (step === "address") {
-  const address = clean(body.customer_address);
-  const city = clean(body.customer_city);
-  const state = clean(body.customer_state);
-  const pincode = clean(body.customer_pincode);
+    if (step === "address") {
+      const address = clean(body.customer_address);
+      const city = clean(body.customer_city);
+      const state = clean(body.customer_state);
+      const pincode = clean(body.customer_pincode);
 
-  if (
-    !address ||
-    !city ||
-    !state ||
-    !/^[1-9]\d{5}$/.test(pincode)
-  ) {
-    return res.status(400).json({
-      success: false,
-      message: "Complete valid address details",
-    });
-  }
+      if (!address || !city || !state || !/^[1-9]\d{5}$/.test(pincode)) {
+        return res.status(400).json({
+          success: false,
+          message: "Complete valid address details",
+        });
+      }
 
-  const actor = String(
-    req.user?.id || req.user?.sub || ""
-  );
+      const actor = String(req.user?.id || req.user?.sub || "");
 
-  if (!actor) {
-    return res.status(401).json({
-      success: false,
-      message: "Authentication required",
-    });
-  }
+      if (!actor) {
+        return res.status(401).json({
+          success: false,
+          message: "Authentication required",
+        });
+      }
 
-  const [result] = await db.promise().query(
-    `UPDATE ${TABLE_NAME}
+      const [result] = await db.promise().query(
+        `UPDATE ${TABLE_NAME}
      SET customer_address = ?,
          customer_city = ?,
          customer_state = ?,
@@ -948,127 +900,116 @@ if (step === "address") {
          updated_at = NOW()
      WHERE lan = ?
        AND status = 'Draft'`,
-    [address, city, state, pincode, actor, lan]
-  );
+        [address, city, state, pincode, actor, lan],
+      );
 
-  if (result.affectedRows !== 1) {
-    const [[loan]] = await db.promise().query(
-      `SELECT status, stage
+      if (result.affectedRows !== 1) {
+        const [[loan]] = await db.promise().query(
+          `SELECT status, stage
        FROM ${TABLE_NAME}
        WHERE lan = ?
        LIMIT 1`,
-      [lan]
-    );
+          [lan],
+        );
 
-    return res.status(409).json({
-      success: false,
-      message: loan
-        ? `Cannot update address while loan status is ${loan.status}`
-        : "Niyara loan not found",
-      current_status: loan?.status || null,
-    });
-  }
+        return res.status(409).json({
+          success: false,
+          message: loan
+            ? `Cannot update address while loan status is ${loan.status}`
+            : "Niyara loan not found",
+          current_status: loan?.status || null,
+        });
+      }
 
-  return res.status(200).json({
-    success: true,
-    message: "Address Details saved successfully",
-    data: { lan, step: "address" },
-  });
-}
+      return res.status(200).json({
+        success: true,
+        message: "Address Details saved successfully",
+        data: { lan, step: "address" },
+      });
+    }
 
+    if (step === "loan") {
+      const annualIncome = Number(body.annual_income);
+      const requestedAmount = Number(body.requested_amount);
+      const tenure = Number(body.tenure);
+      const roi = Number(body.roi);
+      const processingFee = Number(body.processing_fee || 0);
+      const netDisbursement = Number(body.net_disbursement_amount);
 
-   
-if (step === "loan") {
-  const annualIncome = Number(body.annual_income);
-  const requestedAmount = Number(body.requested_amount);
-  const tenure = Number(body.tenure);
-  const roi = Number(body.roi);
-  const processingFee = Number(body.processing_fee || 0);
-  const netDisbursement = Number(
-    body.net_disbursement_amount
-  );
+      if (
+        body.annual_income === "" ||
+        body.annual_income == null ||
+        !Number.isFinite(annualIncome) ||
+        annualIncome < 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid Annual Income",
+        });
+      }
 
-  if (
-    body.annual_income === "" ||
-    body.annual_income == null ||
-    !Number.isFinite(annualIncome) ||
-    annualIncome < 0
-  ) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid Annual Income",
-    });
-  }
+      if (
+        body.requested_amount === "" ||
+        body.requested_amount == null ||
+        !Number.isFinite(requestedAmount) ||
+        requestedAmount <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid Requested Loan Amount",
+        });
+      }
 
-  if (
-    body.requested_amount === "" ||
-    body.requested_amount == null ||
-    !Number.isFinite(requestedAmount) ||
-    requestedAmount <= 0
-  ) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid Requested Loan Amount",
-    });
-  }
+      if (
+        body.tenure === "" ||
+        body.tenure == null ||
+        !Number.isInteger(tenure) ||
+        tenure <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid Tenure",
+        });
+      }
 
-  if (
-    body.tenure === "" ||
-    body.tenure == null ||
-    !Number.isInteger(tenure) ||
-    tenure <= 0
-  ) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid Tenure",
-    });
-  }
+      if (
+        body.roi === "" ||
+        body.roi == null ||
+        !Number.isFinite(roi) ||
+        roi < 0 ||
+        roi > 100
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid ROI",
+        });
+      }
 
-  if (
-    body.roi === "" ||
-    body.roi == null ||
-    !Number.isFinite(roi) ||
-    roi < 0 ||
-    roi > 100
-  ) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid ROI",
-    });
-  }
+      if (!Number.isFinite(processingFee) || processingFee < 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid Processing Fee",
+        });
+      }
 
-  if (
-    !Number.isFinite(processingFee) ||
-    processingFee < 0
-  ) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid Processing Fee",
-    });
-  }
-
-  if (
-    body.net_disbursement_amount === "" ||
-    body.net_disbursement_amount == null ||
-    !Number.isFinite(netDisbursement) ||
-    netDisbursement <= 0 ||
-    netDisbursement > requestedAmount
-  ) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid Net Disbursement Amount",
-    });
-  }
-}
-
+      if (
+        body.net_disbursement_amount === "" ||
+        body.net_disbursement_amount == null ||
+        !Number.isFinite(netDisbursement) ||
+        netDisbursement <= 0 ||
+        netDisbursement > requestedAmount
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid Net Disbursement Amount",
+        });
+      }
+    }
 
     if (step === "business") {
       const pincode = clean(body.business_pincode);
 
-      if (
-        pincode &&
-        !/^[1-9]\d{5}$/.test(pincode)
-      ) {
+      if (pincode && !/^[1-9]\d{5}$/.test(pincode)) {
         return res.status(400).json({
           success: false,
           message: "Invalid business pincode",
@@ -1076,50 +1017,48 @@ if (step === "loan") {
       }
     }
 
-   
-const numericColumns = [
-  "annual_income",
-  "requested_amount",
-  "tenure",
-  "roi",
-  "processing_fee",
-  "net_disbursement_amount",
-];
-const columnMap = {
-  tenure: "loan_tenure",
-  roi: "interest",
-  net_disbursement_amount: "net_disbursement",
-};
-const values = columns.map((column) => {
-  if (numericColumns.includes(column)) {
-    if (column === "processing_fee" &&
-        (body[column] === "" || body[column] == null)) {
-      return 0;
-    }
+    const numericColumns = [
+      "annual_income",
+      "requested_amount",
+      "tenure",
+      "roi",
+      "processing_fee",
+      "net_disbursement_amount",
+    ];
+    const columnMap = {
+      tenure: "loan_tenure",
+      roi: "interest",
+      net_disbursement_amount: "net_disbursement",
+    };
+    const values = columns.map((column) => {
+      if (numericColumns.includes(column)) {
+        if (
+          column === "processing_fee" &&
+          (body[column] === "" || body[column] == null)
+        ) {
+          return 0;
+        }
 
-    return Number(body[column]);
-  }
+        return Number(body[column]);
+      }
 
-  const value = clean(body[column]);
+      const value = clean(body[column]);
 
-  if (["gst_number", "udyam_number"].includes(column)) {
-    return value.toUpperCase() || null;
-  }
+      if (["gst_number", "udyam_number"].includes(column)) {
+        return value.toUpperCase() || null;
+      }
 
-  return value || null;
-});
+      return value || null;
+    });
 
+    const assignments = columns
+      .map((column) => {
+        const dbColumn = columnMap[column] || column;
+        return `\`${dbColumn}\` = ?`;
+      })
+      .join(", ");
 
-  const assignments = columns
-  .map((column) => {
-    const dbColumn = columnMap[column] || column;
-    return `\`${dbColumn}\` = ?`;
-  })
-  .join(", ");
-
-    const actor = String(
-      req.user?.id || req.user?.sub || ""
-    );
+    const actor = String(req.user?.id || req.user?.sub || "");
 
     if (!actor) {
       return res.status(401).json({
@@ -1135,47 +1074,47 @@ const values = columns.map((column) => {
            updated_at = NOW()
        WHERE lan = ?
          AND status = 'Draft'`,
-      [...values, actor, lan]
+      [...values, actor, lan],
     );
 
-if (!result.affectedRows) {
-  const [[loan]] = await db.promise().query(
-    `SELECT lan, status, stage
+    if (!result.affectedRows) {
+      const [[loan]] = await db.promise().query(
+        `SELECT lan, status, stage
      FROM ${TABLE_NAME}
      WHERE lan = ?
      LIMIT 1`,
-    [lan]
-  );
+        [lan],
+      );
 
-  console.log("[NIYARA DRAFT PATCH CONFLICT]", {
-    lan,
-    step,
-    currentStatus: loan?.status,
-    currentStage: loan?.stage,
-  });
+      console.log("[NIYARA DRAFT PATCH CONFLICT]", {
+        lan,
+        step,
+        currentStatus: loan?.status,
+        currentStage: loan?.stage,
+      });
 
-  return res.status(409).json({
-    success: false,
-    message: !loan
-      ? "Niyara loan not found"
-      : `Cannot update loan with status '${loan.status}'`,
-    current_status: loan?.status || null,
-    current_stage: loan?.stage || null,
-  });
-}
+      return res.status(409).json({
+        success: false,
+        message: !loan
+          ? "Niyara loan not found"
+          : `Cannot update loan with status '${loan.status}'`,
+        current_status: loan?.status || null,
+        current_stage: loan?.stage || null,
+      });
+    }
     return res.json({
       success: true,
       message: `${step} details saved successfully`,
       data: { lan, step },
     });
   } catch (error) {
-console.error("[NIYARA] Save draft error:", {
-  lan: req.params.lan,
-  step: req.body?.step,
-  code: error.code,
-  sqlMessage: error.sqlMessage,
-  message: error.message,
-});
+    console.error("[NIYARA] Save draft error:", {
+      lan: req.params.lan,
+      step: req.body?.step,
+      code: error.code,
+      sqlMessage: error.sqlMessage,
+      message: error.message,
+    });
     return res.status(500).json({
       success: false,
       message: "Failed to save draft details",
@@ -1184,27 +1123,24 @@ console.error("[NIYARA] Save draft error:", {
 });
 
 // POST /api/niyara/draft/:lan/submit
-router.post(
-  "/draft/:lan/submit",
-  authenticateUser,
-  async (req, res) => {
-    let connection;
+router.post("/draft/:lan/submit", authenticateUser, async (req, res) => {
+  let connection;
 
-    try {
-      const lan = clean(req.params.lan).toUpperCase();
+  try {
+    const lan = clean(req.params.lan).toUpperCase();
 
-      if (!/^NYRA\d+$/.test(lan)) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid LAN",
-        });
-      }
+    if (!/^NYRA\d+$/.test(lan)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid LAN",
+      });
+    }
 
-      connection = await db.promise().getConnection();
-      await connection.beginTransaction();
+    connection = await db.promise().getConnection();
+    await connection.beginTransaction();
 
-      const [[loan]] = await connection.query(
-        `SELECT *,
+    const [[loan]] = await connection.query(
+      `SELECT *,
                 DATE_FORMAT(
                   borrower_dob, '%Y-%m-%d'
                 ) AS borrower_dob_formatted,
@@ -1216,87 +1152,84 @@ router.post(
            AND status = 'Draft'
          LIMIT 1
          FOR UPDATE`,
-        [lan]
-      );
+      [lan],
+    );
 
-      if (!loan) {
-        await connection.rollback();
+    if (!loan) {
+      await connection.rollback();
 
-        return res.status(409).json({
-          success: false,
-          message: "Draft not found or already submitted",
-        });
-      }
-
-      const validation = validateLoginData({
-        ...loan,
-        borrower_dob: loan.borrower_dob_formatted,
-        login_date: loan.login_date_formatted,
+      return res.status(409).json({
+        success: false,
+        message: "Draft not found or already submitted",
       });
+    }
 
-      if (validation) {
-        await connection.rollback();
+    const validation = validateLoginData({
+      ...loan,
+      borrower_dob: loan.borrower_dob_formatted,
+      login_date: loan.login_date_formatted,
+    });
 
-        return res.status(400).json({
-          success: false,
-          message: validation,
-        });
-      }
+    if (validation) {
+      await connection.rollback();
 
-      const actor = String(
-        req.user?.id || req.user?.sub || ""
-      );
+      return res.status(400).json({
+        success: false,
+        message: validation,
+      });
+    }
 
-      if (!actor) {
-        await connection.rollback();
+    const actor = String(req.user?.id || req.user?.sub || "");
 
-        return res.status(401).json({
-          success: false,
-          message: "Authentication required",
-        });
-      }
+    if (!actor) {
+      await connection.rollback();
 
-      await connection.query(
-        `UPDATE ${TABLE_NAME}
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+    }
+
+    await connection.query(
+      `UPDATE ${TABLE_NAME}
          SET status = 'Login',
              stage = 'Login',
              updated_by = ?,
              updated_at = NOW()
          WHERE lan = ?
            AND status = 'Draft'`,
-        [actor, lan]
-      );
+      [actor, lan],
+    );
 
-      await connection.commit();
+    await connection.commit();
 
-      return res.status(200).json({
-        success: true,
-        message: "Niyara loan booking submitted successfully",
-        data: {
-          lan,
-          status: "Login",
-          stage: "Login",
-          next_step: "BUREAU_BRE_AML_PENDING",
-        },
-      });
-    } catch (error) {
-      if (connection) {
-        try {
-          await connection.rollback();
-        } catch (_) {}
-      }
-
-      console.error("[NIYARA] Submit draft:", error);
-
-      return res.status(500).json({
-        success: false,
-        message: "Failed to submit Niyara loan booking",
-      });
-    } finally {
-      if (connection) connection.release();
+    return res.status(200).json({
+      success: true,
+      message: "Niyara loan booking submitted successfully",
+      data: {
+        lan,
+        status: "Login",
+        stage: "Login",
+        next_step: "BUREAU_BRE_AML_PENDING",
+      },
+    });
+  } catch (error) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch (_) {}
     }
+
+    console.error("[NIYARA] Submit draft:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to submit Niyara loan booking",
+    });
+  } finally {
+    if (connection) connection.release();
   }
-);
+});
 
 // --------------------------------------------------------
 // POST /api/niyara/otp/verify
@@ -1308,8 +1241,7 @@ router.post("/otp/verify", authenticateUser, async (req, res) => {
     const mobile = nyraMobile(req.body?.mobile_number);
     const otp = String(req.body?.otp ?? "").trim();
     const actor = nyraActor(req);
-    const consentAccepted =
-      req.body?.consent_accepted === true;
+    const consentAccepted = req.body?.consent_accepted === true;
 
     if (!actor) {
       return res.status(401).json({
@@ -1318,10 +1250,7 @@ router.post("/otp/verify", authenticateUser, async (req, res) => {
       });
     }
 
-    if (
-      !/^[6-9]\d{9}$/.test(mobile) ||
-      !/^\d{6}$/.test(otp)
-    ) {
+    if (!/^[6-9]\d{9}$/.test(mobile) || !/^\d{6}$/.test(otp)) {
       return res.status(400).json({
         success: false,
         message: "Valid mobile and 6-digit OTP required",
@@ -1335,11 +1264,7 @@ router.post("/otp/verify", authenticateUser, async (req, res) => {
       });
     }
 
-    const sessionId = nyraReadSessionToken(
-      req.body?.session_id,
-      mobile,
-      actor
-    );
+    const sessionId = nyraReadSessionToken(req.body?.session_id, mobile, actor);
 
     if (!sessionId) {
       return res.status(400).json({
@@ -1365,12 +1290,7 @@ router.post("/otp/verify", authenticateUser, async (req, res) => {
          AND purpose = ?
        LIMIT 1
        FOR UPDATE`,
-      [
-        sessionId,
-        mobile,
-        NYRA_OTP_OWNER,
-        NYRA_OTP_PURPOSE,
-      ]
+      [sessionId, mobile, NYRA_OTP_OWNER, NYRA_OTP_PURPOSE],
     );
 
     if (!sessions.length) {
@@ -1409,7 +1329,7 @@ router.post("/otp/verify", authenticateUser, async (req, res) => {
         `UPDATE otp_sessions
          SET status = 'EXPIRED'
          WHERE id = ?`,
-        [sessionId]
+        [sessionId],
       );
 
       await connection.commit();
@@ -1427,7 +1347,7 @@ router.post("/otp/verify", authenticateUser, async (req, res) => {
         `UPDATE otp_sessions
          SET status = 'LOCKED'
          WHERE id = ?`,
-        [sessionId]
+        [sessionId],
       );
 
       await connection.commit();
@@ -1438,27 +1358,18 @@ router.post("/otp/verify", authenticateUser, async (req, res) => {
       });
     }
 
-    const expected = nyraOtpHash(
-      sessionId,
-      mobile,
-      otp
-    );
+    const expected = nyraOtpHash(sessionId, mobile, otp);
 
     if (!nyraOtpMatches(session.otp, expected)) {
       const nextAttempts = attempts + 1;
-      const locked =
-        nextAttempts >= NYRA_OTP_MAX_ATTEMPTS;
+      const locked = nextAttempts >= NYRA_OTP_MAX_ATTEMPTS;
 
       await connection.query(
         `UPDATE otp_sessions
          SET attempts = ?,
              status = ?
          WHERE id = ?`,
-        [
-          nextAttempts,
-          locked ? "LOCKED" : "PENDING",
-          sessionId,
-        ]
+        [nextAttempts, locked ? "LOCKED" : "PENDING", sessionId],
       );
 
       await connection.commit();
@@ -1466,13 +1377,8 @@ router.post("/otp/verify", authenticateUser, async (req, res) => {
       return res.status(locked ? 429 : 400).json({
         success: false,
         verified: false,
-        message: locked
-          ? "Maximum OTP attempts exceeded"
-          : "Invalid OTP",
-        remainingAttempts: Math.max(
-          0,
-          NYRA_OTP_MAX_ATTEMPTS - nextAttempts
-        ),
+        message: locked ? "Maximum OTP attempts exceeded" : "Invalid OTP",
+        remainingAttempts: Math.max(0, NYRA_OTP_MAX_ATTEMPTS - nextAttempts),
       });
     }
 
@@ -1480,7 +1386,7 @@ router.post("/otp/verify", authenticateUser, async (req, res) => {
       `UPDATE otp_sessions
        SET status = 'VERIFIED'
        WHERE id = ?`,
-      [sessionId]
+      [sessionId],
     );
 
     // Save consent in your EXISTING table.
@@ -1526,7 +1432,7 @@ router.post("/otp/verify", authenticateUser, async (req, res) => {
         session.created_at,
         NYRA_CONSENT_TEXT,
         attempts,
-      ]
+      ],
     );
 
     await connection.commit();
@@ -1563,9 +1469,7 @@ router.post("/pan/verify", authenticateUser, async (req, res) => {
   try {
     const mobile = nyraMobile(req.body?.mobile_number);
     const panNumber = nyraPan(req.body?.pan_number);
-    const customerName = String(
-      req.body?.customer_name ?? ""
-    ).trim();
+    const customerName = String(req.body?.customer_name ?? "").trim();
 
     const actor = nyraActor(req);
 
@@ -1597,11 +1501,7 @@ router.post("/pan/verify", authenticateUser, async (req, res) => {
       });
     }
 
-    const sessionId = nyraReadSessionToken(
-      req.body?.session_id,
-      mobile,
-      actor
-    );
+    const sessionId = nyraReadSessionToken(req.body?.session_id, mobile, actor);
 
     if (!sessionId) {
       return res.status(400).json({
@@ -1610,8 +1510,8 @@ router.post("/pan/verify", authenticateUser, async (req, res) => {
       });
     }
 
-   const [[session]] = await db.promise().query(
-  `SELECT
+    const [[session]] = await db.promise().query(
+      `SELECT
       id,
       status,
       expires_at,
@@ -1624,165 +1524,132 @@ router.post("/pan/verify", authenticateUser, async (req, res) => {
      AND purpose = ?
      AND status = 'VERIFIED'
    LIMIT 1`,
-  [
-    sessionId,
-    mobile,
-    NYRA_OTP_OWNER,
-    NYRA_OTP_PURPOSE,
-  ]
-);
+      [sessionId, mobile, NYRA_OTP_OWNER, NYRA_OTP_PURPOSE],
+    );
 
-if (!session) {
-  console.log("[NIYARA PAN] No verified OTP session:", {
-    sessionId,
-    mobileLast4: mobile.slice(-4),
-  });
+    if (!session) {
+      console.log("[NIYARA PAN] No verified OTP session:", {
+        sessionId,
+        mobileLast4: mobile.slice(-4),
+      });
 
-  return res.status(403).json({
-    success: false,
-    message:
-      "Verified OTP session not found. Please verify mobile OTP again.",
-  });
-}
+      return res.status(403).json({
+        success: false,
+        message:
+          "Verified OTP session not found. Please verify mobile OTP again.",
+      });
+    }
 
     // Reuse the existing provider function from
     // ClaimCureBuddy. This is REAL verification.
 
-    
-const panResult = await getPanCardDetails(
-  panNumber,
-  customerName
-);
-console.log("[NIYARA PAN] Response structure:", {
-  topLevelKeys: Object.keys(panResult || {}),
-  responseKeys: Object.keys(panResult?.response || {}),
-  dataKeys: Object.keys(panResult?.response?.data || {}),
-  nestedDataKeys: Object.keys(panResult?.response?.data?.data || {}),
-});
-// Debug provider result without exposing PAN or personal data.
-console.log("[NIYARA PAN] Provider check:", {
-  success: panResult?.success,
-  reason: panResult?.reason,
-  message: panResult?.message,
-  responseStatus: panResult?.response?.status,
-  responseMessage: panResult?.response?.message,
-  hasResponse: Boolean(panResult?.response),
-  hasResponseData: Boolean(panResult?.response?.data),
-});
+    const panResult = await getPanCardDetails(panNumber, customerName);
+    console.log("[NIYARA PAN] Response structure:", {
+      topLevelKeys: Object.keys(panResult || {}),
+      responseKeys: Object.keys(panResult?.response || {}),
+      dataKeys: Object.keys(panResult?.response?.data || {}),
+      nestedDataKeys: Object.keys(panResult?.response?.data?.data || {}),
+    });
+    // Debug provider result without exposing PAN or personal data.
+    console.log("[NIYARA PAN] Provider check:", {
+      success: panResult?.success,
+      reason: panResult?.reason,
+      message: panResult?.message,
+      responseStatus: panResult?.response?.status,
+      responseMessage: panResult?.response?.message,
+      hasResponse: Boolean(panResult?.response),
+      hasResponseData: Boolean(panResult?.response?.data),
+    });
 
-// STEP 1: Check actual provider verification
-if (panResult?.success !== true) {
-  return res.status(422).json({
-    success: false,
-    verified: false,
-    message: "PAN verification failed",
-    reason: panResult?.reason || "PAN_PROVIDER_REJECTED",
-  });
-}
+    // STEP 1: Check actual provider verification
+    if (panResult?.success !== true) {
+      return res.status(422).json({
+        success: false,
+        verified: false,
+        message: "PAN verification failed",
+        reason: panResult?.reason || "PAN_PROVIDER_REJECTED",
+      });
+    }
 
-// STEP 2: Extract provider profile
-const zoopResult = panResult?.response?.result || {};
+    // STEP 2: Extract provider profile
+    const zoopResult = panResult?.response?.result || {};
 
-console.log("[NIYARA PAN] ZOOP result structure:", {
-  resultType: Array.isArray(zoopResult)
-    ? "array"
-    : typeof zoopResult,
+    console.log("[NIYARA PAN] ZOOP result structure:", {
+      resultType: Array.isArray(zoopResult) ? "array" : typeof zoopResult,
 
-  resultKeys: Object.keys(zoopResult),
+      resultKeys: Object.keys(zoopResult),
 
-  nestedKeys: Object.fromEntries(
-    Object.entries(zoopResult)
-      .filter(
-        ([, value]) =>
-          value !== null &&
-          typeof value === "object"
-      )
-      .map(([key, value]) => [
-        key,
-        Object.keys(value),
-      ])
-  ),
+      nestedKeys: Object.fromEntries(
+        Object.entries(zoopResult)
+          .filter(([, value]) => value !== null && typeof value === "object")
+          .map(([key, value]) => [key, Object.keys(value)]),
+      ),
 
-  nameMatch: panResult?.nameMatch,
-});
+      nameMatch: panResult?.nameMatch,
+    });
 
+    const getName = (value) => (typeof value === "string" ? value.trim() : "");
 
-const getName = (value) =>
-  typeof value === "string" ? value.trim() : "";
+    const result = panResult?.response?.result;
 
-const result = panResult?.response?.result;
+    const zoopData =
+      result && typeof result === "object" && !Array.isArray(result)
+        ? result
+        : {};
 
-const zoopData =
-  result && typeof result === "object" && !Array.isArray(result)
-    ? result
-    : {};
+    const profileData =
+      zoopData?.data &&
+      typeof zoopData.data === "object" &&
+      !Array.isArray(zoopData.data)
+        ? zoopData.data
+        : zoopData;
 
-const profileData =
-  zoopData?.data &&
-  typeof zoopData.data === "object" &&
-  !Array.isArray(zoopData.data)
-    ? zoopData.data
-    : zoopData;
+    const firstName = getName(profileData.first_name || profileData.firstName);
 
-const firstName = getName(
-  profileData.first_name ||
-  profileData.firstName
-);
+    const lastName = getName(profileData.last_name || profileData.lastName);
 
-const lastName = getName(
-  profileData.last_name ||
-  profileData.lastName
-);
+    const verifiedName =
+      getName(
+        profileData.user_full_name ||
+          profileData.full_name ||
+          profileData.fullName ||
+          profileData.name ||
+          profileData.pan_holder_name ||
+          profileData.name_on_card,
+      ) || [firstName, lastName].filter(Boolean).join(" ");
 
-const verifiedName =
-  getName(
-    profileData.user_full_name ||
-    profileData.full_name ||
-    profileData.fullName ||
-    profileData.name ||
-    profileData.pan_holder_name ||
-    profileData.name_on_card
-  ) ||
-  [firstName, lastName].filter(Boolean).join(" ");
+    console.log("[NIYARA PAN] Extraction:", {
+      providerSuccess: panResult?.success === true,
+      hasVerifiedName: Boolean(verifiedName),
+      hasFirstName: Boolean(firstName),
+      hasLastName: Boolean(lastName),
+    });
 
-console.log("[NIYARA PAN] Extraction:", {
-  providerSuccess: panResult?.success === true,
-  hasVerifiedName: Boolean(verifiedName),
-  hasFirstName: Boolean(firstName),
-  hasLastName: Boolean(lastName),
-});
+    // Do not use manually entered customerName as a fallback.
+    // That would not be a name fetched from PAN.
 
+    if (!verifiedName) {
+      return res.status(422).json({
+        success: false,
+        verified: false,
+        pan_verified: true,
+        message:
+          "PAN verification succeeded, but ZOOP did not provide a customer name.",
+        reason: "PAN_NAME_NOT_FOUND",
+      });
+    }
 
-
-
-// Do not use manually entered customerName as a fallback.
-// That would not be a name fetched from PAN.
-
-if (!verifiedName) {
-  return res.status(422).json({
-    success: false,
-    verified: false,
-    pan_verified: true,
-    message:
-      "PAN verification succeeded, but ZOOP did not provide a customer name.",
-    reason: "PAN_NAME_NOT_FOUND",
-  });
-}
-
-return res.status(200).json({
-  success: true,
-  verified: true,
-  message: "PAN verified successfully",
-  data: {
-    customer_name: verifiedName,
-    customerName: verifiedName,
-    firstName,
-    lastName,
-  },
-});
-
-
-
+    return res.status(200).json({
+      success: true,
+      verified: true,
+      message: "PAN verified successfully",
+      data: {
+        customer_name: verifiedName,
+        customerName: verifiedName,
+        firstName,
+        lastName,
+      },
+    });
   } catch (error) {
     console.error("[NIYARA] PAN verification error:", error);
 
@@ -1792,7 +1659,6 @@ return res.status(200).json({
     });
   }
 });
-
 
 /* ==================================================
    NIYARA - AADHAAR DIGILOCKER
@@ -1837,7 +1703,9 @@ const parseAadhaarAddress = (raw) => {
 // POST /api/niyara/aadhaar/init
 router.post("/aadhaar/init", authenticateUser, async (req, res) => {
   try {
-    const lan = String(req.body?.lan || "").trim().toUpperCase();
+    const lan = String(req.body?.lan || "")
+      .trim()
+      .toUpperCase();
     const retrigger = req.body?.retrigger === true;
 
     if (!/^NYRA\d+$/.test(lan)) {
@@ -1868,7 +1736,7 @@ router.post("/aadhaar/init", authenticateUser, async (req, res) => {
        FROM ${TABLE_NAME}
        WHERE lan = ?
        LIMIT 1`,
-      [lan]
+      [lan],
     );
 
     if (!loan) {
@@ -1879,15 +1747,15 @@ router.post("/aadhaar/init", authenticateUser, async (req, res) => {
     }
 
     // Aadhaar initiation is allowed during onboarding.
- const allowedStatuses = ["Draft", "Login"];
+    const allowedStatuses = ["Draft", "Login"];
 
-if (!allowedStatuses.includes(loan.status)) {
-  return res.status(422).json({
-    success: false,
-    message: "Loan is not eligible for Aadhaar verification",
-    current_status: loan.status,
-  });
-}
+    if (!allowedStatuses.includes(loan.status)) {
+      return res.status(422).json({
+        success: false,
+        message: "Loan is not eligible for Aadhaar verification",
+        current_status: loan.status,
+      });
+    }
 
     if (!loan.customer_name || !loan.mobile_number) {
       return res.status(400).json({
@@ -1907,7 +1775,7 @@ if (!allowedStatuses.includes(loan.status)) {
          AND applicant_type = 'BORROWER'
          AND party_no = 1
        LIMIT 1`,
-      [lan]
+      [lan],
     );
 
     if (kyc?.aadhaar_status === "VERIFIED") {
@@ -1955,12 +1823,7 @@ if (!allowedStatuses.includes(loan.status)) {
            aadhaar_status
          )
          VALUES (?, 'BORROWER', 1, ?, ?, ?, 'INITIATED')`,
-        [
-          lan,
-          loan.id,
-          loan.customer_name,
-          loan.mobile_number,
-        ]
+        [lan, loan.id, loan.customer_name, loan.mobile_number],
       );
     } else {
       await connection.query(
@@ -1973,12 +1836,7 @@ if (!allowedStatuses.includes(loan.status)) {
          WHERE lan = ?
            AND applicant_type = 'BORROWER'
            AND party_no = 1`,
-        [
-          loan.id,
-          loan.customer_name,
-          loan.mobile_number,
-          lan,
-        ]
+        [loan.id, loan.customer_name, loan.mobile_number, lan],
       );
     }
 
@@ -1989,26 +1847,22 @@ if (!allowedStatuses.includes(loan.status)) {
         lan,
         loan.mobile_number,
         loan.email || "",
-        loan.customer_name
+        loan.customer_name,
       );
 
       console.log("[NIYARA AADHAAR] Provider result:", {
-  success: result?.success,
-  status: result?.status,
-  reason: result?.reason,
-  message: result?.message,
-  httpStatus: result?.httpStatus,
-  hasKycUrl: Boolean(
-    result?.kycUrl ||
-    result?.url ||
-    result?.data?.url
-  ),
-  keys: Object.keys(result || {}),
-});
+        success: result?.success,
+        status: result?.status,
+        reason: result?.reason,
+        message: result?.message,
+        httpStatus: result?.httpStatus,
+        hasKycUrl: Boolean(result?.kycUrl || result?.url || result?.data?.url),
+        keys: Object.keys(result || {}),
+      });
     } catch (providerError) {
       console.error(
         "[NIYARA] DigiLocker initiation failed:",
-        providerError.message
+        providerError.message,
       );
 
       result = { success: false };
@@ -2021,14 +1875,14 @@ if (!allowedStatuses.includes(loan.status)) {
          WHERE lan = ?
            AND applicant_type = 'BORROWER'
            AND party_no = 1`,
-        [lan]
+        [lan],
       );
-console.error("[NIYARA AADHAAR] Initiation failure:", {
-  reason: result?.reason,
-  message: result?.message,
-  providerStatus: result?.status,
-  httpStatus: result?.httpStatus,
-});
+      console.error("[NIYARA AADHAAR] Initiation failure:", {
+        reason: result?.reason,
+        message: result?.message,
+        providerStatus: result?.status,
+        httpStatus: result?.httpStatus,
+      });
       return res.status(422).json({
         success: false,
         message: "Aadhaar DigiLocker initiation failed",
@@ -2053,7 +1907,7 @@ console.error("[NIYARA AADHAAR] Initiation failure:", {
         result.uniqueId || null,
         retrigger ? 1 : 0,
         lan,
-      ]
+      ],
     );
 
     return res.status(200).json({
@@ -2078,39 +1932,36 @@ console.error("[NIYARA AADHAAR] Initiation failure:", {
 });
 
 // GET /api/niyara/aadhaar/address/:lan
-router.get(
-  "/aadhaar/address/:lan",
-  authenticateUser,
-  async (req, res) => {
-    try {
-      const lan = String(req.params.lan || "")
-        .trim()
-        .toUpperCase();
+router.get("/aadhaar/address/:lan", authenticateUser, async (req, res) => {
+  try {
+    const lan = String(req.params.lan || "")
+      .trim()
+      .toUpperCase();
 
-      if (!/^NYRA\d+$/.test(lan)) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid Niyara LAN",
-        });
-      }
+    if (!/^NYRA\d+$/.test(lan)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Niyara LAN",
+      });
+    }
 
-      const [[loan]] = await db.promise().query(
-        `SELECT id
+    const [[loan]] = await db.promise().query(
+      `SELECT id
          FROM ${TABLE_NAME}
          WHERE lan = ?
          LIMIT 1`,
-        [lan]
-      );
+      [lan],
+    );
 
-      if (!loan) {
-        return res.status(404).json({
-          success: false,
-          message: "Niyara loan not found",
-        });
-      }
+    if (!loan) {
+      return res.status(404).json({
+        success: false,
+        message: "Niyara loan not found",
+      });
+    }
 
-      const [[kyc]] = await db.promise().query(
-        `SELECT
+    const [[kyc]] = await db.promise().query(
+      `SELECT
            aadhaar_status,
            aadhaar_name,
            aadhaar_dob,
@@ -2122,63 +1973,60 @@ router.get(
            AND applicant_type = 'BORROWER'
            AND party_no = 1
          LIMIT 1`,
-        [lan]
-      );
+      [lan],
+    );
 
-      if (!kyc) {
-        return res.status(404).json({
-          success: false,
-          message: "Aadhaar KYC record not found",
-        });
-      }
-
-      if (kyc.aadhaar_status !== "VERIFIED") {
-        return res.status(409).json({
-          success: false,
-          status: kyc.aadhaar_status,
-          message: "Aadhaar is not verified yet",
-        });
-      }
-
-      let payload = null;
-
-      try {
-        payload =
-          typeof kyc.aadhaar_api_response === "string"
-            ? JSON.parse(kyc.aadhaar_api_response)
-            : kyc.aadhaar_api_response;
-      } catch (_) {
-        payload = null;
-      }
-
-      const structuredAddress =
-        payload?.data?.address ||
-        payload?.payload?.data?.address ||
-        kyc.aadhaar_address;
-
-      // Reuse the existing ClaimCureBuddy parser.
-      const address = parseAadhaarAddress(structuredAddress);
-
-      return res.status(200).json({
-        success: true,
-        status: "VERIFIED",
-        aadhaarName: kyc.aadhaar_name,
-        aadhaarDob: kyc.aadhaar_dob,
-        aadhaarMaskedNumber: kyc.aadhaar_masked_number,
-        address,
-      });
-    } catch (error) {
-      console.error("[NIYARA] Fetch Aadhaar address:", error);
-
-      return res.status(500).json({
+    if (!kyc) {
+      return res.status(404).json({
         success: false,
-        message: "Unable to fetch Aadhaar address",
+        message: "Aadhaar KYC record not found",
       });
     }
+
+    if (kyc.aadhaar_status !== "VERIFIED") {
+      return res.status(409).json({
+        success: false,
+        status: kyc.aadhaar_status,
+        message: "Aadhaar is not verified yet",
+      });
+    }
+
+    let payload = null;
+
+    try {
+      payload =
+        typeof kyc.aadhaar_api_response === "string"
+          ? JSON.parse(kyc.aadhaar_api_response)
+          : kyc.aadhaar_api_response;
+    } catch (_) {
+      payload = null;
+    }
+
+    const structuredAddress =
+      payload?.data?.address ||
+      payload?.payload?.data?.address ||
+      kyc.aadhaar_address;
+
+    // Reuse the existing ClaimCureBuddy parser.
+    const address = parseAadhaarAddress(structuredAddress);
+
+    return res.status(200).json({
+      success: true,
+      status: "VERIFIED",
+      aadhaarName: kyc.aadhaar_name,
+      aadhaarDob: kyc.aadhaar_dob,
+      aadhaarMaskedNumber: kyc.aadhaar_masked_number,
+      address,
+    });
+  } catch (error) {
+    console.error("[NIYARA] Fetch Aadhaar address:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to fetch Aadhaar address",
+    });
   }
-);
-
-
+});
 
 async function fetchNiyaraLoans(
   req,
@@ -2218,6 +2066,7 @@ async function fetchNiyaraLoans(
         "UPPER(TRIM(aml_status)) = 'PROCEED'",
         "niyara_bre_checked_at IS NOT NULL",
         "aml_checked_at IS NOT NULL",
+        "partner_credit_decision IS NULL",
       );
     }
 
@@ -2264,6 +2113,19 @@ async function fetchNiyaraLoans(
 
     const whereClause = conditions.join(" AND ");
 
+    const partnerCreditFields = partnerCreditOnly
+  ? `
+    annual_income,
+    cibil_score,
+    niyara_bre_status,
+    niyara_bre_reason,
+    aml_status,
+    aml_reason,
+    aml_total_matches,
+    partner_credit_decision,
+  `
+  : "";
+
     // Total count
     const [[countRow]] = await db.promise().query(
       `
@@ -2293,7 +2155,7 @@ async function fetchNiyaraLoans(
 
         requested_amount,
         loan_amount,
-
+        ${partnerCreditFields}
         status,
         stage,
 
@@ -2337,7 +2199,6 @@ async function fetchNiyaraLoans(
 }
 // POST /api/niyara/login
 
-
 router.post("/login", authenticateUser, async (req, res) => {
   let connection;
   let transactionStarted = false;
@@ -2359,13 +2220,9 @@ router.post("/login", authenticateUser, async (req, res) => {
       });
     }
 
-    const dob = clean(
-      body.borrower_dob ?? body.dob ?? body.date_of_birth
-    );
+    const dob = clean(body.borrower_dob ?? body.dob ?? body.date_of_birth);
 
-    const aadhaarInput = clean(
-      body.aadhaar_number ?? body.aadhar_number
-    );
+    const aadhaarInput = clean(body.aadhaar_number ?? body.aadhar_number);
 
     if (aadhaarInput && !/^\d{12}$/.test(aadhaarInput)) {
       return res.status(400).json({
@@ -2389,9 +2246,7 @@ router.post("/login", authenticateUser, async (req, res) => {
       pan_number: upperOrNull(body.pan_number),
 
       // Store masked Aadhaar only.
-      aadhaar_number: aadhaarInput
-        ? `XXXXXXXX${aadhaarInput.slice(-4)}`
-        : null,
+      aadhaar_number: aadhaarInput ? `XXXXXXXX${aadhaarInput.slice(-4)}` : null,
 
       gender: nullIfEmpty(body.gender),
 
@@ -2400,9 +2255,7 @@ router.post("/login", authenticateUser, async (req, res) => {
       customer_city: nullIfEmpty(body.customer_city),
       customer_state: nullIfEmpty(body.customer_state),
 
-      requested_amount: readNumber(
-        body.requested_amount ?? body.loan_amount
-      ),
+      requested_amount: readNumber(body.requested_amount ?? body.loan_amount),
 
       business_name: nullIfEmpty(body.business_name),
       business_type: nullIfEmpty(body.business_type),
@@ -2445,74 +2298,72 @@ router.post("/login", authenticateUser, async (req, res) => {
 
     const existingLan = clean(body.lan).toUpperCase();
 
-connection = await db.promise().getConnection();
-await connection.beginTransaction();
+    connection = await db.promise().getConnection();
+    await connection.beginTransaction();
 
-const createdBy = String(
-  req.user?.id || req.user?.sub || ""
-);
+    const createdBy = String(req.user?.id || req.user?.sub || "");
 
-if (!createdBy) {
-  await connection.rollback();
+    if (!createdBy) {
+      await connection.rollback();
 
-  return res.status(401).json({
-    success: false,
-    message: "Authenticated user ID missing",
-  });
-}
+      return res.status(401).json({
+        success: false,
+        message: "Authenticated user ID missing",
+      });
+    }
 
-if (existingLan) {
-  if (!/^NYRA\d+$/.test(existingLan)) {
-    await connection.rollback();
+    if (existingLan) {
+      if (!/^NYRA\d+$/.test(existingLan)) {
+        await connection.rollback();
 
-    return res.status(400).json({
-      success: false,
-      message: "Invalid Niyara LAN",
-    });
-  }
+        return res.status(400).json({
+          success: false,
+          message: "Invalid Niyara LAN",
+        });
+      }
 
-  const [[existingLoan]] = await connection.query(
-    `SELECT id, lan, partner_loan_id, status
+      const [[existingLoan]] = await connection.query(
+        `SELECT id, lan, partner_loan_id, status
      FROM ${TABLE_NAME}
      WHERE lan = ?
      LIMIT 1
      FOR UPDATE`,
-    [existingLan]
-  );
+        [existingLan],
+      );
 
-  if (!existingLoan) {
-    await connection.rollback();
+      if (!existingLoan) {
+        await connection.rollback();
 
-    return res.status(404).json({
-      success: false,
-      message: "Niyara draft not found",
-    });
-  }
-const currentStatus = String(existingLoan.status || "")
-  .trim()
-  .toLowerCase();
+        return res.status(404).json({
+          success: false,
+          message: "Niyara draft not found",
+        });
+      }
+      const currentStatus = String(existingLoan.status || "")
+        .trim()
+        .toLowerCase();
 
-if (currentStatus !== "draft") {
-  await connection.rollback();
+      if (currentStatus !== "draft") {
+        await connection.rollback();
 
-  return res.status(409).json({
-    success: false,
-    message: `Loan already has status ${existingLoan.status}`,
-  });
-}
+        return res.status(409).json({
+          success: false,
+          message: `Loan already has status ${existingLoan.status}`,
+        });
+      }
 
-  if (existingLoan.partner_loan_id !== data.partner_loan_id) {
-    await connection.rollback();
+      if (existingLoan.partner_loan_id !== data.partner_loan_id) {
+        await connection.rollback();
 
-    return res.status(409).json({
-      success: false,
-      message: "Partner Loan ID does not match existing draft",
-    });
-  }
+        return res.status(409).json({
+          success: false,
+          message: "Partner Loan ID does not match existing draft",
+        });
+      }
 
-  // Save business details and finalize existing LAN.
-  const [result] = await connection.query(
-    `UPDATE ${TABLE_NAME}
+      // Save business details and finalize existing LAN.
+      const [result] = await connection.query(
+        `UPDATE ${TABLE_NAME}
      SET business_name = ?,
          business_type = ?,
          gst_number = ?,
@@ -2527,53 +2378,53 @@ if (currentStatus !== "draft") {
          updated_at = NOW()
      WHERE lan = ?
        AND  LOWER(TRIM(status))  = 'Draft'`,
-    [
-      data.business_name,
-      data.business_type,
-      data.gst_number,
-      data.udyam_number,
-      data.business_address,
-      data.business_city,
-      data.business_state,
-      data.business_pincode,
-      createdBy,
-      existingLan,
-    ]
-  );
+        [
+          data.business_name,
+          data.business_type,
+          data.gst_number,
+          data.udyam_number,
+          data.business_address,
+          data.business_city,
+          data.business_state,
+          data.business_pincode,
+          createdBy,
+          existingLan,
+        ],
+      );
 
-  if (result.affectedRows !== 1) {
-    throw new Error("Unable to finalize Niyara draft");
-  }
+      if (result.affectedRows !== 1) {
+        throw new Error("Unable to finalize Niyara draft");
+      }
 
-  await connection.commit();
+      await connection.commit();
 
-  return res.status(200).json({
-    success: true,
-    message: "Niyara loan submitted successfully",
-    data: {
-      id: existingLoan.id,
-      lan: existingLan,
-      status: "Login",
-      stage: "Login",
-      next_step: "BUREAU_BRE_AML_PENDING",
-    },
-  });
-}
+      return res.status(200).json({
+        success: true,
+        message: "Niyara loan submitted successfully",
+        data: {
+          id: existingLoan.id,
+          lan: existingLan,
+          status: "Login",
+          stage: "Login",
+          next_step: "BUREAU_BRE_AML_PENDING",
+        },
+      });
+    }
 
-// Existing new-loan creation logic continues below.
+    // Existing new-loan creation logic continues below.
     // Generate Niyara LAN
     const ids = await generateLoanIds(connection);
 
-// const createdBy = String(
-//   req.user?.id || req.user?.sub || ""
-// );
+    // const createdBy = String(
+    //   req.user?.id || req.user?.sub || ""
+    // );
 
-if (!createdBy) {
-  return res.status(401).json({
-    success: false,
-    message: "Authenticated user ID missing",
-  });
-}
+    if (!createdBy) {
+      return res.status(401).json({
+        success: false,
+        message: "Authenticated user ID missing",
+      });
+    }
     // Insert Loan
     const insertId = await insertLogin(connection, data, ids, createdBy);
 
@@ -2598,7 +2449,7 @@ if (!createdBy) {
         AND doc_name = 'NIYARA_BUREAU_CONSENT_VERIFIED'
       LIMIT 1
       `,
-      [lan]
+      [lan],
     );
 
     if (!consent) {
@@ -2632,7 +2483,7 @@ if (!createdBy) {
 
     const [[lock]] = await connection.query(
       "SELECT GET_LOCK(?, 0) AS acquired",
-      [lockName]
+      [lockName],
     );
 
     if (Number(lock.acquired) !== 1) {
@@ -2667,14 +2518,10 @@ if (!createdBy) {
       WHERE lan = ?
       LIMIT 1
       `,
-      [lan]
+      [lan],
     );
 
-    if (
-      !loan ||
-      loan.status !== "Login" ||
-      loan.stage !== "Login"
-    ) {
+    if (!loan || loan.status !== "Login" || loan.stage !== "Login") {
       throw new Error("Loan is not eligible for verification");
     }
 
@@ -2690,7 +2537,7 @@ if (!createdBy) {
       ORDER BY id DESC
       LIMIT 1
       `,
-      [lan]
+      [lan],
     );
 
     let score;
@@ -2704,7 +2551,7 @@ if (!createdBy) {
           AND bureau_status = 'VERIFIED'
         LIMIT 1
         `,
-        [lan]
+        [lan],
       );
 
       score = Number(savedReport.score);
@@ -2727,9 +2574,7 @@ if (!createdBy) {
         throw new Error("Bureau score exists without a report");
       }
 
-      const parts = clean(loan.customer_name)
-        .split(/\s+/)
-        .filter(Boolean);
+      const parts = clean(loan.customer_name).split(/\s+/).filter(Boolean);
 
       const firstName = parts[0] || "";
       const lastName = parts[parts.length - 1] || "";
@@ -2748,8 +2593,8 @@ if (!createdBy) {
 
       const supportedStates = new Set(
         "JAMMU AND KASHMIR|HIMACHAL PRADESH|PUNJAB|CHANDIGARH|UTTRANCHAL|HARAYANA|DELHI|RAJASTHAN|UTTAR PRADESH|BIHAR|SIKKIM|ARUNACHAL PRADESH|NAGALAND|MANIPUR|MIZORAM|TRIPURA|MEGHALAYA|ASSAM|WEST BENGAL|JHARKHAND|ORRISA|CHHATTISGARH|MADHYA PRADESH|GUJRAT|MAHARASHTRA|ANDHRA PRADESH|KARNATAKA|GOA|LAKSHADWEEP|KERALA|TAMIL NADU|PONDICHERRY|TELANGANA".split(
-          "|"
-        )
+          "|",
+        ),
       );
 
       const amount = Number(loan.requested_amount);
@@ -2779,9 +2624,7 @@ if (!createdBy) {
 
       if (
         xmlFields.some((value) =>
-          /[<&\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(
-            String(value)
-          )
+          /[<&\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(String(value)),
         )
       ) {
         throw new Error("Unsupported characters in Bureau inputs");
@@ -2838,7 +2681,7 @@ if (!createdBy) {
           (lan, pan_number, score, report_xml, created_at)
         VALUES (?, ?, ?, ?, NOW())
         `,
-        [lan, loan.pan_number, score, bureau.response]
+        [lan, loan.pan_number, score, bureau.response],
       );
 
       await connection.query(
@@ -2846,7 +2689,7 @@ if (!createdBy) {
         INSERT IGNORE INTO kyc_verification_status (lan)
         VALUES (?)
         `,
-        [lan]
+        [lan],
       );
 
       await connection.query(
@@ -2856,7 +2699,7 @@ if (!createdBy) {
             bureau_api_response = ?
         WHERE lan = ?
         `,
-        [bureau.response, lan]
+        [bureau.response, lan],
       );
 
       const [updated] = await connection.query(
@@ -2869,7 +2712,7 @@ if (!createdBy) {
           AND stage = 'Login'
           AND cibil_score IS NULL
         `,
-        [score, lan]
+        [score, lan],
       );
 
       if (updated.affectedRows !== 1) {
@@ -2901,9 +2744,7 @@ if (!createdBy) {
 
     const aml = await screenLoanBooking("niyara", lan);
 
-    const amlStatus = clean(
-      aml.amlStatus || aml.decision
-    ).toUpperCase();
+    const amlStatus = clean(aml.amlStatus || aml.decision).toUpperCase();
 
     const [[screening]] = await connection.query(
       `
@@ -2914,16 +2755,13 @@ if (!createdBy) {
         AND lan = ?
       LIMIT 1
       `,
-      [aml.screeningRequestId || 0, lan]
+      [aml.screeningRequestId || 0, lan],
     );
 
     const amlCompleted =
-      aml.degraded !== true &&
-      screening?.status === "COMPLETED";
+      aml.degraded !== true && screening?.status === "COMPLETED";
 
-    const amlApproved =
-      amlCompleted &&
-      amlStatus === "PROCEED";
+    const amlApproved = amlCompleted && amlStatus === "PROCEED";
 
     // ----------------------------------------------------
     // STEP 7: SET FINAL STATUS / STAGE
@@ -2960,7 +2798,7 @@ if (!createdBy) {
           OR niyara_bre_status IN ('APPROVED', 'PENDING')
         )
       `,
-      [bre.decision, bre.reason, status, stage, lan]
+      [bre.decision, bre.reason, status, stage, lan],
     );
 
     if (updated.affectedRows !== 1) {
@@ -2982,10 +2820,7 @@ if (!createdBy) {
           aml_status: amlStatus,
           bureau_checked: true,
         },
-        next_step:
-          status === "bre_approved"
-            ? "PARTNER_CREDIT"
-            : null,
+        next_step: status === "bre_approved" ? "PARTNER_CREDIT" : null,
       },
     });
   } catch (error) {
@@ -3005,8 +2840,7 @@ if (!createdBy) {
     if (bookingCommitted) {
       return res.status(201).json({
         success: true,
-        message:
-          "Niyara loan created; automatic verification is pending",
+        message: "Niyara loan created; automatic verification is pending",
         data: {
           id: insertId,
           partner_loan_id: data?.partner_loan_id,
@@ -3040,10 +2874,7 @@ if (!createdBy) {
     if (connection) {
       if (verificationLocked && lockName) {
         try {
-          await connection.query(
-            "SELECT RELEASE_LOCK(?)",
-            [lockName]
-          );
+          await connection.query("SELECT RELEASE_LOCK(?)", [lockName]);
         } catch (lockError) {
           console.error("[NIYARA] Lock release error:", lockError);
         }
@@ -3054,27 +2885,21 @@ if (!createdBy) {
   }
 });
 
-
-
 // GET /api/niyara/customer-details/:lan
 
+router.get("/customer-details/:lan", authenticateUser, async (req, res) => {
+  try {
+    const lan = clean(req.params.lan).toUpperCase();
 
-router.get(
-  "/customer-details/:lan",
-  authenticateUser,
-  async (req, res) => {
-    try {
-      const lan = clean(req.params.lan).toUpperCase();
+    if (!/^NYRA\d+$/.test(lan)) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid Niyara LAN is required",
+      });
+    }
 
-      if (!/^NYRA\d+$/.test(lan)) {
-        return res.status(400).json({
-          success: false,
-          message: "Valid Niyara LAN is required",
-        });
-      }
-
-      const [[loan]] = await db.promise().query(
-        `
+    const [[loan]] = await db.promise().query(
+      `
         SELECT
           id,
           partner_loan_id,
@@ -3139,41 +2964,39 @@ router.get(
         WHERE lan = ?
         LIMIT 1
         `,
-        [lan]
-      );
+      [lan],
+    );
 
-      if (!loan) {
-        return res.status(404).json({
-          success: false,
-          message: "Niyara loan not found",
-        });
-      }
-
-      return res.status(200).json({
-        success: true,
-        message: "Niyara customer details fetched successfully",
-        data: {
-          loan,
-        },
-      });
-    } catch (error) {
-      console.error("[NIYARA] Customer Details Error:", {
-        lan: req.params.lan,
-        code: error.code,
-        errno: error.errno,
-        sqlMessage: error.sqlMessage,
-        message: error.message,
-        stack: error.stack,
-      });
-
-      return res.status(500).json({
+    if (!loan) {
+      return res.status(404).json({
         success: false,
-        message: "Failed to fetch Niyara customer details",
+        message: "Niyara loan not found",
       });
     }
-  }
-);
 
+    return res.status(200).json({
+      success: true,
+      message: "Niyara customer details fetched successfully",
+      data: {
+        loan,
+      },
+    });
+  } catch (error) {
+    console.error("[NIYARA] Customer Details Error:", {
+      lan: req.params.lan,
+      code: error.code,
+      errno: error.errno,
+      sqlMessage: error.sqlMessage,
+      message: error.message,
+      stack: error.stack,
+    });
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch Niyara customer details",
+    });
+  }
+});
 
 // GET /api/niyara/all-loans
 
@@ -3183,26 +3006,49 @@ router.get("/all-loans", verifyApiKey, verifyNiyaraPartner, (req, res) => {
 
 // GET /api/niyara/partner-credit-loans
 
-router.get("/partner-credit-loans",
-  verifyApiKey,
-  verifyNiyaraPartner,
+// GET /api/niyara/partner-credit-loans
+router.get(
+  "/partner-credit-loans",
+  authenticateUser,
   (req, res) => {
     return fetchNiyaraLoans(req, res, {
       partnerCreditOnly: true,
     });
-  },
+  }
 );
 
 // PATCH /api/niyara/:lan/partner-credit-decision
 
-router.patch("/:lan/partner-credit-decision",
-  verifyApiKey,
-  verifyNiyaraPartner,
+
+router.patch(
+  "/:lan/partner-credit-decision",
+  authenticateUser,
   async (req, res) => {
     try {
-      const lan = clean(req.params.lan).toUpperCase();
-      const decision = clean(req.body?.decision).toLowerCase();
-      const reason = clean(req.body?.reason);
+      const lan = String(req.params.lan || "")
+        .trim()
+        .toUpperCase();
+
+      const decision = String(req.body?.decision || "")
+        .trim()
+        .toLowerCase();
+
+      const reason = String(req.body?.reason || "").trim();
+
+      // Use logged-in user's identity, NOT req.partner.id
+      const decidedBy = String(
+        req.user?.id ??
+        req.user?.userId ??
+        req.user?.sub ??
+        ""
+      ).trim();
+
+      if (!decidedBy) {
+        return res.status(401).json({
+          success: false,
+          message: "Authenticated user ID missing",
+        });
+      }
 
       if (!/^NYRA\d+$/.test(lan)) {
         return res.status(400).json({
@@ -3214,7 +3060,7 @@ router.patch("/:lan/partner-credit-decision",
       if (!["approve", "reject"].includes(decision)) {
         return res.status(400).json({
           success: false,
-          message: "decision must be approve or reject",
+          message: "Decision must be approve or reject",
         });
       }
 
@@ -3242,17 +3088,47 @@ router.patch("/:lan/partner-credit-decision",
         ? "ff_credit_pending"
         : "partner_credit_rejected";
 
-      const decidedBy = `NIYARA_API_KEY:${req.partner.id}`;
+      // Check current loan state before processing.
+      const [[loan]] = await db.promise().query(
+        `SELECT
+           lan,
+           status,
+           stage,
+           niyara_bre_status,
+           aml_status,
+           partner_credit_decision
+         FROM loan_booking_niyara
+         WHERE lan = ?
+         LIMIT 1`,
+        [lan]
+      );
 
+      if (!loan) {
+        return res.status(404).json({
+          success: false,
+          message: "Niyara loan not found",
+        });
+      }
+
+      console.log("[NIYARA PARTNER CREDIT]", {
+        lan,
+        decision,
+        status: loan.status,
+        stage: loan.stage,
+      });
+
+      // One-time atomic credit decision.
       const [result] = await db.promise().query(
-        `UPDATE ${TABLE_NAME}
-         SET status = ?,
-             stage = ?,
-             partner_credit_decision = ?,
-             partner_credit_decision_reason = ?,
-             partner_credit_decision_by = ?,
-             partner_credit_decided_at = NOW(),
-             updated_by = ?
+        `UPDATE loan_booking_niyara
+         SET
+           status = ?,
+           stage = ?,
+           partner_credit_decision = ?,
+           partner_credit_decision_reason = ?,
+           partner_credit_decision_by = ?,
+           partner_credit_decided_at = NOW(),
+           updated_by = ?,
+           updated_at = NOW()
          WHERE lan = ?
            AND status = 'bre_approved'
            AND stage = 'partner_credit_pending'
@@ -3269,13 +3145,14 @@ router.patch("/:lan/partner-credit-decision",
           decidedBy,
           decidedBy,
           lan,
-        ],
+        ]
       );
 
-      if (!result.affectedRows) {
+      if (result.affectedRows !== 1) {
         return res.status(409).json({
           success: false,
-          message: "Loan not eligible for Partner Credit decision",
+          message:
+            "Case is no longer eligible for Partner Credit decision",
         });
       }
 
@@ -3286,22 +3163,28 @@ router.patch("/:lan/partner-credit-decision",
           : "Partner Credit rejected successfully",
         data: {
           lan,
+          decision: approved ? "APPROVED" : "REJECTED",
           status: newStatus,
           stage: newStage,
-          decision: approved ? "APPROVED" : "REJECTED",
-          next_step: approved ? "CREDIT_REVIEW" : null,
+          next_step: approved ? "FFPL_CREDIT" : null,
         },
       });
+
     } catch (error) {
-      console.error("[NIYARA] Partner Credit error:", error);
+      console.error("[NIYARA PARTNER CREDIT ERROR]", {
+        message: error.message,
+        code: error.code,
+        sqlMessage: error.sqlMessage,
+      });
 
       return res.status(500).json({
         success: false,
         message: "Failed to process Partner Credit decision",
       });
     }
-  },
+  }
 );
+
 
 // GET /api/niyara/credit-loans
 router.get("/credit-loans", authenticateUser, (req, res) => {
@@ -3431,13 +3314,13 @@ router.get("/esign-enach-loans", authenticateUser, async (req, res) => {
     return res.json({
       success: true,
       rows,
-      total: rows.length
+      total: rows.length,
     });
   } catch (error) {
     console.error("[NIYARA] eSign/eNACH:", error);
     return res.status(500).json({
       success: false,
-      message: "Failed to fetch Niyara eSign/eNACH cases"
+      message: "Failed to fetch Niyara eSign/eNACH cases",
     });
   }
 });
@@ -3979,7 +3862,8 @@ router.patch("/:lan/ops-maker-decision", authenticateUser, async (req, res) => {
   }
 });
 
-router.patch("/:lan/ops-checker-decision",
+router.patch(
+  "/:lan/ops-checker-decision",
   authenticateUser,
   async (req, res) => {
     try {
@@ -5016,7 +4900,6 @@ router.post("/:lan/verify", authenticateUser, async (req, res) => {
   }
 });
 
-
 router.get("/disbursed-loans", authenticateUser, async (req, res) => {
   try {
     const [rows] = await db.promise().query(
@@ -5038,7 +4921,7 @@ router.get("/disbursed-loans", authenticateUser, async (req, res) => {
       WHERE lan LIKE 'NYRA%'
         AND status = 'Disbursed'
       ORDER BY updated_at DESC
-      `
+      `,
     );
 
     return res.status(200).json({
@@ -5057,7 +4940,264 @@ router.get("/disbursed-loans", authenticateUser, async (req, res) => {
   }
 });
 
+// router.get("/customer-details/:lan", authenticateUser, async (req, res) => {
+//   res.setHeader("Cache-Control", "private, no-store");
 
+//   try {
+//     const lan = String(req.params.lan || "").trim().toUpperCase();
+
+//     if (!/^NYRA\d+$/.test(lan)) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Invalid Niyara LAN",
+//       });
+//     }
+
+//     console.log("[NIYARA DETAILS] Fetching:", lan);
+
+//     // 1. MAIN BOOKING DATA
+//     const [rows] = await db.promise().query(
+//       {
+//         sql: `
+//           SELECT *
+//           FROM loan_booking_niyara
+//           WHERE lan = ?
+//           LIMIT 1
+//         `,
+//         timeout: 10000,
+//       },
+//       [lan]
+//     );
+
+//     if (!rows.length) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Niyara loan not found",
+//       });
+//     }
+
+//     const booking = rows[0];
+
+//     // Only fields needed for Niyara UBL Details
+//     const fields = [
+//       // Application
+//       "lan", "partner_loan_id", "lender", "product",
+//       "loan_type", "status", "stage", "login_date",
+//       "created_at", "updated_at",
+
+//       // Applicant
+//       "customer_name", "first_name", "middle_name",
+//       "last_name", "borrower_dob", "age", "gender",
+//       "father_name", "mother_name", "mobile_number",
+//       "email", "pan_number", "aadhaar_number",
+//       "annual_income",
+
+//       // Address
+//       "customer_address", "address_line_2",
+//       "customer_city", "district", "customer_state",
+//       "customer_pincode",
+
+//       // Business
+//       "business_name", "business_type", "gst_number",
+//       "udyam_number", "business_vintage", "industry",
+//       "business_address", "business_city",
+//       "business_state", "business_pincode",
+//       "annual_turnover", "net_profit",
+
+//       // Financial
+//       "requested_amount", "loan_amount", "loan_tenure",
+//       "tenure_unit", "interest", "roi", "reducing_roi",
+//       "flat_interest", "apr", "emi_amount",
+//       "repayment_frequency", "processing_fee",
+//       "insurance_amount", "pre_emi_interest",
+//       "net_disbursement", "total_repayment",
+//       "sanction_date",
+
+//       // Bank
+//       "name_in_bank", "bank_name", "account_number",
+//       "ifsc", "bank_status", "umrn",
+
+//       // Bureau and risk
+//       "cibil_score", "niyara_bre_status",
+//       "niyara_bre_reason", "niyara_bre_checked_at",
+//       "niyara_enquiries_30d",
+//       "niyara_unsecured_enquiries_30d",
+//       "niyara_active_tradeline_count",
+//       "niyara_dpd_6m_flag",
+//       "niyara_settled_writtenoff_36m_flag",
+//       "niyara_willful_default_suit_filed_3y_flag",
+//       "niyara_active_overdue_3m_flag",
+//       "niyara_active_overdue_amount",
+//       "loanemi_obligations", "abb_value",
+
+//       // Credit policy
+//       "niyara_deviation_flag",
+//       "niyara_cibil_offer",
+//       "niyara_abb_offer",
+//       "niyara_final_offer",
+//       "niyara_policy_inputs",
+//       "niyara_policy_result",
+
+//       // AML
+//       "aml_status", "aml_score",
+//       "aml_total_matches", "aml_reason",
+//       "aml_checked_at",
+
+//       // Partner credit
+//       "partner_credit_decision",
+//       "partner_credit_decision_reason",
+//       "partner_credit_decision_by",
+//       "partner_credit_decided_at",
+
+//       // Fintree credit
+//       "credit_decision_by",
+//       "credit_decision_reason",
+
+//       // eSign
+//       "sanction_esign_status",
+//       "sanction_esign_document_id",
+//       "agreement_esign_status",
+//       "agreement_esign_document_id",
+//       "agreement_esign_sent_at",
+
+//       // Operations
+//       "ops_maker_decision",
+//       "ops_maker_decision_reason",
+//       "ops_maker_id",
+//       "ops_maker_decided_at",
+//       "ops_checker_decision",
+//       "ops_checker_decision_reason",
+//       "ops_checker_id",
+//       "ops_checker_decided_at",
+//     ];
+
+//     const loan = {};
+
+//     for (const field of fields) {
+//       loan[field] = booking[field] ?? null;
+//     }
+
+//     // Never expose unmasked Aadhaar
+//     if (loan.aadhaar_number) {
+//       loan.aadhaar_number =
+//         "XXXXXXXX" + String(loan.aadhaar_number).slice(-4);
+//     }
+
+//     // Mask account number
+//     if (loan.account_number) {
+//       const account = String(loan.account_number);
+//       loan.account_number =
+//         "****" + account.slice(-4);
+//     }
+
+//     // 2. FETCH ESIGN + RPS
+//     // An optional query failure should not hide the main loan.
+//     const results = await Promise.allSettled([
+//       db.promise().query(
+//         {
+//           sql: `
+//             SELECT document_id, document_type, status
+//             FROM esign_documents
+//             WHERE lan = ?
+//               AND document_type IN ('SANCTION', 'AGREEMENT')
+//           `,
+//           timeout: 10000,
+//         },
+//         [lan]
+//       ),
+
+//       db.promise().query(
+//         {
+//           sql: `
+//             SELECT
+//               due_date, opening, principal,
+//               interest, emi, closing
+//             FROM manual_rps_niyara
+//             WHERE lan = ?
+//             ORDER BY due_date ASC
+//           `,
+//           timeout: 10000,
+//         },
+//         [lan]
+//       ),
+//     ]);
+
+//     const warnings = [];
+
+//     const esignRows =
+//       results[0].status === "fulfilled"
+//         ? results[0].value[0]
+//         : [];
+
+//     if (results[0].status === "rejected") {
+//       warnings.push("ESIGN_DATA_UNAVAILABLE");
+//       console.error(
+//         "[NIYARA] eSign query:",
+//         results[0].reason
+//       );
+//     }
+
+//     const repaymentRows =
+//       results[1].status === "fulfilled"
+//         ? results[1].value[0]
+//         : [];
+
+//     if (results[1].status === "rejected") {
+//       warnings.push("RPS_DATA_UNAVAILABLE");
+//       console.error(
+//         "[NIYARA] RPS query:",
+//         results[1].reason
+//       );
+//     }
+
+//     const findEsign = (type, documentId, fallbackStatus) => {
+//       const document = documentId
+//         ? esignRows.find(
+//             (row) =>
+//               row.document_type === type &&
+//               String(row.document_id) === String(documentId)
+//           )
+//         : null;
+
+//       return {
+//         document_id: documentId || null,
+//         status: document?.status || fallbackStatus || null,
+//       };
+//     };
+
+//     // 3. RESPONSE
+//     console.log("[NIYARA DETAILS] Booking found:", lan);
+
+//     return res.status(200).json({
+//       success: true,
+//       loan,
+
+//       esign: {
+//         sanction: findEsign(
+//           "SANCTION",
+//           booking.sanction_esign_document_id,
+//           booking.sanction_esign_status
+//         ),
+//         agreement: findEsign(
+//           "AGREEMENT",
+//           booking.agreement_esign_document_id,
+//           booking.agreement_esign_status
+//         ),
+//       },
+
+//       repayment_schedule: repaymentRows,
+//       warnings,
+//     });
+
+//   } catch (error) {
+//     console.error("[NIYARA DETAILS] ERROR:", error);
+
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to fetch Niyara customer details",
+//     });
+//   }
+// });
 
 // Export Router
 module.exports = router;

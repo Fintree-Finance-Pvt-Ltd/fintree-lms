@@ -202,6 +202,9 @@ async function processRows(sheetData, res) {
         queryDB(`SELECT lan FROM loan_booking_srbh WHERE lan IN (?)`, [
           uniqueLANs,
         ]), // Added for srbh
+         queryDB(`SELECT lan FROM loan_booking_ya_money WHERE lan IN (?)`, [
+          uniqueLANs,
+        ]),
         queryDB(`SELECT lan FROM loan_booking_zebrs WHERE lan IN (?)`, [
           uniqueLANs,
         ]), // Added for claim cure buddy

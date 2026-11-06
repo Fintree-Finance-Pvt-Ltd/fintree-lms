@@ -61,6 +61,7 @@ const allocateClaimCureBuddy = require("./allocateClaimCureBuddy");
 const allocateClaimBuddy = require("./allocateClaimBuddy");
 const allocateEmiClub2 = require("./allocateEmiClub2");
 const allocateSabGrow = require("./allocateSabgrow");
+const allocateYaMoney = require("./allocateYaMoney");
 // const getEmiClub2AwarePrefix = require("../../routes/EmiClub2/Emiclub2Routes");
 /**
  * Utility helpers for merging allocation results.
@@ -224,6 +225,8 @@ const allocateRepaymentByLAN = async (lan, payment) => {
     return allocateEmbifi(lan, payment);
   } else if (lan.startsWith("CARE")) {
     return allocateCarePay(lan, payment);
+  }  else if (lan.startsWith("YAM")) {
+    return allocateYaMoney(lan, payment);
   } else {
     throw new Error(`Unknown LAN prefix for allocation: ${lan}`);
   }

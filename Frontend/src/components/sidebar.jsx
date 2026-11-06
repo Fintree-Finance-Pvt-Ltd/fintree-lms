@@ -359,6 +359,7 @@ const Sidebar = () => {
           p.path.includes("/niyara/ops-maker") ||
           p.path.includes("/niyara/ops-checker") ||
           p.path.includes("/niyara/all-loans") ||
+          p.path.includes("/niyara/partner-credit") ||
           p.path.includes("/niyara/esign-enach")),
     ),
     "CirclePe Loans": allowedPages.filter((p) =>

@@ -32,8 +32,12 @@ router.get("/loan-booking/:lan", (req, res) => {
   // Determine which table to use
   let table = "loan_bookings"; // Default
   let posTable = "manual_rps_bl_loan"; // Default
+  let isNiyara = false;
 
-  if (lan.startsWith("GQN")) {
+  if (lan.startsWith("NYRA")) {
+    table = "loan_booking_niyara";
+    isNiyara = true;
+  } else if (lan.startsWith("GQN")) {
     table = "loan_booking_gq_non_fsf";
     posTable = "manual_rps_gq_non_fsf";
   } else if (lan.startsWith("ADK")) {
@@ -161,6 +165,15 @@ router.get("/loan-booking/:lan", (req, res) => {
     if (results.length === 0) {
       return res.status(404).json({ message: "Loan not found" });
     }
+
+    if (isNiyara) {
+      return res.json({
+        ...results[0],
+        interest_rate: results[0].interest_rate ?? results[0].interest,
+        pos_amount: 0,
+      });
+    }
+
     // Now add the POS query
     const posQuery = `
       SELECT COALESCE(SUM(remaining_principal), 0) AS pos

@@ -377,6 +377,8 @@ import NiyaraDisbursedLoans from "./components/Niyara/DisbursedLoanScreen";
 import NiyaraOpsMakerScreen from "./components/Niyara/OpsMakerScreen";
 import NiyaraOpsCheckerScreen from "./components/Niyara/OpsCheckerScreen";
 import NiyaraLoanBooking from "./components/Niyara/NiyaraLoanBooking.jsx";
+import NiyaraCustomerDetails from "./components/Niyara/NiyaraCustomerDetails";
+import PartnerCreditTeamScreen from "./components/Niyara/PartnerCreditTeamScreen";
 
 // ===================== Zebrs Imports =====================
 import ZebrsDealerLists from "./components/Zebrs/ZebrsDealerLists";
@@ -2375,10 +2377,7 @@ function App() {
               </PermissionRoute>
             }
           />
-
-
-
-/* ===================== OmrajPay routes ===================== */
+          /* ===================== OmrajPay routes ===================== */
           <Route
             path="/omrajpay/dealer-entry"
             element={
@@ -2387,7 +2386,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/omrajpay/dealer-lists"
             element={
@@ -2396,7 +2394,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/omrajpay/dealer-login-actions"
             element={
@@ -3187,6 +3184,22 @@ function App() {
               </PermissionRoute>
             }
           />
+          <Route
+            path="/niyara/customer-details/:lan"
+            element={
+              <PermissionRoute pageName="Niyara All Loans">
+                <NiyaraCustomerDetails />
+              </PermissionRoute>
+            }
+          />
+       <Route
+  path="/niyara/partner-credit"
+  element={
+    <PermissionRoute pageName="Niyara Partner Credit Team">
+      <PartnerCreditTeamScreen />
+    </PermissionRoute>
+  }
+/>
         </Route>
         {/* Optional commented route */}
         {/* 

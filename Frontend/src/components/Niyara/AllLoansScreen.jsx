@@ -6,8 +6,10 @@ const NiyaraAllLoans = () => {
   return (
     <AllLoansScreen
       apiEndpoint="/loan-booking/all-loans?table=loan_booking_niyara&prefix=NYRA"
-      title="Niyara All Loans"
-      enableReject={false}
+      title="Niyara UBL All Loans"
+      lanDetailsUrlBuilder={(row) =>
+        `/niyara/customer-details/${encodeURIComponent(row.lan || "")}`
+      }
     />
   );
 };
