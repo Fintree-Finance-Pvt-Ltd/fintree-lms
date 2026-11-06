@@ -640,6 +640,108 @@ router.post("/otp/send", authenticateUser, async (req, res) => {
   POST /api/niyara/draft
   Step 1: Save Basic Details and generate LAN.
 */
+
+async function saveNiyaraPanKyc(
+  connection,
+  {
+    lan,
+    sourceApplicantId,
+    mobile,
+    panNumber,
+    customerName,
+    panResult,
+  }
+) {
+  if (!lan || !sourceApplicantId || !mobile || !panNumber) {
+    throw new Error("Missing Niyara KYC details");
+  }
+
+  // panResult must come from trusted, server-side
+  // ZOOP verification evidence, never req.body.panResult.
+  if (panResult?.success !== true) {
+    throw new Error("PAN verification has not succeeded");
+  }
+
+  const panResponse = JSON.stringify(
+    panResult.response ?? panResult
+  );
+
+  const [[existing]] = await connection.query(
+    `SELECT id
+     FROM kyc_verification_status
+     WHERE lan = ?
+       AND applicant_type = 'BORROWER'
+       AND party_no = 1
+     LIMIT 1
+     FOR UPDATE`,
+    [lan]
+  );
+
+  if (existing) {
+    // UPDATE existing record.
+    // Do not change Aadhaar or Bureau status.
+    await connection.query(
+      `UPDATE kyc_verification_status
+       SET
+         source_applicant_id = ?,
+         applicant_name = ?,
+         mobile_number = ?,
+         pan_number = ?,
+         pan_status = 'VERIFIED',
+         pan_api_response = ?
+       WHERE id = ?`,
+      [
+        sourceApplicantId,
+        customerName,
+        mobile,
+        panNumber,
+        panResponse,
+        existing.id,
+      ]
+    );
+  } else {
+    // INSERT new borrower KYC record.
+    await connection.query(
+      `INSERT INTO kyc_verification_status (
+         lan,
+         applicant_type,
+         party_no,
+         source_applicant_id,
+         applicant_name,
+         mobile_number,
+         pan_number,
+         pan_status,
+         pan_api_response,
+         aadhaar_status,
+         bureau_status
+       )
+       VALUES (
+         ?,
+         'BORROWER',
+         1,
+         ?,
+         ?,
+         ?,
+         ?,
+         'VERIFIED',
+         ?,
+         'PENDING',
+         'PENDING'
+       )`,
+      [
+        lan,
+        sourceApplicantId,
+        customerName,
+        mobile,
+        panNumber,
+        panResponse,
+      ]
+    );
+  }
+}
+
+
+
 router.post("/draft", authenticateUser, async (req, res) => {
   let connection;
 
@@ -704,6 +806,91 @@ router.post("/draft", authenticateUser, async (req, res) => {
         message: "Invalid email address",
       });
     }
+
+    
+const actor = nyraActor(req);
+
+const sessionId = nyraReadSessionToken(
+  body.session_id,
+  mobile,
+  actor
+);
+
+if (!sessionId) {
+  return res.status(403).json({
+    success: false,
+    message: "Valid OTP verification session required",
+  });
+}
+
+const [[otpSession]] = await db.promise().query(
+  `SELECT id
+   FROM otp_sessions
+   WHERE id = ?
+     AND identifier = ?
+     AND identifier_type = 'MOBILE'
+     AND owner_type = ?
+     AND purpose = ?
+     AND status = 'VERIFIED'
+     AND expires_at > UTC_TIMESTAMP()
+   LIMIT 1`,
+  [
+    sessionId,
+    mobile,
+    NYRA_OTP_OWNER,
+    NYRA_OTP_PURPOSE,
+  ]
+);
+
+if (!otpSession) {
+  return res.status(403).json({
+    success: false,
+    message: "OTP verification expired or not completed",
+  });
+}
+
+// Verify PAN with the actual ZOOP service.
+const verifiedPanResult = await getPanCardDetails(
+  pan,
+  customerName
+);
+
+if (verifiedPanResult?.success !== true) {
+  return res.status(422).json({
+    success: false,
+    message: "PAN verification failed",
+  });
+}
+
+// Extract the verified name from ZOOP.
+const zoopResult = verifiedPanResult?.response?.result || {};
+const profile =
+  zoopResult?.data &&
+  typeof zoopResult.data === "object"
+    ? zoopResult.data
+    : zoopResult;
+
+const verifiedPanName = String(
+  profile.user_full_name ||
+  profile.full_name ||
+  profile.fullName ||
+  profile.name ||
+  profile.pan_holder_name ||
+  profile.name_on_card ||
+  [
+    profile.first_name || profile.firstName,
+    profile.last_name || profile.lastName,
+  ].filter(Boolean).join(" ") ||
+  ""
+).trim();
+
+if (!verifiedPanName) {
+  return res.status(422).json({
+    success: false,
+    message: "Verified PAN holder name not returned by ZOOP",
+  });
+}
+
 
     connection = await db.promise().getConnection();
     await connection.beginTransaction();
@@ -771,7 +958,7 @@ router.post("/draft", authenticateUser, async (req, res) => {
         PRODUCT,
         LOAN_TYPE,
         todayDate(),
-        customerName,
+        verifiedPanName,
         mobile,
         pan,
         dob,
@@ -782,7 +969,15 @@ router.post("/draft", authenticateUser, async (req, res) => {
         createdBy,
       ],
     );
-
+    
+await saveNiyaraPanKyc(connection, {
+  lan: ids.lan,
+  sourceApplicantId: result.insertId,
+  mobile,
+  panNumber: pan,
+  customerName: verifiedPanName,
+  panResult: verifiedPanResult,
+});
     await connection.commit();
 
     return res.status(201).json({
@@ -803,9 +998,15 @@ router.post("/draft", authenticateUser, async (req, res) => {
       } catch (_) {}
     }
 
-    console.error("[NIYARA] Draft creation:", error);
-
-    return res.status(error.code === "ER_DUP_ENTRY" ? 409 : 500).json({
+console.error("[NIYARA] Draft creation:", {
+  message: error.message,
+  code: error.code,
+  sqlMessage: error.sqlMessage,
+  stack: error.stack,
+});
+    return res.status(
+      error.code === "ER_DUP_ENTRY" ? 409 : 500
+    ).json({
       success: false,
       message:
         error.code === "ER_DUP_ENTRY"
@@ -1123,8 +1324,10 @@ router.patch("/draft/:lan", authenticateUser, async (req, res) => {
 });
 
 // POST /api/niyara/draft/:lan/submit
-router.post("/draft/:lan/submit", authenticateUser, async (req, res) => {
-  let connection;
+router.post("/draft/:lan/submit",
+  authenticateUser,
+  async (req, res) => {
+    let connection;
 
   try {
     const lan = clean(req.params.lan).toUpperCase();
@@ -2292,14 +2495,11 @@ router.post("/login", authenticateUser, async (req, res) => {
     // STEP 1: CREATE LOAN BOOKING
     // ----------------------------------------------------
 
-    connection = await db.promise().getConnection();
+   const existingLan = clean(body.lan).toUpperCase();
 
-    await connection.beginTransaction();
-
-    const existingLan = clean(body.lan).toUpperCase();
-
-    connection = await db.promise().getConnection();
-    await connection.beginTransaction();
+connection = await db.promise().getConnection();
+await connection.beginTransaction();
+transactionStarted = true;
 
     const createdBy = String(req.user?.id || req.user?.sub || "");
 
@@ -2377,20 +2577,20 @@ router.post("/login", authenticateUser, async (req, res) => {
          updated_by = ?,
          updated_at = NOW()
      WHERE lan = ?
-       AND  LOWER(TRIM(status))  = 'Draft'`,
-        [
-          data.business_name,
-          data.business_type,
-          data.gst_number,
-          data.udyam_number,
-          data.business_address,
-          data.business_city,
-          data.business_state,
-          data.business_pincode,
-          createdBy,
-          existingLan,
-        ],
-      );
+       AND  LOWER(TRIM(status))  = 'draft'`,
+    [
+      data.business_name,
+      data.business_type,
+      data.gst_number,
+      data.udyam_number,
+      data.business_address,
+      data.business_city,
+      data.business_state,
+      data.business_pincode,
+      createdBy,
+      existingLan,
+    ]
+  );
 
       if (result.affectedRows !== 1) {
         throw new Error("Unable to finalize Niyara draft");
