@@ -1256,6 +1256,10 @@ router.post("/v1/create", verifyApiKey, async (req, res) => {
           error: {
             message: "Loan case already exists",
             code: "duplicate_loan_case",
+            details: {
+              loan_account_number: existing[0].lan,
+              lead_id: existing[0].application_id,
+            },
           },
         });
       }
