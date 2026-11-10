@@ -1810,7 +1810,12 @@ router.get("/dealers-login-cases", authenticateUser, async (req, res) => {
         login_date,
         created_at
       FROM zebrs_dealer_booking
+<<<<<<< Updated upstream
       WHERE UPPER(TRIM(status)) = 'ACTIVE'
+=======
+      WHERE UPPER(COALESCE(status, 'ACTIVE'))
+        IN ('ACTIVE', 'APPROVED', 'REJECTED')
+>>>>>>> Stashed changes
       ORDER BY created_at DESC
     `);
 

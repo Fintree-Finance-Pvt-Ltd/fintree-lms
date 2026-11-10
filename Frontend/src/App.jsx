@@ -3184,7 +3184,7 @@ function App() {
               </PermissionRoute>
             }
           />
-          <Route
+          b<Route
             path="/niyara/customer-details/:lan"
             element={
               <PermissionRoute pageName="Niyara All Loans">
