@@ -3131,6 +3131,11 @@ router.post("/generate-soa", async (req, res) => {
     rpsTable = "manual_rps_loan_digit";
     paymentsTable = "repayments_upload";
     chargesTable = "loan_charges";
+  } else if (lan.startsWith("UBLF")) {
+    loanTable = "loan_booking_sterlion_ubl";
+    rpsTable = "manual_rps_sterlion_ubl";
+    paymentsTable = "repayments_upload";
+    chargesTable = "loan_charges";
   }
    else if ( lan.startsWith("STF")||
   lan.startsWith("DXF") || lan.startsWith("MXF")) {
