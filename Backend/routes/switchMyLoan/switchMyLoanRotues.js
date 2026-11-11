@@ -7094,11 +7094,45 @@ function formatDobForCkyc(dob) {
 }
 
 router.post("/v1/kyc/ckyc/send-otp", verifyApiKey, async (req, res) => {
+  const requestStartedAt = Date.now();
+  let pan_number = "";
+  let mobile_number = "";
+  let searchDurationMs = null;
+  let searchSuccess = null;
+  let sendOtpDurationMs = null;
+  let sendOtpSuccess = null;
+
+  // Fire-and-forget: never awaited, so a logging failure or slow insert
+  // can't add to the latency we're trying to diagnose, or break the
+  // actual OTP response.
+  const logCkycLatency = (errorMessage) => {
+    db.promise()
+      .query(
+        `INSERT INTO switch_my_loan_ckyc_latency_log
+          (pan_number, mobile_number, search_duration_ms, search_success,
+           send_otp_duration_ms, send_otp_success, total_duration_ms, error_message)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          pan_number || null,
+          mobile_number || null,
+          searchDurationMs,
+          searchSuccess,
+          sendOtpDurationMs,
+          sendOtpSuccess,
+          Date.now() - requestStartedAt,
+          errorMessage ? String(errorMessage).slice(0, 500) : null,
+        ],
+      )
+      .catch((err) =>
+        console.error("[CKYC latency log] insert failed:", err.message),
+      );
+  };
+
   try {
-    const pan_number = String(req.body?.pan_number || "")
+    pan_number = String(req.body?.pan_number || "")
       .trim()
       .toUpperCase();
-    const mobile_number = String(req.body?.mobile_number || "").trim();
+    mobile_number = String(req.body?.mobile_number || "").trim();
 
     if (!pan_number || !PAN_REGEX.test(pan_number)) {
       return ckycValidationError(res, "A valid pan_number is required.");
@@ -7126,23 +7160,35 @@ router.post("/v1/kyc/ckyc/send-otp", verifyApiKey, async (req, res) => {
     }
 
     let searchResponse;
+    const searchStartedAt = Date.now();
 
     try {
       searchResponse = await searchCkyc({ pan_number, dob, mobile_number });
+      searchSuccess = true;
     } catch (providerError) {
+      searchSuccess = false;
+      searchDurationMs = Date.now() - searchStartedAt;
       console.error("[CKYC search] provider call failed", {
         pan_number,
+        durationMs: searchDurationMs,
         message: providerError.message,
       });
+      logCkycLatency(`SEARCH_FAILED: ${providerError.message}`);
       return ckycServerError(
         res,
         "Unable to send OTP right now. Please try again.",
       );
     }
 
+    searchDurationMs = Date.now() - searchStartedAt;
+    console.log(
+      `[CKYC search] took ${searchDurationMs}ms for PAN ${pan_number}`,
+    );
+
     const ckycReferenceId = searchResponse?.data?.result?.ckycReferenceId;
 
     if (!searchResponse?.success || !searchResponse?.data?.success || !ckycReferenceId) {
+      logCkycLatency(null);
       return ckycValidationError(
         res,
         searchResponse?.data?.message ||
@@ -7152,24 +7198,36 @@ router.post("/v1/kyc/ckyc/send-otp", verifyApiKey, async (req, res) => {
     }
 
     let providerResponse;
+    const sendOtpStartedAt = Date.now();
 
     try {
       providerResponse = await sendCkycOtp({
         ckyc_reference_id: ckycReferenceId,
         mobile_number,
       });
+      sendOtpSuccess = true;
     } catch (providerError) {
+      sendOtpSuccess = false;
+      sendOtpDurationMs = Date.now() - sendOtpStartedAt;
       console.error("[CKYC send-otp] provider call failed", {
         pan_number,
+        durationMs: sendOtpDurationMs,
         message: providerError.message,
       });
+      logCkycLatency(`SEND_OTP_FAILED: ${providerError.message}`);
       return ckycServerError(
         res,
         "Unable to send OTP right now. Please try again.",
       );
     }
 
+    sendOtpDurationMs = Date.now() - sendOtpStartedAt;
+    console.log(
+      `[CKYC send-otp] took ${sendOtpDurationMs}ms for PAN ${pan_number}`,
+    );
+
     if (!providerResponse?.success || !providerResponse?.data?.success) {
+      logCkycLatency(null);
       return ckycValidationError(
         res,
         providerResponse?.data?.message ||
@@ -7190,6 +7248,8 @@ router.post("/v1/kyc/ckyc/send-otp", verifyApiKey, async (req, res) => {
       ],
     );
 
+    logCkycLatency(null);
+
     return res.status(200).json({
       is_success: true,
       data: {
@@ -7201,6 +7261,7 @@ router.post("/v1/kyc/ckyc/send-otp", verifyApiKey, async (req, res) => {
       message: error.message,
       stack: error.stack,
     });
+    logCkycLatency(`UNEXPECTED_ERROR: ${error.message}`);
     return ckycServerError(res);
   }
 });

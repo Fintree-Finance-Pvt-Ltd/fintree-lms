@@ -10,8 +10,8 @@ const connection = {
 };
 
 // Configurable concurrency with sensible defaults for 8 GB RAM / 2-core VPS
-const DAY_CONCURRENCY = Number(process.env.PDF_CONCURRENCY_DAY || process.env.PDF_WORKER_CONCURRENCY || 4);
-const NIGHT_CONCURRENCY = Number(process.env.PDF_CONCURRENCY_NIGHT || process.env.PDF_WORKER_CONCURRENCY || 6);
+const DAY_CONCURRENCY = Number(process.env.PDF_CONCURRENCY_DAY || process.env.PDF_WORKER_CONCURRENCY || 2);
+const NIGHT_CONCURRENCY = Number(process.env.PDF_CONCURRENCY_NIGHT || process.env.PDF_WORKER_CONCURRENCY || 4);
 
 // Create a new queue for PDF generation
 const pdfQueue = new Queue("pdf-generation", { 
