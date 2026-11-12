@@ -231,6 +231,7 @@ const tables = [
   "manual_rps_wctl_ffpl",
   "manual_rps_sterlion_ubl",
   "manual_rps_claim_cure_buddy",
+  "manual_rps_saswat",
 ];
 
 const tableColumnsCache = new Map();
