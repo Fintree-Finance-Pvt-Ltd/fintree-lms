@@ -63,7 +63,7 @@ function shouldRunValidation(status) {
 function mapFundifyRoleToApplicantType(role) {
   const normalizedRole = normalize(role);
 
-  if (normalizedRole === "APPLICANT") return "BORROWER";
+  if (normalizedRole === "APPLICANT" || normalizedRole === "BORROWER") return "BORROWER";
   if (normalizedRole === "CO_APPLICANT") return "CO_APPLICANT";
   if (normalizedRole === "GUARANTOR") return "GUARANTOR";
 
@@ -541,7 +541,7 @@ exports.runFundifyPanBureauValidations = async (lan) => {
       SELECT *
       FROM fundify_applicants
       WHERE lan = ?
-      ORDER BY FIELD(role, 'APPLICANT', 'CO_APPLICANT', 'GUARANTOR'),
+      ORDER BY FIELD(role, 'BORROWER', 'APPLICANT', 'CO_APPLICANT', 'GUARANTOR'),
                party_no,
                id
       `,
