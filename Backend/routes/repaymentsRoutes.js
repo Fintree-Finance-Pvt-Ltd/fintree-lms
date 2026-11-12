@@ -217,6 +217,10 @@ async function processRows(sheetData, res) {
           [uniqueLANs],
         ), // Added for Rapid Money / Switch My Loan
         queryDB(
+          `SELECT lan FROM loan_booking_quick_money WHERE lan IN (?)`,
+          [uniqueLANs],
+        ), // Added for Quick Money
+        queryDB(
           `SELECT lan FROM loan_booking_sabgrow WHERE lan IN (?)`,
           [uniqueLANs],
         ),
