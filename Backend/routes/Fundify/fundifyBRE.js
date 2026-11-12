@@ -545,9 +545,15 @@ const autoApproveFundifyIfAllVerified = async (lan) => {
     [lan]
   );
 
+  // const primaryApplicant = applicants.find(
+  //   (a) => normalize(a.role) === "APPLICANT"
+  // );
   const primaryApplicant = applicants.find(
-    (a) => normalize(a.role) === "APPLICANT"
-  );
+  (applicant) =>
+    ["APPLICANT", "BORROWER"].includes(
+      String(applicant.role || "").trim().toUpperCase()
+    )
+);
 
   if (!primaryApplicant) {
     await pool.query(
@@ -562,7 +568,7 @@ const autoApproveFundifyIfAllVerified = async (lan) => {
       WHERE lan = ?
       `,
       [
-        "BRE REJECTED",
+        "Failed",
         "PRIMARY_APPLICANT_MISSING",
         "PRIMARY_APPLICANT_MISSING",
         "Rejected",
