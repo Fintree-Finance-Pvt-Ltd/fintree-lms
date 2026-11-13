@@ -524,6 +524,8 @@ async function insertLogin(connection, data, ids, createdBy) {
 
     business_name: data.business_name,
     business_type: data.business_type,
+    business_vintage: data.business_vintage,
+industry: data.industry,
     gst_number: data.gst_number,
     udyam_number: data.udyam_number,
 
@@ -3050,6 +3052,12 @@ router.post("/login", authenticateUser, async (req, res) => {
 
       business_name: nullIfEmpty(body.business_name),
       business_type: nullIfEmpty(body.business_type),
+      business_vintage:
+  body.business_vintage === "" ||
+  body.business_vintage == null
+    ? null
+    : Number(body.business_vintage),
+industry: nullIfEmpty(body.industry),
       gst_number: upperOrNull(body.gst_number),
       udyam_number: upperOrNull(body.udyam_number),
 
@@ -3147,6 +3155,8 @@ transactionStarted = true;
         `UPDATE ${TABLE_NAME}
      SET business_name = ?,
          business_type = ?,
+          business_vintage = ?,
+    industry = ?,
          gst_number = ?,
          udyam_number = ?,
          business_address = ?,
@@ -3162,6 +3172,8 @@ transactionStarted = true;
     [
       data.business_name,
       data.business_type,
+      data.business_vintage,
+data.industry,
       data.gst_number,
       data.udyam_number,
       data.business_address,

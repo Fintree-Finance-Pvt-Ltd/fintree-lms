@@ -34,6 +34,8 @@ processing_fee: "",
 net_disbursement_amount: "",
   business_name: "",
   business_type: "",
+  business_vintage: "",
+industry: "",
   gst_number: "",
   udyam_number: "",
   business_address: "",
@@ -658,12 +660,29 @@ if (step === 2) {
 }
 
 
-    if (step === 3) {
-      if (
-        form.business_pincode &&
-        !/^[1-9]\d{5}$/.test(form.business_pincode)
-      ) return "Enter valid Business Pincode.";
-    }
+   if (step === 3) {
+  const vintage = Number(form.business_vintage);
+
+  if (
+    form.business_vintage === "" ||
+    !Number.isInteger(vintage) ||
+    vintage < 0 ||
+    vintage > 1200
+  ) {
+    return "Enter valid Business Vintage in months.";
+  }
+
+  if (!form.industry.trim()) {
+    return "Enter Industry.";
+  }
+
+  if (
+    form.business_pincode &&
+    !/^[1-9]\d{5}$/.test(form.business_pincode)
+  ) {
+    return "Enter valid Business Pincode.";
+  }
+}
 
     return "";
   };
@@ -1543,6 +1562,14 @@ console.log("[NIYARA SUBMIT VALIDATION]", {
           <div className="nyra-grid">
             {renderInput("business_name", "Business Name")}
             {renderInput("business_type", "Business Type")}
+            {renderInput("business_vintage", "Business Vintage (Months)", {
+  type: "number",
+  required: true,
+})}
+
+{renderInput("industry", "Industry", {
+  required: true,
+})}
             {renderInput("gst_number", "GST Number")}
             {renderInput("udyam_number", "Udyam Number")}
             {renderInput("business_address", "Business Address")}
