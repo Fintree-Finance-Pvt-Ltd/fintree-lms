@@ -1899,7 +1899,6 @@ const generateRepaymentScheduleCarepay = async (
 
     regularEmi = round2(numericLoanAmount + oneMonthInterest);
   } else if (isNoCostEmi || monthlyRate === 0) {
-
     /*
      * No-Cost EMI:
      *
@@ -1909,7 +1908,6 @@ const generateRepaymentScheduleCarepay = async (
      */
     regularEmi = Math.round(numericLoanAmount / repaymentTenure);
   } else if (isStandardEmi || isLowCostEmi) {
-
     /*
      * Standard EMI and Low-Cost EMI:
      *
@@ -1996,7 +1994,6 @@ const generateRepaymentScheduleCarepay = async (
 
       principal = openingPrincipal;
     } else if (isNoCostEmi || monthlyRate === 0) {
-
       /*
        * No-Cost EMI:
        *
@@ -2010,7 +2007,6 @@ const generateRepaymentScheduleCarepay = async (
           ? openingPrincipal
           : Math.min(regularEmi, openingPrincipal);
     } else {
-
       /*
        * Standard EMI and Low-Cost EMI:
        *
@@ -7952,10 +7948,7 @@ const generateRepaymentScheduleClaimBuddy = async (
 
     const annualRate = Number(interestRate) / 100;
 
-    console.log(
-      "Claim Buddy disbursement date:",
-      disbursementDate,
-    );
+    console.log("Claim Buddy disbursement date:", disbursementDate);
 
     // ==================================================
     // Convert date
@@ -7964,9 +7957,7 @@ const generateRepaymentScheduleClaimBuddy = async (
     const disbDate = new Date(disbursementDate);
 
     if (Number.isNaN(disbDate.getTime())) {
-      throw new Error(
-        "Invalid Claim Buddy disbursement date",
-      );
+      throw new Error("Invalid Claim Buddy disbursement date");
     }
 
     // ==================================================
@@ -7975,13 +7966,8 @@ const generateRepaymentScheduleClaimBuddy = async (
 
     const tenureDays = Number(tenure);
 
-    if (
-      !Number.isFinite(tenureDays) ||
-      tenureDays <= 0
-    ) {
-      throw new Error(
-        `Invalid Claim Buddy tenure: ${tenure}`,
-      );
+    if (!Number.isFinite(tenureDays) || tenureDays <= 0) {
+      throw new Error(`Invalid Claim Buddy tenure: ${tenure}`);
     }
 
     // ==================================================
@@ -7995,23 +7981,15 @@ const generateRepaymentScheduleClaimBuddy = async (
 
     const payDate = new Date(disbDate);
 
-    payDate.setDate(
-      payDate.getDate() + tenureDays,
-    );
+    payDate.setDate(payDate.getDate() + tenureDays);
 
-    console.log(
-      "Claim Buddy repayment date:",
-      payDate,
-    );
+    console.log("Claim Buddy repayment date:", payDate);
 
     // ==================================================
     // Total loan usage days
     // ==================================================
 
-    const totalDays = Math.ceil(
-      (payDate - disbDate) /
-        (1000 * 60 * 60 * 24),
-    );
+    const totalDays = Math.ceil((payDate - disbDate) / (1000 * 60 * 60 * 24));
 
     // ==================================================
     // Grace period
@@ -8021,9 +7999,7 @@ const generateRepaymentScheduleClaimBuddy = async (
 
     const graceEndDate = new Date(disbDate);
 
-    graceEndDate.setDate(
-      graceEndDate.getDate() + 90,
-    );
+    graceEndDate.setDate(graceEndDate.getDate() + 90);
 
     // ==================================================
     // Interest calculation days
@@ -8031,10 +8007,7 @@ const generateRepaymentScheduleClaimBuddy = async (
 
     const interestDays = Math.max(
       0,
-      Math.ceil(
-        (payDate - graceEndDate) /
-          (1000 * 60 * 60 * 24),
-      ),
+      Math.ceil((payDate - graceEndDate) / (1000 * 60 * 60 * 24)),
     );
 
     console.log({
@@ -8050,11 +8023,7 @@ const generateRepaymentScheduleClaimBuddy = async (
     // ==================================================
 
     const totalInterest = Math.ceil(
-      (
-        Number(loanAmount) *
-        annualRate *
-        interestDays
-      ) / 365,
+      (Number(loanAmount) * annualRate * interestDays) / 365,
     );
 
     // ==================================================
@@ -8064,16 +8033,13 @@ const generateRepaymentScheduleClaimBuddy = async (
     // Principal + Interest
     // ==================================================
 
-    const emi =
-      Number(loanAmount) +
-      totalInterest;
+    const emi = Number(loanAmount) + totalInterest;
 
     // ==================================================
     // Prevent duplicate RPS
     // ==================================================
 
-    const [[existingRps]] =
-      await conn.query(
+    const [[existingRps]] = await conn.query(
       `
         SELECT id
         FROM manual_rps_claim_buddy
@@ -8084,9 +8050,7 @@ const generateRepaymentScheduleClaimBuddy = async (
     );
 
     if (existingRps) {
-      throw new Error(
-        `RPS already exists for Claim Buddy LAN: ${lan}`,
-      );
+      throw new Error(`RPS already exists for Claim Buddy LAN: ${lan}`);
     }
 
     // ==================================================
@@ -8097,9 +8061,7 @@ const generateRepaymentScheduleClaimBuddy = async (
       [
         lan,
 
-        payDate
-          .toISOString()
-          .split("T")[0],
+        payDate.toISOString().split("T")[0],
 
         Number(emi),
 
@@ -8182,12 +8144,8 @@ const generateRepaymentScheduleClaimBuddy = async (
       emi,
       interest: totalInterest,
     };
-
   } catch (err) {
-    console.error(
-      "❌ Claim Buddy RPS generation failed:",
-      err,
-    );
+    console.error("❌ Claim Buddy RPS generation failed:", err);
 
     throw err;
   }
@@ -9276,15 +9234,8 @@ async function generateYaMoneyRepaymentSchedule({
   let openingPrincipal = principalAmount;
   const rpsData = [];
 
-  for (
-    let installment = 1;
-    installment <= repaymentTenure;
-    installment += 1
-  ) {
-    const dueDate = getYaMoneyDueDate(
-      disbursementDate,
-      installment - 1,
-    );
+  for (let installment = 1; installment <= repaymentTenure; installment += 1) {
+    const dueDate = getYaMoneyDueDate(disbursementDate, installment - 1);
 
     let interest = roundYaMoneyAmount(openingPrincipal * monthlyRate);
     let principal = roundYaMoneyAmount(regularEmi - interest);
@@ -9378,7 +9329,6 @@ async function generateYaMoneyRepaymentSchedule({
 
 // ================= YA MONEY RPS END =================
 
-
 async function generateRepaymentClaimCureBuddy(
   conn,
   lan,
@@ -9387,9 +9337,11 @@ async function generateRepaymentClaimCureBuddy(
   tenure,
   disbursementDate,
   product,
-  lender
+  lender,
 ) {
-  const normalizedLan = String(lan || "").trim().toUpperCase();
+  const normalizedLan = String(lan || "")
+    .trim()
+    .toUpperCase();
 
   if (!normalizedLan.startsWith("CCB")) {
     throw new Error("Invalid Claim Cure Buddy LAN");
@@ -9406,7 +9358,7 @@ async function generateRepaymentClaimCureBuddy(
        ON s.lan = lb.lan
      WHERE lb.lan = ?
      LIMIT 1`,
-    [normalizedLan]
+    [normalizedLan],
   );
 
   if (!loan) {
@@ -9456,14 +9408,14 @@ async function generateRepaymentClaimCureBuddy(
      FROM manual_rps_claim_cure_buddy
      WHERE lan = ?
      LIMIT 1`,
-    [normalizedLan]
+    [normalizedLan],
   );
 
   if (existingRps.length > 0) {
     return {
       skipped: true,
       reason: "RPS_ALREADY_EXISTS",
-      lan: normalizedLan
+      lan: normalizedLan,
     };
   }
 
@@ -9494,8 +9446,8 @@ async function generateRepaymentClaimCureBuddy(
       principal,
       interest,
       totalRepayment,
-      principal
-    ]
+      principal,
+    ],
   );
 
   console.log("[ClaimCureBuddy] RPS Generated Successfully", {
@@ -9503,7 +9455,7 @@ async function generateRepaymentClaimCureBuddy(
     dueDate,
     principal,
     interest,
-    totalRepayment
+    totalRepayment,
   });
 
   return {
@@ -9512,10 +9464,9 @@ async function generateRepaymentClaimCureBuddy(
     dueDate,
     principal,
     interest,
-    totalRepayment
+    totalRepayment,
   };
 }
-
 
 ///////////////// Motion corp RPS Start /////////////////////////
 
@@ -10120,42 +10071,20 @@ const generateRepaymentScheduleOmRajPay = async (
       `interest EMI ${i}`,
     );
 
-    let principalComponent =
-      round0(
-        emi-interest,
-        `principal EMI ${i}`
-      );
+    let principalComponent = round0(emi - interest, `principal EMI ${i}`);
 
+    let installmentEmi = emi;
 
-
-    let installmentEmi =
-      emi;
-
-
-
-    if(
-      i===months
-    ){
-
+    if (i === months) {
       // Reconcile rupee rounding so the schedule charges the flat interest
       // calculated from the approved terms, with no residual principal.
-      interest = totalFlatInterest - rpsData.reduce((sum, row) => sum + row.interest, 0);
+      interest =
+        totalFlatInterest - rpsData.reduce((sum, row) => sum + row.interest, 0);
 
-      principalComponent =
-        round0(
-          openingPrincipal
-        );
+      principalComponent = round0(openingPrincipal);
 
-
-      installmentEmi =
-        round0(
-          principalComponent+
-          interest
-        );
-
+      installmentEmi = round0(principalComponent + interest);
     }
-
-
 
     const closingPrincipal = round0(
       Math.max(0, openingPrincipal - principalComponent),
@@ -10211,12 +10140,8 @@ const generateRepaymentScheduleOmRajPay = async (
 
     row.principal,
 
-        row.emi
-
-      ]
-    );
-
-
+    row.emi,
+  ]);
 
   await conn.query(
     `
@@ -10305,14 +10230,13 @@ WHERE lan=?
 // OmRajPay RPS End
 ////////////////////////////////////////////////////
 
- // =====================================================
-//Arthavidhi  Rps start 
-const { generateRepaymentScheduleArthavidhiCapital } = require("../services/arthavidhiDailySchedule");
+// =====================================================
+//Arthavidhi  Rps start
+const {
+  generateRepaymentScheduleArthavidhiCapital,
+} = require("../services/arthavidhiDailySchedule");
 
 //  Arthavidhi Capital Rps end
-
-
-
 
 const generateRepaymentScheduleSrbh = async (
   conn,
@@ -11262,14 +11186,30 @@ const generateRepaymentSchedule = async (
     );
   } else if (lan.startsWith("OMR")) {
     await generateRepaymentScheduleOmRajPay(
-      conn, lan, loanAmount, interestRate, tenure, disbursementDate, product, lender,
+      conn,
+      lan,
+      loanAmount,
+      interestRate,
+      tenure,
+      disbursementDate,
+      product,
+      lender,
     );
-  }else if (lan.startsWith("AVCL")) {
-      await generateRepaymentScheduleArthavidhiCapital(
-        conn, lan, loanAmount, interestRate, tenure, disbursementDate, product, lender,
-      );
-  }else if ((lender === "Motion Corp" || lender === "Sampada") && product === "Monthly Loan") {
-
+  } else if (lan.startsWith("AVCL")) {
+    await generateRepaymentScheduleArthavidhiCapital(
+      conn,
+      lan,
+      loanAmount,
+      interestRate,
+      tenure,
+      disbursementDate,
+      product,
+      lender,
+    );
+  } else if (
+    (lender === "Motion Corp" || lender === "Sampada") &&
+    product === "Monthly Loan"
+  ) {
     console.log("inside rps genration");
 
     await generateRepaymentScheduleMotionCorp(
@@ -11344,7 +11284,7 @@ const generateRepaymentSchedule = async (
       product,
       lender,
     );
-  }else if (lan.startsWith("YAM")) {
+  } else if (lan.startsWith("YAM")) {
     return generateYaMoneyRepaymentSchedule({
       conn,
       lan,
@@ -11374,7 +11314,7 @@ const generateRepaymentSchedule = async (
       tenure,
       disbursementDate,
       product,
-    lender
+      lender,
     );
   } else if (lan.startsWith("SW")) {
     console.log("[SASWAT RPS GENERATION START]", {
@@ -11423,7 +11363,7 @@ const generateRepaymentSchedule = async (
       loanAmount,
       interestRate,
       tenure,
-      disbursementDate
+      disbursementDate,
     );
   } else {
     console.warn(`⚠️ Unknown lender type: ${lender}. Skipping RPS generation.`);
@@ -11977,7 +11917,9 @@ const getDayDifference = (startDate, endDate) => {
   return Math.round((end.getTime() - start.getTime()) / ONE_DAY);
 };
 
-// First due date = 5th of next month
+// First due date:
+// - Disbursement day <= 20: 5th of next month
+// - Disbursement day > 20: 5th of next-to-next month
 const getSevenFincorpFirstDueDate = (disbursementDate) => {
   const date = new Date(disbursementDate);
 
@@ -11985,7 +11927,13 @@ const getSevenFincorpFirstDueDate = (disbursementDate) => {
     throw new Error(`Invalid disbursement date: ${disbursementDate}`);
   }
 
-  return new Date(date.getFullYear(), date.getMonth() + 1, 5);
+  const monthsToAdd = date.getDate() > 20 ? 2 : 1;
+
+  return new Date(
+    date.getFullYear(),
+    date.getMonth() + monthsToAdd,
+    5,
+  );
 };
 
 const addMonthsToDueDate = (date, months) => {
@@ -12061,19 +12009,12 @@ const generateRepaymentScheduleSevenFincorp = async (
    */
   const firstDueDate = getSevenFincorpFirstDueDate(disbDate);
 
-  /*
-   * ========================================
-   * PRE-EMI DAYS
-   * ========================================
-   */
-  const preEmiDays = getDayDifference(disbDate, firstDueDate);
-
-  /*
-   * ========================================
-   * PRE-EMI - 360 DAY BASIS
-   * ========================================
-   */
-  const preEmi = round2(loanAmount * (interestRate / 100) * (preEmiDays / 360));
+  // EMI 1 uses the actual number of days in the first period on a 30/360
+  // basis. EMI 2 onward uses the normal monthly rate (30 days).
+  const firstPeriodDays = getDayDifference(disbDate, firstDueDate);
+  const firstPeriodInterest = round2(
+    loanAmount * (interestRate / 100) * (firstPeriodDays / 360),
+  );
 
   /*
    * Monthly_360:
@@ -12086,12 +12027,12 @@ const generateRepaymentScheduleSevenFincorp = async (
 
   const normalEmi = calculateSevenFincorpEmi(loanAmount, interestRate, tenure);
 
-  console.log("[SF PRE EMI]", {
+  console.log("[SF FIRST PERIOD INTEREST]", {
     lan,
     disbursementDate: formatDateYMD(disbDate),
     firstDueDate: formatDateYMD(firstDueDate),
-    preEmiDays,
-    preEmi,
+    firstPeriodDays,
+    firstPeriodInterest,
     normalEmi,
   });
 
@@ -12124,28 +12065,34 @@ const generateRepaymentScheduleSevenFincorp = async (
     }
 
     /*
-     * PRE-EMI ONLY IN FIRST INSTALLMENT
+     * The normal EMI contains one month's interest. For EMI 1, replace that
+     * monthly interest with actual first-period interest. The adjustment can
+     * be positive for periods over 30 days or negative for shorter periods.
      */
-    const currentPreEmi = installment === 1 ? preEmi : 0;
+    const firstInterestAdjustment =
+      installment === 1
+        ? round2(firstPeriodInterest - regularInterest)
+        : 0;
 
     /*
      * First EMI:
      *
-     * regular EMI + pre EMI
+     * regular EMI adjusted to actual first-period interest
      */
-    const totalDue = round2(regularEmi + currentPreEmi);
+    const totalDue = round2(regularEmi + firstInterestAdjustment);
 
     /*
      * First interest:
      *
-     * regular interest + pre EMI
+     * actual period interest for EMI 1; monthly interest thereafter
      */
-    const totalInterest = round2(regularInterest + currentPreEmi);
+    const totalInterest =
+      installment === 1 ? firstPeriodInterest : regularInterest;
 
     /*
      * IMPORTANT:
      *
-     * Pre EMI must NOT reduce principal.
+     * The first-period interest adjustment must NOT change principal.
      *
      * Example:
      *
@@ -12280,8 +12227,8 @@ const generateRepaymentScheduleSevenFincorp = async (
     lan,
     rowsInserted: schedule.length,
     firstDueDate: formatDateYMD(firstDueDate),
-    preEmiDays,
-    preEmi,
+    firstPeriodDays,
+    firstPeriodInterest,
     normalEmi,
     firstDueAmount: schedule[0]?.emi,
   });
@@ -12307,15 +12254,21 @@ const generateRepaymentScheduleZebrs = async (
     let emi = 0;
     if (annualRate > 0) {
       emi = Math.round(
-          (remainingPrincipal * (annualRate / 12) * Math.pow(1 + annualRate / 12, tenure)) /
-          (Math.pow(1 + annualRate / 12, tenure) - 1)
+        (remainingPrincipal *
+          (annualRate / 12) *
+          Math.pow(1 + annualRate / 12, tenure)) /
+          (Math.pow(1 + annualRate / 12, tenure) - 1),
       );
     } else {
       emi = Math.round(remainingPrincipal / tenure);
     }
 
     for (let i = 1; i <= tenure; i++) {
-        const dueDate = new Date(disbDate.getFullYear(), disbDate.getMonth() + i, disbDate.getDate());
+      const dueDate = new Date(
+        disbDate.getFullYear(),
+        disbDate.getMonth() + i,
+        disbDate.getDate(),
+      );
 
       let interest = 0;
       if (annualRate > 0) {
@@ -12351,7 +12304,7 @@ const generateRepaymentScheduleZebrs = async (
       `INSERT INTO manual_rps_zebrs
         (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, opening, closing, status)
         VALUES ?`,
-        [rpsData]
+      [rpsData],
     );
 
     console.log(`✅ Zebrs RPS generated for ${lan}`);
