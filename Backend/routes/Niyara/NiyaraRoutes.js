@@ -29,7 +29,7 @@ const LOAN_TYPE = "Business Loan";
 
 async function runNiyaraMockBureau(lan) {
   if (
-   process.env.NODE_ENV !== "uat" ||
+   process.env.NODE_ENVN !== "uat" ||
   process.env.NIYARA_MOCK_BUREAU !== "true"
 ) {
   throw new Error("Mock Bureau is not permitted");
@@ -2828,7 +2828,7 @@ const conditions = ["lan LIKE ?"];
 const params = [`${LAN_PREFIX}%`];
 
 const isUat =
-  process.env.NODE_ENV === "uat" &&
+  process.env.NODE_ENVN === "uat" &&
   process.env.NIYARA_MOCK_BUREAU === "true";
 
 const amlEligibility = isUat
@@ -3196,7 +3196,7 @@ let finalStatus = "Login";
 let finalStage = "Login";
 try {
   if (
-  process.env.NODE_ENV === "uat" &&
+  process.env.NODE_ENVN === "uat" &&
   process.env.NIYARA_MOCK_BUREAU === "true"
 ) {
     const mockResult = await runNiyaraMockBureau(existingLan);
@@ -5406,7 +5406,7 @@ router.post("/:lan/verify", authenticateUser, async (req, res) => {
 
 // UAT mock Bureau + BRE
 if (
-  process.env.NODE_ENV === "uat" &&
+  process.env.NODE_ENVN === "uat" &&
   process.env.NIYARA_MOCK_BUREAU === "true"
 ) {
   // Release this route's connection and verification lock.
