@@ -865,26 +865,48 @@ const triggerAadhaar = async (retrigger = false) => {
   }
 };
 
+
 const fetchAadhaarAddress = async () => {
   setError("");
   setSuccess("");
 
   if (!lan) {
-    return setError("Niyara LAN is required.");
+    setError("Niyara LAN is required.");
+    return;
   }
 
   try {
     setLoading(true);
 
+    // Step 1: Synchronize the saved Digitap transaction.
+    const syncResponse = await api.post(
+      `${BASE}/aadhaar/sync/${encodeURIComponent(lan)}`
+    );
+
+    if (
+      syncResponse.data?.success !== true ||
+      syncResponse.data?.status !== "VERIFIED"
+    ) {
+      setAadhaarStatus("INITIATED");
+      setError(
+        syncResponse.data?.message ||
+          "Aadhaar verification is not completed yet."
+      );
+      return;
+    }
+
+    // Step 2: Fetch the verified Aadhaar details from the database.
     const response = await api.get(
       `${BASE}/aadhaar/address/${encodeURIComponent(lan)}`
     );
 
     if (
-      !response.data?.success ||
+      response.data?.success !== true ||
       response.data?.status !== "VERIFIED"
     ) {
-      throw new Error("Aadhaar verification is pending.");
+      throw new Error(
+        "Verified Aadhaar details are not available."
+      );
     }
 
     const fetched = response.data.address || {};
@@ -902,13 +924,67 @@ const fetchAadhaarAddress = async () => {
     }));
 
     setAadhaarStatus("VERIFIED");
-    setSuccess("Aadhaar verified. Address fetched successfully.");
+    setSuccess(
+      "Aadhaar verified and address fetched successfully."
+    );
   } catch (err) {
+    const status = err.response?.data?.status;
+
+    if (status === "INITIATED" || status === "PENDING") {
+      setAadhaarStatus("INITIATED");
+    }
+
     setError(errorMessage(err));
   } finally {
     setLoading(false);
   }
 };
+
+
+// const fetchAadhaarAddress = async () => {
+//   setError("");
+//   setSuccess("");
+
+//   if (!lan) {
+//     return setError("Niyara LAN is required.");
+//   }
+
+//   try {
+//     setLoading(true);
+
+//     const response = await api.get(
+//       `${BASE}/aadhaar/address/${encodeURIComponent(lan)}`
+//     );
+
+//     if (
+//       !response.data?.success ||
+//       response.data?.status !== "VERIFIED"
+//     ) {
+//       throw new Error("Aadhaar verification is pending.");
+//     }
+
+//     const fetched = response.data.address || {};
+
+//     setForm((previous) => ({
+//       ...previous,
+//       customer_address:
+//         fetched.addressLine1 || previous.customer_address,
+//       customer_city:
+//         fetched.city || previous.customer_city,
+//       customer_state:
+//         fetched.state || previous.customer_state,
+//       customer_pincode:
+//         fetched.pincode || previous.customer_pincode,
+//     }));
+
+//     setAadhaarStatus("VERIFIED");
+//     setSuccess("Aadhaar verified. Address fetched successfully.");
+//   } catch (err) {
+//     setError(errorMessage(err));
+//   } finally {
+//     setLoading(false);
+//   }
+// };
 
   const loadBooking = async (targetLan) => {
     const value = String(targetLan || "").trim().toUpperCase();

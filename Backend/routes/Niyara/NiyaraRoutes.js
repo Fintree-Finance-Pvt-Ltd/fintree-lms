@@ -6,7 +6,7 @@ const verifyApiKey = require("../../middleware/apiKeyAuth");
 const authenticateUser = require("../../middleware/verifyToken");
 const { getLoanContext } = require("../../utils/lanHelper");
 const { initDoqfyEsign } = require("../../services/doqfyEsignService");
-const { initAadhaarKyc } = require("../../services/digitapaadharservice");
+const { initAadhaarKyc, fetchAadhaarKycDetails,} = require("../../services/digitapaadharservice");
 const { runBureau } = require("../../services/Bueraupullapiservice");
 const { getPanCardDetails } = require("../../services/pancardapiservice");
 const { runBRE } = require("../Niyara/NiyaraBre");
@@ -1323,6 +1323,8 @@ console.error("[NIYARA] Draft creation:", {
   }
 });
 
+
+
 // PATCH /api/niyara/draft/:lan
 router.patch("/draft/:lan", authenticateUser, async (req, res) => {
   try {
@@ -2444,6 +2446,259 @@ router.post("/aadhaar/init", authenticateUser, async (req, res) => {
   }
 });
 
+
+router.post(
+  "/aadhaar/sync/:lan",
+  authenticateUser,
+  async (req, res) => {
+    let connection;
+
+    try {
+      const lan = clean(req.params.lan).toUpperCase();
+
+      if (!/^NYRA\d+$/.test(lan)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid Niyara LAN",
+        });
+      }
+
+      // Confirm the authenticated user has permission to
+      // access this loan, using your existing page/API RBAC.
+      // authenticateUser alone may not enforce loan-level access.
+
+      const [[kyc]] = await db.promise().query(
+        `SELECT
+           lan,
+           aadhaar_status,
+           aadhaar_transaction_id,
+           aadhaar_unique_id
+         FROM kyc_verification_status
+         WHERE lan = ?
+           AND applicant_type = 'BORROWER'
+           AND party_no = 1
+         LIMIT 1`,
+        [lan]
+      );
+
+      if (!kyc) {
+        return res.status(404).json({
+          success: false,
+          message: "Niyara Aadhaar KYC record not found",
+        });
+      }
+
+      if (kyc.aadhaar_status === "VERIFIED") {
+        return res.json({
+          success: true,
+          status: "VERIFIED",
+          message: "Aadhaar already verified",
+          next_step: "FETCH_AADHAAR_ADDRESS",
+        });
+      }
+
+      if (!kyc.aadhaar_transaction_id) {
+        return res.status(409).json({
+          success: false,
+          message: "Aadhaar transaction ID is missing",
+        });
+      }
+
+      // Fetch directly from Digitap with server credentials.
+      // Never trust Aadhaar data sent by the frontend.
+      const response = await fetchAadhaarKycDetails(
+        kyc.aadhaar_transaction_id
+      );
+
+      const model = response?.model;
+
+      if (!model || typeof model !== "object") {
+        return res.status(202).json({
+          success: false,
+          status: "PENDING",
+          message: "Digitap has not returned Aadhaar details",
+        });
+      }
+
+      // IMPORTANT:
+      // Confirm the actual successful-completion field/value
+      // from Digitap's details response before enabling updates.
+      // Unknown statuses must remain pending.
+      const providerStatus = String(
+        model.status || response?.status || ""
+      ).trim().toUpperCase();
+
+      const completedStatuses = new Set([
+        "SUCCESS",
+        "VERIFIED",
+        "COMPLETED",
+      ]);
+
+      if (!completedStatuses.has(providerStatus)) {
+        console.warn("[NIYARA AADHAAR] Not confirmed complete", {
+          lan,
+          providerStatus: providerStatus || "MISSING",
+          modelKeys: Object.keys(model),
+        });
+
+        return res.status(202).json({
+          success: false,
+          status: "INITIATED",
+          message: "Digitap verification not confirmed complete",
+        });
+      }
+
+      // Check provider correlation, when returned.
+      const providerUniqueId =
+        model.uniqueId || model.uniqueid || null;
+
+      if (
+        providerUniqueId &&
+        providerUniqueId !== kyc.aadhaar_unique_id
+      ) {
+        return res.status(409).json({
+          success: false,
+          message: "Digitap unique ID does not match",
+        });
+      }
+
+      const aadhaarName = clean(model.name);
+      const maskedNumber = clean(
+        model.maskedAdharNumber || model.maskedAadhaar
+      );
+
+      let aadhaarDob = null;
+
+      const dob = clean(model.dob);
+
+      if (/^\d{2}-\d{2}-\d{4}$/.test(dob)) {
+        const [day, month, year] = dob.split("-");
+        aadhaarDob = `${year}-${month}-${day}`;
+      } else if (/^\d{4}-\d{2}-\d{2}$/.test(dob)) {
+        aadhaarDob = dob;
+      }
+
+      const address = model.address;
+
+      if (
+        !aadhaarName ||
+        !maskedNumber ||
+        !address ||
+        typeof address !== "object" ||
+        Array.isArray(address)
+      ) {
+        return res.status(422).json({
+          success: false,
+          message: "Verified Aadhaar identity details are incomplete",
+        });
+      }
+
+      connection = await db.promise().getConnection();
+      await connection.beginTransaction();
+
+      const [[current]] = await connection.query(
+        `SELECT aadhaar_status, aadhaar_unique_id
+         FROM kyc_verification_status
+         WHERE lan = ?
+           AND applicant_type = 'BORROWER'
+           AND party_no = 1
+           AND aadhaar_transaction_id = ?
+         FOR UPDATE`,
+        [lan, kyc.aadhaar_transaction_id]
+      );
+
+      if (
+        !current ||
+        current.aadhaar_unique_id !== kyc.aadhaar_unique_id
+      ) {
+        await connection.rollback();
+
+        return res.status(409).json({
+          success: false,
+          message: "Aadhaar transaction changed during verification",
+        });
+      }
+
+      if (current.aadhaar_status !== "VERIFIED") {
+        if (current.aadhaar_status !== "INITIATED") {
+          await connection.rollback();
+
+          return res.status(409).json({
+            success: false,
+            message: "Aadhaar verification is not in an eligible state",
+          });
+        }
+
+        const [updated] = await connection.query(
+          `UPDATE kyc_verification_status
+           SET
+             aadhaar_status = 'VERIFIED',
+             aadhaar_name = ?,
+             aadhaar_dob = ?,
+             aadhaar_masked_number = ?,
+             aadhaar_address = ?,
+             aadhaar_api_response = ?,
+             updated_at = NOW()
+           WHERE lan = ?
+             AND applicant_type = 'BORROWER'
+             AND party_no = 1
+             AND aadhaar_transaction_id = ?
+             AND aadhaar_unique_id = ?
+             AND aadhaar_status = 'INITIATED'`,
+          [
+            aadhaarName,
+            aadhaarDob,
+            maskedNumber,
+            JSON.stringify(address),
+            JSON.stringify(response),
+            lan,
+            kyc.aadhaar_transaction_id,
+            kyc.aadhaar_unique_id,
+          ]
+        );
+
+        if (updated.affectedRows !== 1) {
+          throw new Error("Niyara Aadhaar update failed");
+        }
+      }
+
+      await connection.commit();
+
+      return res.status(200).json({
+        success: true,
+        status: "VERIFIED",
+        message: "Niyara Aadhaar details verified and saved",
+        data: {
+          lan,
+          aadhaarName,
+          aadhaarDob,
+          aadhaarMaskedNumber: maskedNumber,
+          address: parseAadhaarAddress(address),
+        },
+      });
+    } catch (error) {
+      if (connection) {
+        try {
+          await connection.rollback();
+        } catch (_) {}
+      }
+
+      console.error("[NIYARA AADHAAR SYNC]", {
+        code: error.code,
+        message: error.message,
+      });
+
+      return res.status(502).json({
+        success: false,
+        message: "Unable to synchronize Aadhaar verification",
+      });
+    } finally {
+      if (connection) connection.release();
+    }
+  }
+);
+
+
 // GET /api/niyara/aadhaar/address/:lan
 router.get("/aadhaar/address/:lan", authenticateUser, async (req, res) => {
   try {
@@ -2540,6 +2795,7 @@ router.get("/aadhaar/address/:lan", authenticateUser, async (req, res) => {
     });
   }
 });
+
 
 async function fetchNiyaraLoans(
   req,
