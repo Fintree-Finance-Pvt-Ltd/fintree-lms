@@ -14,7 +14,7 @@ const steps = [
 ];
 
 const initialForm = {
-  partner_loan_id: "",
+  // partner_loan_id: "",
   customer_name: "",
   mobile_number: "",
   pan_number: "",
@@ -34,6 +34,8 @@ processing_fee: "",
 net_disbursement_amount: "",
   business_name: "",
   business_type: "",
+  business_vintage: "",
+industry: "",
   gst_number: "",
   udyam_number: "",
   business_address: "",
@@ -585,7 +587,7 @@ const verifyPan = async () => {
 
   const validateStep = () => {
     if (step === 0) {
-      if (!form.partner_loan_id.trim()) return "Enter Partner Loan ID.";
+      // if (!form.partner_loan_id.trim()) return "Enter Partner Loan ID.";
       if (!form.customer_name.trim()) return "Enter Customer Name.";
       if (!mobileVerified) return "Verify Mobile Number.";
       if (!panVerified) return "Verify PAN Number.";
@@ -658,12 +660,29 @@ if (step === 2) {
 }
 
 
-    if (step === 3) {
-      if (
-        form.business_pincode &&
-        !/^[1-9]\d{5}$/.test(form.business_pincode)
-      ) return "Enter valid Business Pincode.";
-    }
+   if (step === 3) {
+  const vintage = Number(form.business_vintage);
+
+  if (
+    form.business_vintage === "" ||
+    !Number.isInteger(vintage) ||
+    vintage < 0 ||
+    vintage > 1200
+  ) {
+    return "Enter valid Business Vintage in months.";
+  }
+
+  if (!form.industry.trim()) {
+    return "Enter Industry.";
+  }
+
+  if (
+    form.business_pincode &&
+    !/^[1-9]\d{5}$/.test(form.business_pincode)
+  ) {
+    return "Enter valid Business Pincode.";
+  }
+}
 
     return "";
   };
@@ -689,7 +708,7 @@ const next = async () => {
     if (step === 0) {
       if (!lan) {
         const response = await api.post(`${BASE}/draft`, {
-          partner_loan_id: form.partner_loan_id.trim(),
+          // partner_loan_id: form.partner_loan_id.trim(),
           customer_name: form.customer_name.trim(),
           mobile_number: form.mobile_number,
           pan_number: form.pan_number,
@@ -865,26 +884,48 @@ const triggerAadhaar = async (retrigger = false) => {
   }
 };
 
+
 const fetchAadhaarAddress = async () => {
   setError("");
   setSuccess("");
 
   if (!lan) {
-    return setError("Niyara LAN is required.");
+    setError("Niyara LAN is required.");
+    return;
   }
 
   try {
     setLoading(true);
 
+    // Step 1: Synchronize the saved Digitap transaction.
+    const syncResponse = await api.post(
+      `${BASE}/aadhaar/sync/${encodeURIComponent(lan)}`
+    );
+
+    if (
+      syncResponse.data?.success !== true ||
+      syncResponse.data?.status !== "VERIFIED"
+    ) {
+      setAadhaarStatus("INITIATED");
+      setError(
+        syncResponse.data?.message ||
+          "Aadhaar verification is not completed yet."
+      );
+      return;
+    }
+
+    // Step 2: Fetch the verified Aadhaar details from the database.
     const response = await api.get(
       `${BASE}/aadhaar/address/${encodeURIComponent(lan)}`
     );
 
     if (
-      !response.data?.success ||
+      response.data?.success !== true ||
       response.data?.status !== "VERIFIED"
     ) {
-      throw new Error("Aadhaar verification is pending.");
+      throw new Error(
+        "Verified Aadhaar details are not available."
+      );
     }
 
     const fetched = response.data.address || {};
@@ -902,13 +943,67 @@ const fetchAadhaarAddress = async () => {
     }));
 
     setAadhaarStatus("VERIFIED");
-    setSuccess("Aadhaar verified. Address fetched successfully.");
+    setSuccess(
+      "Aadhaar verified and address fetched successfully."
+    );
   } catch (err) {
+    const status = err.response?.data?.status;
+
+    if (status === "INITIATED" || status === "PENDING") {
+      setAadhaarStatus("INITIATED");
+    }
+
     setError(errorMessage(err));
   } finally {
     setLoading(false);
   }
 };
+
+
+// const fetchAadhaarAddress = async () => {
+//   setError("");
+//   setSuccess("");
+
+//   if (!lan) {
+//     return setError("Niyara LAN is required.");
+//   }
+
+//   try {
+//     setLoading(true);
+
+//     const response = await api.get(
+//       `${BASE}/aadhaar/address/${encodeURIComponent(lan)}`
+//     );
+
+//     if (
+//       !response.data?.success ||
+//       response.data?.status !== "VERIFIED"
+//     ) {
+//       throw new Error("Aadhaar verification is pending.");
+//     }
+
+//     const fetched = response.data.address || {};
+
+//     setForm((previous) => ({
+//       ...previous,
+//       customer_address:
+//         fetched.addressLine1 || previous.customer_address,
+//       customer_city:
+//         fetched.city || previous.customer_city,
+//       customer_state:
+//         fetched.state || previous.customer_state,
+//       customer_pincode:
+//         fetched.pincode || previous.customer_pincode,
+//     }));
+
+//     setAadhaarStatus("VERIFIED");
+//     setSuccess("Aadhaar verified. Address fetched successfully.");
+//   } catch (err) {
+//     setError(errorMessage(err));
+//   } finally {
+//     setLoading(false);
+//   }
+// };
 
   const loadBooking = async (targetLan) => {
     const value = String(targetLan || "").trim().toUpperCase();
@@ -1009,7 +1104,7 @@ const submitBooking = async () => {
  
   
 const requiredFields = [
-  ["partner_loan_id", "Partner Loan ID"],
+  // ["partner_loan_id", "Partner Loan ID"],
   ["customer_name", "Customer Name"],
   ["customer_address", "Residential Address"],
   ["customer_city", "City"],
@@ -1067,7 +1162,7 @@ if (
 
 console.log("[NIYARA SUBMIT VALIDATION]", {
   missingFields: [
-    "partner_loan_id",
+    // "partner_loan_id",
     "customer_name",
     "customer_address",
     "customer_city",
@@ -1235,9 +1330,9 @@ console.log("[NIYARA SUBMIT VALIDATION]", {
 
         {step === 0 && (
           <div className="nyra-grid">
-            {renderInput("partner_loan_id", "Partner Loan ID", {
+            {/* {renderInput("partner_loan_id", "Partner Loan ID", {
               required: true,
-            })}
+            })} */}
 
             {renderInput("customer_name", "Customer Name", {
               required: true,
@@ -1467,6 +1562,14 @@ console.log("[NIYARA SUBMIT VALIDATION]", {
           <div className="nyra-grid">
             {renderInput("business_name", "Business Name")}
             {renderInput("business_type", "Business Type")}
+            {renderInput("business_vintage", "Business Vintage (Months)", {
+  type: "number",
+  required: true,
+})}
+
+{renderInput("industry", "Industry", {
+  required: true,
+})}
             {renderInput("gst_number", "GST Number")}
             {renderInput("udyam_number", "Udyam Number")}
             {renderInput("business_address", "Business Address")}
