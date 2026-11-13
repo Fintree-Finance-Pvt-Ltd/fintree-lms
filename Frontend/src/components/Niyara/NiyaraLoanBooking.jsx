@@ -14,7 +14,7 @@ const steps = [
 ];
 
 const initialForm = {
-  partner_loan_id: "",
+  // partner_loan_id: "",
   customer_name: "",
   mobile_number: "",
   pan_number: "",
@@ -585,7 +585,7 @@ const verifyPan = async () => {
 
   const validateStep = () => {
     if (step === 0) {
-      if (!form.partner_loan_id.trim()) return "Enter Partner Loan ID.";
+      // if (!form.partner_loan_id.trim()) return "Enter Partner Loan ID.";
       if (!form.customer_name.trim()) return "Enter Customer Name.";
       if (!mobileVerified) return "Verify Mobile Number.";
       if (!panVerified) return "Verify PAN Number.";
@@ -689,7 +689,7 @@ const next = async () => {
     if (step === 0) {
       if (!lan) {
         const response = await api.post(`${BASE}/draft`, {
-          partner_loan_id: form.partner_loan_id.trim(),
+          // partner_loan_id: form.partner_loan_id.trim(),
           customer_name: form.customer_name.trim(),
           mobile_number: form.mobile_number,
           pan_number: form.pan_number,
@@ -1009,7 +1009,7 @@ const submitBooking = async () => {
  
   
 const requiredFields = [
-  ["partner_loan_id", "Partner Loan ID"],
+  // ["partner_loan_id", "Partner Loan ID"],
   ["customer_name", "Customer Name"],
   ["customer_address", "Residential Address"],
   ["customer_city", "City"],
@@ -1067,7 +1067,7 @@ if (
 
 console.log("[NIYARA SUBMIT VALIDATION]", {
   missingFields: [
-    "partner_loan_id",
+    // "partner_loan_id",
     "customer_name",
     "customer_address",
     "customer_city",
@@ -1235,9 +1235,9 @@ console.log("[NIYARA SUBMIT VALIDATION]", {
 
         {step === 0 && (
           <div className="nyra-grid">
-            {renderInput("partner_loan_id", "Partner Loan ID", {
+            {/* {renderInput("partner_loan_id", "Partner Loan ID", {
               required: true,
-            })}
+            })} */}
 
             {renderInput("customer_name", "Customer Name", {
               required: true,

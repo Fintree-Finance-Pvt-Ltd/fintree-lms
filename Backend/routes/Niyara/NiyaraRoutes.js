@@ -26,6 +26,318 @@ const LENDER = "Niyara";
 const PRODUCT = "UBL";
 const LOAN_TYPE = "Business Loan";
 
+
+async function runNiyaraMockBureau(lan) {
+  if (
+   process.env.NODE_ENV !== "uat" ||
+  process.env.NIYARA_MOCK_BUREAU !== "true"
+) {
+  throw new Error("Mock Bureau is not permitted");
+}
+
+  const connection = await db.promise().getConnection();
+  let transactionStarted = false;
+
+  try {
+    await connection.beginTransaction();
+    transactionStarted = true;
+
+ const [[loan]] = await connection.query(
+  `SELECT
+      lan,
+      pan_number,
+      requested_amount,
+      age,
+      borrower_dob,
+      annual_income,
+      status,
+      stage,
+      cibil_score,
+      loan_tenure,
+      business_type,
+      industry,
+      interest,
+      processing_fee,
+      niyara_policy_inputs,
+      business_vintage
+   FROM loan_booking_niyara
+   WHERE lan = ?
+   FOR UPDATE`,
+  [lan]
+);
+
+    if (!loan || loan.status !== "Login" || loan.stage !== "Login") {
+      throw new Error("Loan is not eligible for UAT verification");
+    }
+
+    const [[existingReport]] = await connection.query(
+      `SELECT pan_number, score, report_xml
+       FROM loan_cibil_reports
+       WHERE lan = ?
+       ORDER BY id DESC
+       LIMIT 1`,
+      [lan]
+    );
+
+    const mockMarker = "NIYARA_UAT_MOCK";
+    const score = 750;
+
+
+const mockCreditData = {
+  // Existing UAT values
+  enquiries_30d: 2,
+  unsecured_enquiries_30d: 1,
+  active_tradeline_count: 3,
+  dpd_6m_flag: 0,
+  settled_writtenoff_36m_flag: 0,
+  willful_default_suit_filed_3y_flag: 0,
+  active_overdue_3m_flag: 0,
+  active_overdue_amount: 0,
+  bounce_count_6m: 0,
+
+  // Additional synthetic Bureau test values
+  is_ntc: false,
+  enquiries_3m: 3,
+  bureau_vintage_months: 36,
+};
+
+// These are synthetic UAT values, not Experian observations.
+
+    if (existingReport) {
+      if (
+        !String(existingReport.report_xml || "").startsWith(
+          `<${mockMarker}>`
+        ) ||
+        existingReport.pan_number !== loan.pan_number ||
+        Number(existingReport.score) !== score
+      ) {
+        throw new Error("Existing Bureau record needs reconciliation");
+      }
+    }
+
+    const mockXml =
+      `<${mockMarker}>` +
+      `<Score>${score}</Score>` +
+      `<Source>UAT_TEST_DATA</Source>` +
+      `<Verified>false</Verified>` +
+      `</${mockMarker}>`;
+
+    const mockResponse = JSON.stringify({
+      source: mockMarker,
+      score,
+      mock: true,
+      verified: false,
+      environment: "UAT",
+      credit_data: mockCreditData,
+    });
+
+    if (!existingReport) {
+      await connection.query(
+        `INSERT INTO loan_cibil_reports
+         (lan, pan_number, score, report_xml, created_at)
+         VALUES (?, ?, ?, ?, NOW())`,
+        [lan, loan.pan_number, score, mockXml]
+      );
+    }
+
+    const [kycUpdated] = await connection.query(
+      `UPDATE kyc_verification_status
+       SET bureau_status = 'PENDING',
+           bureau_api_response = ?
+       WHERE lan = ?
+         AND applicant_type = 'BORROWER'
+         AND party_no = 1`,
+      [mockResponse, lan]
+    );
+
+    if (kycUpdated.affectedRows !== 1) {
+      throw new Error("Borrower KYC record not found");
+    }
+
+
+const amount = Number(loan.requested_amount);
+
+let policyInputs = {};
+
+try {
+  const raw = loan.niyara_policy_inputs;
+
+  policyInputs = raw
+    ? typeof raw === "string"
+      ? JSON.parse(raw)
+      : raw
+    : {};
+
+  if (
+    !policyInputs ||
+    typeof policyInputs !== "object" ||
+    Array.isArray(policyInputs)
+  ) {
+    throw new Error("Invalid policy input format");
+  }
+} catch (error) {
+  throw new Error("Invalid Niyara policy inputs JSON");
+}
+const processingFeePercentage =
+  amount > 0 && loan.processing_fee != null
+    ? (Number(loan.processing_fee) / amount) * 100
+    : null;
+
+const bre = runBRE({
+  requested_amount: loan.requested_amount,
+  age: loan.age,
+  loan_tenure: loan.loan_tenure,
+  bureau_score: score,
+
+  is_ntc: mockCreditData.is_ntc ?? policyInputs.is_ntc,
+  enquiries_3m:
+    mockCreditData.enquiries_3m ?? policyInputs.enquiries_3m,
+  bureau_vintage_months:
+    mockCreditData.bureau_vintage_months ??
+    policyInputs.bureau_vintage_months,
+
+  business_type: loan.business_type,
+  industry: loan.industry,
+  interest_rate: loan.interest,
+
+  monthly_business_revenue:
+    policyInputs.monthly_business_revenue,
+  business_vintage_months:
+    policyInputs.business_vintage_months,
+  loan_purpose: policyInputs.loan_purpose,
+
+  processing_fee_percentage: processingFeePercentage,
+
+  ownership_verified: policyInputs.ownership_verified,
+  premises_stability_verified:
+    policyInputs.premises_stability_verified,
+  co_applicant_requirements_met:
+    policyInputs.co_applicant_requirements_met,
+
+  kyc_verified: policyInputs.kyc_verified,
+  business_documents_verified:
+    policyInputs.business_documents_verified,
+  property_documents_verified:
+    policyInputs.property_documents_verified,
+  field_verification_completed:
+    policyInputs.field_verification_completed,
+  household_cam_verified:
+    policyInputs.household_cam_verified,
+});
+
+
+   const finalStatus =
+  bre.decision === "REJECTED"
+    ? "bre_rejected"
+    : bre.decision === "APPROVED"
+      ? "bre_approved"
+      : "Login";
+
+const finalStage =
+  bre.decision === "REJECTED"
+    ? "bre_rejected"
+    : bre.decision === "APPROVED"
+      ? "partner_credit_pending"
+      : "Login";
+
+const [bookingUpdated] = await connection.query(
+  `UPDATE loan_booking_niyara
+   SET
+       cibil_score = ?,
+       niyara_enquiries_30d = ?,
+       niyara_unsecured_enquiries_30d = ?,
+       niyara_active_tradeline_count = ?,
+       niyara_dpd_6m_flag = ?,
+       niyara_settled_writtenoff_36m_flag = ?,
+       niyara_willful_default_suit_filed_3y_flag = ?,
+       niyara_active_overdue_3m_flag = ?,
+       niyara_active_overdue_amount = ?,
+       bounce_count_6m = ?,
+       niyara_bre_status = ?,
+       niyara_bre_reason = ?,
+       niyara_bre_checked_at = NOW(),
+       niyara_policy_inputs = ?,
+       niyara_policy_result = ?,
+       status = ?,
+       stage = ?,
+       updated_at = NOW()
+   WHERE lan = ?
+     AND status = 'Login'
+     AND stage = 'Login'`,
+  [
+    score,
+    mockCreditData.enquiries_30d,
+    mockCreditData.unsecured_enquiries_30d,
+    mockCreditData.active_tradeline_count,
+    mockCreditData.dpd_6m_flag,
+    mockCreditData.settled_writtenoff_36m_flag,
+    mockCreditData.willful_default_suit_filed_3y_flag,
+    mockCreditData.active_overdue_3m_flag,
+    mockCreditData.active_overdue_amount,
+    mockCreditData.bounce_count_6m,
+    bre.decision,
+    `UAT MOCK: ${bre.reason || bre.decision}`,
+ JSON.stringify({
+  ...policyInputs,
+  source: mockMarker,
+  environment: "UAT",
+  mock: true,
+  production_verified: false,
+  bureau_score: score,
+  credit_data: mockCreditData,
+  requested_amount: Number(loan.requested_amount),
+  annual_income: Number(loan.annual_income),
+  age: Number(loan.age),
+}),
+    JSON.stringify({
+      source: mockMarker,
+      mock: true,
+      production_verified: false,
+      decision: bre.decision,
+      reason: bre.reason || null,
+    }),
+    finalStatus,
+    finalStage,
+    lan,
+  ]
+);
+
+
+    if (bookingUpdated.affectedRows !== 1) {
+      throw new Error("Loan verification state changed");
+    }
+
+    await connection.commit();
+    transactionStarted = false;
+
+    return {
+      success: true,
+      lan,
+      bureau_score: score,
+      bureau_status: "MOCK",
+      bre_status: bre.decision,
+      bre_reason: bre.reason || null,
+      mock: true,
+      production_verified: false,
+      status: finalStatus,
+      stage: finalStage,
+     next_step:
+  bre.decision === "REJECTED"
+    ? null
+    : bre.decision === "APPROVED"
+      ? "PARTNER_CREDIT"
+      : "UAT_REVIEW",
+          };
+  } catch (error) {
+    if (transactionStarted) {
+      await connection.rollback();
+    }
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
 // Helper Functions
 function clean(value) {
   return String(value ?? "").trim();
@@ -82,13 +394,13 @@ function calculateAgeFromDob(dob) {
 
 // Validate Login Details
 function validateLoginData(data) {
-  if (!data.partner_loan_id) {
-    return "partner_loan_id is required";
-  }
+  // if (!data.partner_loan_id) {
+  //   return "partner_loan_id is required";
+  // }
 
-  if (data.partner_loan_id.length > 50) {
-    return "partner_loan_id exceeds 50 characters";
-  }
+  // if (data.partner_loan_id.length > 50) {
+  //   return "partner_loan_id exceeds 50 characters";
+  // }
 
   if (!data.customer_name) {
     return "customer_name is required";
@@ -183,7 +495,7 @@ async function generateLoanIds(connection) {
 // Insert Loan Booking
 async function insertLogin(connection, data, ids, createdBy) {
   const row = {
-    partner_loan_id: data.partner_loan_id,
+    // partner_loan_id: data.partner_loan_id,
     lan: ids.lan,
     lender: LENDER,
     product: PRODUCT,
@@ -268,7 +580,7 @@ const MAX_PAGE_SIZE = 100;
 const NIYARA_SORT_COLUMNS = {
   id: "id",
   lan: "lan",
-  partner_loan_id: "partner_loan_id",
+  // partner_loan_id: "partner_loan_id",
   customer_name: "customer_name",
   business_name: "business_name",
   requested_amount: "requested_amount",
@@ -748,7 +1060,7 @@ router.post("/draft", authenticateUser, async (req, res) => {
   try {
     const body = req.body || {};
 
-    const partnerLoanId = clean(body.partner_loan_id);
+    // const partnerLoanId = clean(body.partner_loan_id);
     const customerName = clean(body.customer_name);
     const mobile = digitsOnly(body.mobile_number);
     const pan = upperOrNull(body.pan_number);
@@ -764,14 +1076,7 @@ router.post("/draft", authenticateUser, async (req, res) => {
         message: "Authenticated user required",
       });
     }
-
-    if (!partnerLoanId || partnerLoanId.length > 50) {
-      return res.status(400).json({
-        success: false,
-        message: "Valid Partner Loan ID is required",
-      });
-    }
-
+   
     if (!customerName || customerName.length > 150) {
       return res.status(400).json({
         success: false,
@@ -895,80 +1200,80 @@ if (!verifiedPanName) {
     connection = await db.promise().getConnection();
     await connection.beginTransaction();
 
-    // Prevent duplicates for the same partner application.
-    const [existing] = await connection.query(
-      `SELECT lan, status, stage
-       FROM ${TABLE_NAME}
-       WHERE partner_loan_id = ?
-       LIMIT 1
-       FOR UPDATE`,
-      [partnerLoanId],
-    );
+    // // Prevent duplicates for the same partner application.
+    // const [existing] = await connection.query(
+    //   `SELECT lan, status, stage
+    //    FROM ${TABLE_NAME}
+    //    WHERE partner_loan_id = ?
+    //    LIMIT 1
+    //    FOR UPDATE`,
+    //   [partnerLoanId],
+    // );
 
-    if (existing.length) {
-      await connection.rollback();
+    // if (existing.length) {
+    //   await connection.rollback();
 
-      return res.status(409).json({
-        success: false,
-        message: "Partner Loan ID already exists",
-        data: {
-          lan: existing[0].lan,
-          status: existing[0].status,
-          stage: existing[0].stage,
-        },
-      });
-    }
+    //   return res.status(409).json({
+    //     success: false,
+    //     message: "Partner Loan ID already exists",
+    //     data: {
+    //       lan: existing[0].lan,
+    //       status: existing[0].status,
+    //       stage: existing[0].stage,
+    //     },
+    //   });
+    // }
 
     const ids = await generateLoanIds(connection);
 
-    const [result] = await connection.query(
-      `INSERT INTO ${TABLE_NAME} (
-        partner_loan_id,
-        lan,
-        lender,
-        product,
-        loan_type,
-        login_date,
-        customer_name,
-        mobile_number,
-        pan_number,
-        borrower_dob,
-        age,
-        gender,
-        email,
-        source,
-        status,
-        stage,
-        created_by,
-        updated_by
-      )
-      VALUES (
-        ?, ?, ?, ?, ?,
-        ?, ?, ?, ?, ?,
-        ?, ?, ?,
-        'INTERNAL',
-        'Draft',
-        'basic_details_saved',
-        ?, ?
-      )`,
-      [
-        partnerLoanId,
-        ids.lan,
-        LENDER,
-        PRODUCT,
-        LOAN_TYPE,
-        todayDate(),
-        verifiedPanName,
-        mobile,
-        pan,
-        dob,
-        calculateAgeFromDob(dob),
-        gender,
-        email,
-        createdBy,
-        createdBy,
-      ],
-    );
+  
+const [result] = await connection.query(
+  `INSERT INTO ${TABLE_NAME} (
+    lan,
+    lender,
+    product,
+    loan_type,
+    login_date,
+    customer_name,
+    mobile_number,
+    pan_number,
+    borrower_dob,
+    age,
+    gender,
+    email,
+    source,
+    status,
+    stage,
+    created_by,
+    updated_by
+  )
+  VALUES (
+    ?, ?, ?, ?, ?,
+    ?, ?, ?, ?, ?,
+    ?, ?,
+    'INTERNAL',
+    'Draft',
+    'basic_details_saved',
+    ?, ?
+  )`,
+  [
+    ids.lan,
+    LENDER,
+    PRODUCT,
+    LOAN_TYPE,
+    todayDate(),
+    verifiedPanName,
+    mobile,
+    pan,
+    dob,
+    calculateAgeFromDob(dob),
+    gender,
+    email,
+    createdBy,
+    createdBy,
+  ]
+);
+
     
 await saveNiyaraPanKyc(connection, {
   lan: ids.lan,
@@ -1010,7 +1315,7 @@ console.error("[NIYARA] Draft creation:", {
       success: false,
       message:
         error.code === "ER_DUP_ENTRY"
-          ? "Partner Loan ID already exists"
+          ? "Duplicate loan reference"
           : "Failed to save basic details",
     });
   } finally {
@@ -1404,18 +1709,23 @@ router.post("/draft/:lan/submit",
       [actor, lan],
     );
 
-    await connection.commit();
+    
+await connection.commit();
 
-    return res.status(200).json({
-      success: true,
-      message: "Niyara loan booking submitted successfully",
-      data: {
-        lan,
-        status: "Login",
-        stage: "Login",
-        next_step: "BUREAU_BRE_AML_PENDING",
-      },
-    });
+return res.status(200).json({
+  success: true,
+  message: verification.completed
+    ? "Loan submitted and verification processed"
+    : "Loan submitted; verification pending",
+  data: {
+    lan,
+    status: finalStatus,
+    stage: finalStage,
+    verification,
+    next_step: nextStep,
+  },
+});
+
   } catch (error) {
     if (connection) {
       try {
@@ -2257,21 +2567,48 @@ async function fetchNiyaraLoans(
       clean(req.query.sortDir).toLowerCase() === "asc" ? "ASC" : "DESC";
 
     // Dynamic filters
-    const conditions = ["lan LIKE ?"];
-    const params = [`${LAN_PREFIX}%`];
+ // Dynamic filters
+const conditions = ["lan LIKE ?"];
+const params = [`${LAN_PREFIX}%`];
 
+const isUat =
+  process.env.NODE_ENV === "uat" &&
+  process.env.NIYARA_MOCK_BUREAU === "true";
+
+const amlEligibility = isUat
+  ? `(
+       (
+         UPPER(TRIM(aml_status)) = 'PROCEED'
+         AND aml_checked_at IS NOT NULL
+       )
+       OR
+       (
+         JSON_UNQUOTE(
+           JSON_EXTRACT(niyara_policy_result, '$.source')
+         ) = 'NIYARA_UAT_MOCK'
+         AND JSON_UNQUOTE(
+           JSON_EXTRACT(niyara_policy_result, '$.mock')
+         ) = 'true'
+         AND JSON_UNQUOTE(
+           JSON_EXTRACT(niyara_policy_result, '$.decision')
+         ) = 'APPROVED'
+       )
+     )`
+  : `(
+       UPPER(TRIM(aml_status)) = 'PROCEED'
+       AND aml_checked_at IS NOT NULL
+     )`;
     // Only BRE + AML verified cases for Partner Credit
     if (partnerCreditOnly) {
-      conditions.push(
-        "LOWER(TRIM(status)) = 'bre_approved'",
-        "LOWER(TRIM(stage)) = 'partner_credit_pending'",
-        "UPPER(TRIM(niyara_bre_status)) = 'APPROVED'",
-        "UPPER(TRIM(aml_status)) = 'PROCEED'",
-        "niyara_bre_checked_at IS NOT NULL",
-        "aml_checked_at IS NOT NULL",
-        "partner_credit_decision IS NULL",
-      );
-    }
+  conditions.push(
+    "LOWER(TRIM(status)) = 'bre_approved'",
+    "LOWER(TRIM(stage)) = 'partner_credit_pending'",
+    "UPPER(TRIM(niyara_bre_status)) = 'APPROVED'",
+    "niyara_bre_checked_at IS NOT NULL",
+    amlEligibility,
+    "partner_credit_decision IS NULL",
+  );
+}
 
     if (creditOnly) {
       conditions.push(
@@ -2289,8 +2626,7 @@ async function fetchNiyaraLoans(
     if (search) {
       conditions.push(`
         (
-          lan LIKE ?
-          OR partner_loan_id LIKE ?
+          lan LIKE ?         
           OR customer_name LIKE ?
           OR business_name LIKE ?
           OR mobile_number LIKE ?
@@ -2300,7 +2636,6 @@ async function fetchNiyaraLoans(
       const searchValue = `%${search}%`;
 
       params.push(
-        searchValue,
         searchValue,
         searchValue,
         searchValue,
@@ -2345,7 +2680,6 @@ async function fetchNiyaraLoans(
       SELECT
         id,
         lan,
-        partner_loan_id,
         lender,
         product,
         loan_type,
@@ -2409,10 +2743,9 @@ router.post("/login", authenticateUser, async (req, res) => {
   let verificationLocked = false;
   let lockName = null;
 
-  let insertId = null;
-  let ids = null;
   let data = null;
-
+  let ids = null;
+  let insertId = null;
   try {
     const body = req.body;
 
@@ -2435,7 +2768,6 @@ router.post("/login", authenticateUser, async (req, res) => {
     }
 
     data = {
-      partner_loan_id: clean(body.partner_loan_id),
 
       login_date: todayDate(),
       borrower_dob: dob,
@@ -2523,7 +2855,7 @@ transactionStarted = true;
       }
 
       const [[existingLoan]] = await connection.query(
-        `SELECT id, lan, partner_loan_id, status
+        `SELECT id, lan, status
      FROM ${TABLE_NAME}
      WHERE lan = ?
      LIMIT 1
@@ -2552,14 +2884,7 @@ transactionStarted = true;
         });
       }
 
-      if (existingLoan.partner_loan_id !== data.partner_loan_id) {
-        await connection.rollback();
-
-        return res.status(409).json({
-          success: false,
-          message: "Partner Loan ID does not match existing draft",
-        });
-      }
+   
 
       // Save business details and finalize existing LAN.
       const [result] = await connection.query(
@@ -2596,25 +2921,74 @@ transactionStarted = true;
         throw new Error("Unable to finalize Niyara draft");
       }
 
-      await connection.commit();
+     
+await connection.commit();
+transactionStarted = false;
+bookingCommitted = true;
 
-      return res.status(200).json({
-        success: true,
-        message: "Niyara loan submitted successfully",
-        data: {
-          id: existingLoan.id,
-          lan: existingLan,
-          status: "Login",
-          stage: "Login",
-          next_step: "BUREAU_BRE_AML_PENDING",
-        },
-      });
+// Draft successfully changed to Login.
+connection.release();
+connection = null;
+
+let verification = {
+  completed: false,
+  code: "VERIFICATION_PENDING",
+};
+
+let nextStep = "BUREAU_BRE_AML_PENDING";
+let finalStatus = "Login";
+let finalStage = "Login";
+try {
+  if (
+  process.env.NODE_ENV === "uat" &&
+  process.env.NIYARA_MOCK_BUREAU === "true"
+) {
+    const mockResult = await runNiyaraMockBureau(existingLan);
+    finalStatus = mockResult.status;
+    finalStage = mockResult.stage;
+    verification = {
+      completed: true,
+      mock: true,
+      production_verified: false,
+      bureau_score: mockResult.bureau_score,
+      bureau_status: mockResult.bureau_status,
+      bre_status: mockResult.bre_status,
+      bre_reason: mockResult.bre_reason,
+    };
+
+    nextStep =  mockResult.next_step;
+  }
+} catch (error) {
+  console.error("[NIYARA] Mock Bureau/BRE failed:", {
+    lan: existingLan,
+    message: error.message,
+  });
+
+  verification = {
+    completed: false,
+    code: "MOCK_VERIFICATION_FAILED",
+  };
+}
+
+return res.status(200).json({
+  success: true,
+  message: "Niyara loan submitted successfully",
+  data: {
+    id: existingLoan.id,
+    lan: existingLan,
+    status: finalStatus,
+    stage:finalStage,
+    verification,
+    next_step: nextStep,
+  },
+});
+
     }
 
     // Existing new-loan creation logic continues below.
     // Generate Niyara LAN
-    const ids = await generateLoanIds(connection);
-
+    // const ids = await generateLoanIds(connection);
+ids = await generateLoanIds(connection);      
     // const createdBy = String(
     //   req.user?.id || req.user?.sub || ""
     // );
@@ -2626,7 +3000,8 @@ transactionStarted = true;
       });
     }
     // Insert Loan
-    const insertId = await insertLogin(connection, data, ids, createdBy);
+    // const insertId = await insertLogin(connection, data, ids, createdBy);
+    insertId = await insertLogin(connection, data, ids, createdBy);
 
     await connection.commit();
     transactionStarted = false;
@@ -2658,7 +3033,6 @@ transactionStarted = true;
         message: "Niyara loan login created successfully",
         data: {
           id: insertId,
-          partner_loan_id: data.partner_loan_id,
           lan,
           status: "Login",
           stage: "Login",
@@ -3010,7 +3384,6 @@ transactionStarted = true;
       message: "Niyara loan created and verification processed",
       data: {
         id: insertId,
-        partner_loan_id: data.partner_loan_id,
         lan,
         status,
         stage,
@@ -3043,7 +3416,6 @@ transactionStarted = true;
         message: "Niyara loan created; automatic verification is pending",
         data: {
           id: insertId,
-          partner_loan_id: data?.partner_loan_id,
           lan: ids.lan,
           status: "Login",
           stage: "Login",
@@ -3059,7 +3431,7 @@ transactionStarted = true;
     if (error.code === "ER_DUP_ENTRY") {
       return res.status(409).json({
         success: false,
-        message: "Duplicate partner_loan_id or LAN",
+        message: "Duplicate LAN",
       });
     }
 
@@ -3102,7 +3474,6 @@ router.get("/customer-details/:lan", authenticateUser, async (req, res) => {
       `
         SELECT
           id,
-          partner_loan_id,
           lan,
           lender,
           product,
@@ -3151,7 +3522,29 @@ router.get("/customer-details/:lan", authenticateUser, async (req, res) => {
           net_disbursement AS net_disbursement_amount,
           repayment_frequency,
           tenure_unit,
+          flat_interest,
 
+          aadhaar_number,
+          net_disbursement,
+          emi_amount,
+          name_in_bank,
+          account_number,
+          ifsc,
+          bank_name,
+          cibil_score,
+          
+          niyara_offer_tenure_days,
+          niyara_enquiries_30d,
+          niyara_dpd_6m_flag,
+          niyara_bre_reason,
+          credit_decision_reason,
+          niyara_unsecured_enquiries_30d,
+          niyara_settled_writtenoff_36m_flag,
+          niyara_active_overdue_3m_flag,
+          niyara_active_overdue_amount,
+          aml_total_matches,
+          aml_score,
+          aml_reason,aml_status,
           status,
           stage,
           source,
@@ -4755,23 +5148,27 @@ router.post("/:lan/verify", authenticateUser, async (req, res) => {
       });
     }
 
-    // Keep your existing Bureau-consent guard.
-    // This record MUST be created by a trusted consent process.
-    const [[consent]] = await conn.query(
-      `SELECT id
-       FROM loan_documents
-       WHERE lan = ?
-         AND doc_name = 'NIYARA_BUREAU_CONSENT_VERIFIED'
-       LIMIT 1`,
-      [lan],
-    );
+// UAT mock Bureau + BRE
+if (
+  process.env.NODE_ENV === "uat" &&
+  process.env.NIYARA_MOCK_BUREAU === "true"
+) {
+  // Release this route's connection and verification lock.
+  await conn.query("SELECT RELEASE_LOCK(?)", [lockName]);
+  locked = false;
 
-    if (!consent) {
-      return res.status(409).json({
-        success: false,
-        message: "Verified Bureau consent is required",
-      });
-    }
+  conn.release();
+  conn = null;
+
+  const result = await runNiyaraMockBureau(lan);
+
+  return res.status(200).json({
+    success: true,
+    message: "Niyara UAT mock Bureau and BRE completed",
+    data: result,
+  });
+}
+
 
     // Reuse completed reports; don't pay for another enquiry.
     const [[savedReport]] = await conn.query(
@@ -4900,7 +5297,7 @@ router.post("/:lan/verify", authenticateUser, async (req, res) => {
         middle_name: middleName,
         last_name: lastName,
         dob: loan.dob,
-        gender: loan.gender,
+        gender: bureauGender,
         pan_number: loan.pan_number,
         mobile_number: loan.mobile_number,
         current_address: loan.customer_address,
@@ -4977,14 +5374,52 @@ router.post("/:lan/verify", authenticateUser, async (req, res) => {
       transactionStarted = false;
     }
 
-    // Run your existing Niyara BRE.
-    const bre = runBRE({
+        // Run your existing Niyara BRE.
+     const bre = runBRE({
       requested_amount: loan.requested_amount,
       age: loan.age,
-      annual_income: loan.annual_income,
+      borrower_dob: loan.borrower_dob,
+      expected_maturity_date: loan.expected_maturity_date,
+      loan_tenure: loan.loan_tenure,
+    
       bureau_score: score,
+      is_ntc: loan.is_ntc,
+      enquiries_3m: loan.enquiries_3m,
+      bureau_vintage_months: loan.bureau_vintage_months,
+    
+      monthly_business_revenue: loan.monthly_business_revenue,
+      business_vintage_months: loan.business_vintage_months,
+    
+      business_type: loan.business_type,
+      loan_purpose: loan.loan_purpose,
+      industry: loan.industry,
+    
+      interest_rate: loan.interest,
+      processing_fee_percentage: loan.processing_fee_percentage,
+    
+      ownership_verified: loan.ownership_verified,
+      premises_stability_verified: loan.premises_stability_verified,
+      co_applicant_requirements_met:
+        loan.co_applicant_requirements_met,
+    
+      banking_assessment_approved:
+        loan.banking_assessment_approved,
+      household_assessment_completed:
+        loan.household_assessment_completed,
+    
+      kyc_verified: loan.kyc_verified,
+      business_documents_verified:
+        loan.business_documents_verified,
+      property_documents_verified:
+        loan.property_documents_verified,
+      field_verification_completed:
+        loan.field_verification_completed,
+      household_cam_verified:
+        loan.household_cam_verified,
+      credit_approval_completed:
+        loan.credit_approval_completed,
     });
-
+    
     if (bre.decision === "PENDING") {
       return res.status(422).json({
         success: false,
@@ -5107,7 +5542,6 @@ router.get("/disbursed-loans", authenticateUser, async (req, res) => {
       SELECT
         id,
         lan,
-        partner_loan_id,
         customer_name,
         mobile_number,
         requested_amount,
