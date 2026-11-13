@@ -309,7 +309,7 @@ async function sendRejectionWebhook({ applicationId }) {
   );
 
   const webhookUrl =
-    `${BASE_URL}/api-api/v2/webhooks/fintree/` + "loan-rejected";
+    `${BASE_URL}/api/v1/webhooks/fintree/` + "loan-rejected";
 
   const requestBody = {
     payload: {
@@ -447,7 +447,7 @@ async function sendV2DisbursementWebhook({
     .format("YYYY-MM-DD");
 
   const webhookUrl =
-    `${BASE_URL}/api-api/v1/webhooks/fintree/` +
+    `${BASE_URL}/api/v1/webhooks/fintree/` +
     "disbursement-status";
 
   const requestBody = {
