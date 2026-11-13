@@ -119,8 +119,8 @@ function runBRE(data = {}) {
 
   const isNtc = readBoolean(data.is_ntc);
 
-  const revenue = readNumber(data.monthly_business_revenue);
-  const businessVintage = readNumber(data.business_vintage_months);
+  // const revenue = readNumber(data.monthly_business_revenue);
+  // const businessVintage = readNumber(data.business_vintage_months);
   const bureauVintage = readNumber(data.bureau_vintage_months);
   const enquiries3m = readNumber(data.enquiries_3m);
 
@@ -128,7 +128,7 @@ function runBRE(data = {}) {
   const processingFee = readNumber(data.processing_fee_percentage);
 
   const businessType = normalize(data.business_type);
-  const loanPurpose = normalize(data.loan_purpose);
+  // const loanPurpose = normalize(data.loan_purpose);
   const industry = normalize(data.industry);
 
   // 1. Loan amount
@@ -248,18 +248,18 @@ function runBRE(data = {}) {
   }
 
   // 7. Monthly business revenue
-  if (!Number.isFinite(revenue)) {
-    pending("Monthly business revenue is required");
-  } else if (revenue < POLICY.minBusinessRevenueMonthly) {
-    fail("Minimum monthly business revenue is 25,000");
-  }
+  // if (!Number.isFinite(revenue)) {
+  //   pending("Monthly business revenue is required");
+  // } else if (revenue < POLICY.minBusinessRevenueMonthly) {
+  //   fail("Minimum monthly business revenue is 25,000");
+  // }
 
   // 8. Business vintage
-  if (!Number.isFinite(businessVintage)) {
-    pending("Verified business vintage is required");
-  } else if (businessVintage < POLICY.minBusinessVintageMonths) {
-    fail("Minimum business vintage is 12 months");
-  }
+  // if (!Number.isFinite(businessVintage)) {
+  //   pending("Verified business vintage is required");
+  // } else if (businessVintage < POLICY.minBusinessVintageMonths) {
+  //   fail("Minimum business vintage is 12 months");
+  // }
 
   // 9. Bureau vintage
   // NTC customers follow their separate assessment policy.
@@ -279,11 +279,11 @@ function runBRE(data = {}) {
   }
 
   // 11. Loan purpose
-  if (!loanPurpose) {
-    pending("Loan purpose is required");
-  } else if (!ELIGIBLE_PURPOSES.has(loanPurpose)) {
-    fail("Loan purpose is not permitted under Niyara policy");
-  }
+  // if (!loanPurpose) {
+  //   pending("Loan purpose is required");
+  // } else if (!ELIGIBLE_PURPOSES.has(loanPurpose)) {
+  //   fail("Loan purpose is not permitted under Niyara policy");
+  // }
 
   // 12. Negative industry
   if (!industry) {
